@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dungeon Build · Phaser</title>
+  <meta name="theme-color" content="#0d0c12" />
+  <meta name="description" content="Dungeon Build: construye tu mazmorra y simula invasiones." />
+
+  <!-- CSS CRÍTICO DE LA PANTALLA DE CARGA.
+       Va inline a propósito: debe pintarse antes de descargar el bundle de
+       Phaser (~1.4 MB). El controlador vive en front/loading/splash.js. -->
+  <style>
+    #loading-screen {
+      --ls-bg: #0d0c12;
+      --ls-panel: #24232c;
+      --ls-stone: #4a4a53;
+      --ls-hi: #d9c7a0;
+      --ls-gold: #e9b44c;
+      --ls-cyan: #6fd8d0;
+      position: fixed;
+      inset: 0;
+      z-index: 2147483000;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 50% 42%, #26243a 0%, var(--ls-bg) 62%),
+        var(--ls-bg);
+      color: var(--ls-hi);
+      font-family: "Pixel Digitos", "Pixelify Sans", "Courier New", monospace;
+      text-align: center;
+      transition: opacity .45s ease, visibility .45s ease;
+    }
+    #loading-screen.is-done {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #loading-screen .ls-frame {
+      width: min(460px, 100%);
+      box-sizing: border-box;
+      padding: 30px 28px 26px;
+      background: linear-gradient(#2b2a34, var(--ls-panel));
+      border: 4px solid var(--ls-stone);
+      box-shadow:
+        0 0 0 4px #15141b,
+        0 0 0 8px #31303a,
+        0 18px 0 8px #00000066,
+        inset 0 0 0 2px #5d5a66;
+    }
+    #loading-screen .ls-rune {
+      font-size: 34px;
+      line-height: 1;
+      color: var(--ls-cyan);
+      text-shadow: 0 0 14px #6fd8d090;
+      animation: ls-pulse 1.8s ease-in-out infinite;
+    }
+    #loading-screen .ls-title {
+      margin-top: 12px;
+      font-size: clamp(18px, 5vw, 26px);
+      letter-spacing: .18em;
+      color: var(--ls-gold);
+      text-shadow: 2px 2px 0 #000;
+    }
+    #loading-screen .ls-sub {
+      min-height: 1.4em;
+      margin-top: 10px;
+      font-size: 13px;
+      letter-spacing: .05em;
+      opacity: .9;
+    }
+    #loading-screen .ls-bar {
+      position: relative;
+      height: 22px;
+      margin-top: 22px;
+      overflow: hidden;
+      background: #14131a;
+      border: 2px solid var(--ls-stone);
+      box-shadow: inset 0 0 0 2px #0b0a0f;
+    }
+    #loading-screen .ls-fill {
+      width: 8%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        -45deg, var(--ls-gold) 0 10px, #c98f2f 10px 20px);
+      background-size: 200% 100%;
+      box-shadow: 0 0 12px #e9b44c80;
+      transition: width .25s ease;
+    }
+    /* Fase "preparando": barra indeterminada hasta que Phaser informa del % real. */
+    #loading-screen:not(.is-ready) .ls-fill {
+      animation: ls-slide 1.1s linear infinite;
+    }
+    #loading-screen.is-ready .ls-fill { animation: none; }
+    #loading-screen .ls-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      font-size: 12px;
+      letter-spacing: .08em;
+    }
+    #loading-screen .ls-percent { color: var(--ls-gold); }
+    #loading-screen .ls-detail {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      opacity: .7;
+    }
+    #loading-screen.is-error .ls-rune { color: #ff7a6b; text-shadow: none; animation: none; }
+    #loading-screen.is-error .ls-sub { color: #ff9b8f; }
+    #loading-screen.is-error .ls-fill {
+      background: repeating-linear-gradient(-45deg, #ff7a6b 0 10px, #a33b33 10px 20px);
+    }
+    @keyframes ls-pulse { 50% { opacity: .45; transform: scale(.92); } }
+    @keyframes ls-slide { from { background-position: 0 0; } to { background-position: 40px 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      #loading-screen, #loading-screen .ls-fill { transition: none; }
+      #loading-screen .ls-rune,
+      #loading-screen:not(.is-ready) .ls-fill { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Pantalla de carga: visible desde el primer byte del HTML. -->
+  <div id="loading-screen" role="status" aria-live="polite" aria-label="Cargando Dungeon Build">
+    <div class="ls-frame">
+      <div class="ls-rune" aria-hidden="true">◆</div>
+      <div class="ls-title">DUNGEON BUILD</div>
+      <div class="ls-sub" id="loading-phase">Preparando la mazmorra…</div>
+      <div class="ls-bar" id="loading-bar" role="progressbar" aria-label="Progreso de carga"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="ls-fill" id="loading-fill"></div>
+      </div>
+      <div class="ls-meta">
+        <span class="ls-percent" id="loading-percent">0%</span>
+        <span class="ls-detail" id="loading-detail"></span>
+      </div>
+    </div>
+  </div>
+  <noscript>
+    <p style="position:fixed;inset:auto 0 0;z-index:2147483000;margin:0;padding:12px;background:#0d0c12;color:#e9b44c;text-align:center">
+      Dungeon Build necesita JavaScript para funcionar.
+    </p>
+  </noscript>
+
+  <!-- Acceso y guardado de partida (back/database/). Se muestra al arrancar
+       si no hay sesión; se puede jugar como invitado sin Supabase. -->
+  <div id="auth-overlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+    <section class="auth-card">
+      <div class="auth-rune" aria-hidden="true">◆</div>
+      <h2 id="auth-title">DUNGEON BUILD</h2>
+      <p id="auth-sub">Entra para guardar tu mazmorra y continuar donde la dejaste.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Acceso">
+        <button class="build-tab active" type="button" data-mode="login" role="tab" aria-selected="true">Iniciar sesión</button>
+        <button class="build-tab" type="button" data-mode="register" role="tab" aria-selected="false">Crear cuenta</button>
+      </div>
+      <form id="auth-form" novalidate>
+        <label class="auth-field"><span>Correo</span><input id="auth-email" type="email" autocomplete="email" required /></label>
+        <label class="auth-field"><span>Contraseña</span><input id="auth-password" type="password" autocomplete="current-password" required /></label>
+        <p id="auth-error" class="auth-error" role="alert" hidden></p>
+        <button id="auth-submit" class="action-btn gold" type="submit">Entrar</button>
+      </form>
+      <button id="auth-guest" class="action-btn" type="button">Continuar como invitado</button>
+      <p id="auth-note" class="auth-note"></p>
+    </section>
+  </div>
+  <div id="auth-bar" hidden>
+    <button id="auth-chip" class="auth-chip guest" type="button" aria-label="Estado de la cuenta">
+      <span class="auth-dot" aria-hidden="true"></span>
+      <span id="auth-chip-label">Invitado</span>
+      <span id="auth-chip-status" class="auth-status">Guardado local</span>
+    </button>
+    <button id="auth-logout" class="action-btn" type="button" hidden>Cerrar sesión</button>
+  </div>
+
+  <div id="game"></div>
+
+  <!-- HUD de excavación (Fase 7) y de constructores (Fase 9) -->
+  <div id="topbar">
+    <div id="status">
+      <div id="dig-counter">Casillas excavadas: 79 / 100</div>
+      <div id="path-status"><span id="path-light"></span><span id="path-text">Camino Válido</span></div>
+    </div>
+    <div id="builders-status" role="status" aria-label="Constructores">
+      <div class="bs-head"><span>Constructores</span><b id="bs-count"></b></div>
+      <div class="bs-list" id="bs-list"></div>
+    </div>
+  </div>
+
+  <!-- Fase 9: recursos reales; el estilo y los iconos vienen del legacy. -->
+  <div id="resources" aria-label="Recursos">
+    <div class="res-row res-coins" role="meter" aria-label="Monedas de Mazmorra" aria-valuemin="0">
+      <span class="res-icon" id="res-icon-coins" aria-hidden="true"></span>
+      <div class="res-bar"><div class="res-fill" id="res-fill-coins"></div><div class="res-value" id="res-text-coins"></div></div>
+    </div>
+    <div class="res-row res-crystals" role="meter" aria-label="Cristales de Mazmorra" aria-valuemin="0">
+      <span class="res-icon" id="res-icon-crystals" aria-hidden="true"></span>
+      <div class="res-bar"><div class="res-fill" id="res-fill-crystals"></div><div class="res-value" id="res-text-crystals"></div></div>
+    </div>
+    <!-- Mejoras pendientes: botón bajo los recursos + panel lateral (legacy 24-mejoras.js). -->
+    <button id="upg-btn" class="action-btn" type="button" data-action="upgrades" aria-expanded="false" aria-controls="upg-panel" aria-keyshortcuts="Alt Izq">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
+      <span>Mejoras</span><span class="upg-badge" id="upg-badge" hidden>0</span>
+    </button>
+  </div>
+
+  <aside id="upg-panel" role="dialog" aria-label="Mejoras pendientes">
+    <div id="upg-head">
+      <div><div id="upg-title">Mejoras pendientes</div><div id="upg-sub"></div></div>
+      <button class="action-btn upg-close" id="upg-close" type="button" aria-label="Cerrar mejoras pendientes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="upg-tabs" role="tablist" aria-label="Tipo de mejora">
+      <button class="build-tab active" id="upg-tab-edificios" type="button" role="tab" data-tab="edificios" aria-selected="true">Edificios</button>
+      <button class="build-tab" id="upg-tab-tropas" type="button" role="tab" data-tab="tropas" aria-selected="false">Tropas</button>
+    </div>
+    <div id="upg-list" role="list"></div>
+  </aside>
+
+  <button id="build-btn" type="button" aria-expanded="false" aria-controls="build-bar">Construir</button>
+  <button id="editor-btn" class="action-btn" type="button" aria-pressed="false" title="Editor de mazmorra">Editor</button>
+
+  <!-- Fase 8: simulación de invasión (botón, panel de despliegue y reloj) -->
+  <button id="invasion-btn" type="button" aria-pressed="false" aria-label="Iniciar invasión"><span class="btn-label" id="invasion-btn-label">Invasión</span></button>
+  <div id="invasion-panel" role="dialog" aria-label="Panel de invasión">
+    <div id="invasion-head">
+      <span>Invasión · Simulación</span>
+      <span class="grow"></span>
+      <span id="invasion-status">Seleccionadas 0 · En campo 0</span>
+    </div>
+    <div id="invasion-items" role="list"></div>
+    <div id="invasion-hint"><b>Clic izq.</b>: seleccionar · <b>Clic der.</b>: mover o atacar · <b>Ctrl+A</b>: todas · <b>Esc</b>: deseleccionar</div>
+  </div>
+  <div id="invasion-timer"><span class="it-label"></span><span class="it-time"></span></div>
+  <div id="select-box" aria-hidden="true"></div>
+
+  <div id="build-bar" aria-label="Menú de construcción">
+    <div id="build-tools" role="toolbar" aria-label="Herramientas de terreno">
+      <button id="tool-dig" class="tool-btn" type="button" data-tool="dig" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 L14 10"/><path d="M7 6 Q14 3 20 10"/><path d="M7 6 L6 9"/><path d="M20 10 L17 11"/></svg>
+        <span>Excavar</span>
+      </button>
+      <button id="tool-fill" class="tool-btn" type="button" data-tool="fill" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21 L7 13 L11 17 Z"/><path d="M9 15 L19 5"/><path d="M17 3 L21 7"/></svg>
+        <span>Rellenar</span>
+      </button>
+    </div>
+    <div id="build-main">
+      <div id="build-tabs" role="tablist" aria-label="Categorías de construcción">
+        <button class="build-tab" type="button" role="tab" data-cat="recursos">Recursos</button>
+        <button class="build-tab" type="button" role="tab" data-cat="militar">Militar</button>
+        <button class="build-tab" type="button" role="tab" data-cat="defensas">Defensas</button>
+        <button class="build-tab" type="button" role="tab" data-cat="estandartes">Estandartes</button>
+        <button class="build-tab" type="button" role="tab" data-cat="trampas">Trampas</button>
+      </div>
+      <!-- Las ranuras se generan desde back/ui/InterfaceController.js
+           con los límites y costes de back/balance/. -->
+      <div id="build-items" role="list"></div>
+    </div>
+    <button id="build-close" class="action-btn" type="button" aria-label="Cerrar menú de construcción" title="Cerrar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg></button>
+  </div>
+
+  <!-- Barra de acciones de la estructura seleccionada (Fase 7) -->
+  <div id="action-bar" role="toolbar" aria-label="Acciones de la estructura seleccionada">
+    <span id="action-title"></span>
+    <button id="btn-info" class="action-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg>
+      <span>Información</span>
+    </button>
+    <button id="btn-upgrade" class="action-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
+      <span>Mejorar</span>
+    </button>
+    <button id="btn-move" class="action-btn" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>
+      <span>Mover</span>
+    </button>
+    <button id="btn-retire" class="action-btn" type="button" aria-label="Recoger edificio" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="M7 8l5-5 5 5"/><path d="M4 20h16"/></svg>
+      <span>Recoger</span>
+    </button>
+    <button id="btn-summon" class="action-btn action-special" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.2 5.3L20 9l-4.2 3.8L17 19l-5-3-5 3 1.2-6.2L4 9l5.8-.7z"/></svg>
+      <span>Invocar</span>
+    </button>
+    <button id="btn-breed" class="action-btn action-special" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c4 0 7 6 7 11a7 7 0 0 1-14 0c0-5 3-11 7-11z"/><path d="M8.5 14l2 2 2-2 2 2"/></svg>
+      <span>Criar</span>
+    </button>
+    <button id="btn-mutate" class="action-btn action-special" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>
+      <span>Mutar tropa</span>
+    </button>
+  </div>
+
+  <!-- Fase 10: invocación, cría y mutación usan el mismo panel del legacy. -->
+  <div id="summon-panel" role="dialog" aria-label="Invocación de tropas">
+    <div id="summon-head">
+      <span id="summon-title">Grieta de invocación</span>
+      <span class="grow"></span>
+      <span id="summon-space">Espacio 0/20</span>
+      <button id="summon-close" type="button" aria-label="Cerrar invocación">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="summon-items" role="list"></div>
+  </div>
+
+  <!-- Fase 11: editor de mazmorra (panel de guardados y barra de acciones). -->
+  <aside id="editor-panel">
+    <div id="ed-head">
+      <div id="ed-title">Editor de mazmorra</div>
+      <div id="ed-sub"></div>
+    </div>
+    <div id="ed-list" role="list"></div>
+    <div id="ed-tools" role="toolbar" aria-label="Herramientas del editor">
+      <button id="ed-dig" class="tool-btn ed-lock" data-tool="dig" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 L14 10"/><path d="M7 6 Q14 3 20 10"/></svg>
+        <span>Excavar</span>
+      </button>
+      <button id="ed-fill" class="tool-btn ed-lock" data-tool="fill" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21 L7 13 L11 17 Z"/><path d="M9 15 L19 5"/></svg>
+        <span>Rellenar</span>
+      </button>
+    </div>
+  </aside>
+  <div id="editor-bar">
+    <div id="editor-bar-inner" role="toolbar" aria-label="Acciones del editor">
+      <button id="ed-pick" class="action-btn ed-lock" type="button" aria-pressed="false">Recoger</button>
+      <button id="ed-all" class="action-btn ed-lock" type="button">Guardar todo</button>
+      <button id="ed-view" class="action-btn" type="button" aria-pressed="false">Vista invasor</button>
+      <button id="ed-save" class="action-btn gold ed-lock" type="button">Guardar diseño</button>
+    </div>
+  </div>
+
+  <div id="move-hint" role="status" aria-live="polite">
+    <span id="move-dot" aria-hidden="true"></span>
+    <span id="move-text"></span>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Ventana reutilizable de Información / Mejorar (Fase 7) -->
+  <div id="info-overlay">
+    <section id="info-panel" role="dialog" aria-modal="true" aria-labelledby="info-title">
+      <button id="info-close" type="button" aria-label="Cerrar ventana">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+      </button>
+      <div class="info-head">
+        <div class="info-badge" id="info-badge"></div>
+        <div>
+          <h2 id="info-title"></h2>
+          <div id="info-sub"></div>
+        </div>
+      </div>
+      <div id="info-stats"></div>
+      <!-- Mejora del núcleo: edificios que faltan por colocar / que se desbloquean al subir de nivel. -->
+      <div id="info-missing" hidden>
+        <div class="army-label"></div>
+        <div class="miss-list" id="info-missing-list" role="list"></div>
+      </div>
+      <div id="info-work" hidden>
+        <span class="iw-item"><span class="iw-label">Coste</span><span class="build-cost" id="iw-cost"></span></span>
+        <span class="iw-item"><span class="iw-label">Tiempo</span><b class="iw-time" id="iw-time"></b></span>
+        <span class="iw-item"><span class="iw-label">Constructores libres</span><b class="iw-time" id="iw-builders"></b></span>
+      </div>
+      <div id="info-footer" hidden>
+        <button id="info-upgrade" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
+          <span>Mejorar</span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Letrero de victoria / derrota (Fase 8) -->
+  <div id="victory-banner">
+    <b></b><span></span>
+    <button id="victory-back" class="action-btn gold" type="button">Volver</button>
+  </div>
+
+  <script type="module" src="/back/main.js"></script>
+</body>
+</html>

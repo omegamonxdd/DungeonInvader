@@ -1,0 +1,16 @@
+@media (max-width: 700px) {
+  #summon-panel { bottom: 92px; }
+  #invasion-panel { right: 12px; }
+  #action-bar, #move-hint { bottom: 92px; }
+  #toast { bottom: 176px; }
+  #action-title { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-next, #invasion-timer.low .it-time { animation: none; }
+  .troop-lvl.max, .troop-lvl.max::before, .troop-lvl.max::after { animation: none; }
+  .stat-next { opacity: 0.8; }
+  #action-bar, #action-bar.open, #move-hint, #move-hint.open, #info-overlay, #info-panel, .stat-fill, .res-fill,
+  #toast, #summon-panel, #summon-panel.open, #invasion-panel, #invasion-panel.open,
+  #upg-panel, #upg-panel.open, #editor-panel, #editor-panel.open, #editor-bar, #editor-bar.open,
+  .kb-overlay, .kb-panel, #build-bar, #build-bar.open { transition-duration: var(--dur-instant); }
+}

@@ -1,0 +1,67 @@
+/* ==========================================================
+ * PALETA — único sitio donde se editan los colores del front-end.
+ * Los nombres históricos (--stone, --gold, --panel…) se conservan: el resto
+ * del CSS los usa tal cual. Los nuevos --c-* son los colores que antes estaban
+ * repetidos como literal en varias hojas.
+ * ========================================================== */
+:root {
+  /* Base */
+  --font: "Pixel Digitos", "Pixelify Sans", "Courier New", monospace;
+  --px: 3px;                                   /* "grosor de píxel" de bordes y biseles */
+  --ink: #0b0b0b;                              /* contorno negro */
+  --ts: 2px 2px 0 #1a1a1a;                     /* sombra dura del texto */
+  --void: #14100d;                             /* fondo del juego */
+  --white: #fff;
+  --black: #000;
+
+  /* Piedra */
+  --stone: #4a4a4a;  --stone-hi: #8a8a8a;  --stone-lo: #262626;
+  --stone-h: #5d5d5d; --stone-hi-h: #aaaaaa;
+
+  /* Oro */
+  --gold: #d4a017;   --gold-hi: #f7de78;   --gold-lo: #8a6206;
+  --gold-h: #e6b72b; --gold-hi-h: #fff2a8;
+
+  /* Rojo */
+  --red: #b8392b;    --red-hi: #f08470;    --red-lo: #671b13;
+  --red-h: #cc4535;  --red-hi-h: #ffa08c;
+
+  /* Paneles y huecos */
+  --panel: #2e2e2e;  --panel-hi: #5a5a5a;  --panel-lo: #181818;
+  --well: #1b1b1b;   --well-lo: #090909;   --well-hi: #444;
+  --panel-pattern: rgba(255,255,255,0.035);
+  --panel-shadow: rgba(0, 0, 0, 0.35);
+  --overlay-bg: rgba(8, 8, 8, 0.7);
+  --overlay-pattern: rgba(0,0,0,0.25);
+
+  /* Texto */
+  --txt: #ffffff;    --txt-dim: #c8c8c8;   --txt-gold: #ffd54a;
+  --shadow-gold: #4a3200;                  /* sombra dura sobre oro */
+  --shadow-red: #3a0c07;                   /* sombra dura sobre rojo */
+
+  /* Semáforo (camino, invasión, avisos) */
+  --ok: #3ddc84;      --ok-hi: #a6ffcb;    --ok-lo: #1d8f52;   --ok-text: #8ff0b8;
+  --bad: #ff4b4b;     --bad-hi: #ffa0a0;   --bad-lo: #a31d1d;  --bad-text: #ff8a70;
+  --prep-shadow: #0f3a25;
+
+  /* Recursos */
+  --coin: #ffd873;    --coin-fill: #e8aa2a; --coin-hi: #ffe27a; --coin-lo: #a8700f;
+  --crystal: #9be0ff; --crystal-fill: #3fa7e0; --crystal-hi: #a6e6ff; --crystal-lo: #1d6fa0;
+
+  /* Barras, rellenos y capas */
+  --bar-bg: #0a0a0a;
+  --next: #fff4d8;                         /* tramo "siguiente nivel" de las barras */
+  --fill-shade: rgba(0, 0, 0, 0.3);
+  --strip: rgba(0, 0, 0, 0.55);            /* separadores de las barras de vida */
+  --select-bg: rgba(255, 213, 74, 0.14);   /* rectángulo de selección */
+  --troop-hi: rgba(255,255,255,0.35);
+  --troop-lo: rgba(0,0,0,0.35);
+
+  /* Botón desactivado */
+  --dis-bg: #3a3a3a; --dis-hi: #5a5a5a; --dis-lo: #1f1f1f;
+  --dis-txt: #8c8c8c; --dis-shadow: #111;
+
+  /* Contorno negro sin esquinas (efecto pixel) */
+  --outline: 0 calc(var(--px) * -1) 0 0 var(--ink), 0 var(--px) 0 0 var(--ink),
+             calc(var(--px) * -1) 0 0 0 var(--ink), var(--px) 0 0 0 var(--ink);
+}

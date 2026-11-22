@@ -1,0 +1,136 @@
+/* ==========================================================
+ * FASE 7 — INTERFAZ DOM/CSS
+ * ----------------------------------------------------------
+ * La app Phaser no duplica ningún color, medida ni animación:
+ * las hojas del legacy viven ahora en front/css/ (copia íntegra) y
+ * se importan desde aquí. Así, cambiar un token en front/css/tokens/
+ * cambia también esta UI, sin depender del juego legacy exportado.
+ * ========================================================== */
+
+/* Tokens: ÚNICO sitio donde se editan colores, medidas y movimiento. */
+@import './tokens/01-paleta.css';
+@import './tokens/02-medidas.css';
+@import './tokens/03-motion.css';
+@import './tokens/04-composites.css';
+@import './tokens/05-fuentes.css';
+
+/* Base compartida: reset, caja pixel de botones, paneles y keyframes. */
+@import './base/01-reset.css';
+@import './base/02-botones.css';
+@import './base/03-paneles.css';
+@import './base/04-animaciones.css';
+
+/* Dominios que usa esta fase. */
+@import './hud/01-estado.css';
+@import './hud/02-recursos.css';
+@import './hud/03-acciones.css';
+/* Fase 9: HUD de constructores y caja de coste/tiempo de la mejora. */
+@import './hud/05-obras.css';
+@import './hud/04-mejoras.css';
+@import './menus/01-construir-items.css';
+@import './menus/02-construir-barra.css';
+@import './modales/01-info.css';
+/* Fase 11: atajos configurables y editor de mazmorra. */
+@import './modales/02-atajos.css';
+@import './modales/03-editor.css';
+/* Persistencia: inicio de sesión y estado del guardado. */
+@import './modales/04-auth.css';
+
+/* Fase 8: tropas y letrero de fin de invasión (mismos estilos del legacy). */
+@import './invasion/01-tropas.css';
+@import './invasion/02-fin.css';
+
+/* Las media queries y prefers-reduced-motion deben ganar la cascada. */
+@import './99-responsive.css';
+
+/* ----------------------------------------------------------
+ * Ajustes específicos de la migración: en el legacy el canvas era
+ * <canvas id="game">; aquí Phaser lo crea dentro de <div id="game">.
+ * ---------------------------------------------------------- */
+#game {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+#game canvas {
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+#game canvas.tool-active { cursor: crosshair; }
+#game canvas.moving { cursor: move; }
+#game canvas.dragging { cursor: grabbing; }
+
+/* El modal de Información deja de mover la cámara mientras está abierto. */
+body.info-open #game canvas { pointer-events: none; }
+body.summon-open #game canvas { pointer-events: none; }
+
+/* Mejoras pendientes: los iconos son los mismos lienzos del menú Construir. */
+.upg-ic canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+body.editing #upg-btn { display: none; }
+
+/* Coste de las ranuras del menú Construir: el icono SVG es de 13×13 en el
+   legacy; aquí se alinea con el texto del contador. */
+.build-cost svg {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
+/* ----------------------------------------------------------
+ * Fase 8 — panel de despliegue.
+ * ---------------------------------------------------------- */
+/* Fase 9: el botón de Mejorar muestra el motivo cuando está bloqueado. */
+#info-upgrade.locked { opacity: 0.62; cursor: not-allowed; }
+
+.inv-troop {
+  --troop-hi: #d9c7a0;
+  --troop-lo: #7d7054;
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  color: var(--txt);
+  text-align: left;
+  background: var(--stone);
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--stone-hi),
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--stone-lo);
+  font: 600 var(--fs-sm)/1.25 var(--font);
+  cursor: pointer;
+}
+.inv-troop:hover:not(:disabled) { background: var(--stone-h); }
+.inv-troop:disabled { opacity: 0.55; cursor: not-allowed; }
+.inv-troop .troop-dot { flex: 0 0 auto; }
+.inv-troop .inv-name { flex: 1; min-width: 0; }
+.inv-troop .inv-left { color: var(--txt-gold); font-variant-numeric: tabular-nums; }
+.inv-troop[data-id="slime"] { --troop-hi: #b6f5a4; --troop-lo: #2e7e3a; }
+#select-box {
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-color: var(--txt-gold);
+  background: var(--select-bg);
+}
+body.inv-end #game canvas { pointer-events: none; }
+
+/* Botones "−" de la ventana de la entrada (retirar tropas sin reembolso). */
+.info-troops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.info-troop-remove {
+  padding: 4px 8px;
+  font: 600 var(--fs-sm)/1.2 var(--font);
+  color: var(--txt);
+  cursor: pointer;
+}

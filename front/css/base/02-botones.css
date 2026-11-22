@@ -1,0 +1,57 @@
+/* ---------- Botones: caja pixel de piedra (base) ---------- */
+.tool-btn, .build-tab, .action-btn, #build-btn, #invasion-btn,
+#info-close, #summon-close, #info-upgrade, .build-item, .troop-info-btn {
+  --bg: var(--stone); --hi: var(--stone-hi); --lo: var(--stone-lo);
+  --bg-h: var(--stone-h); --hi-h: var(--stone-hi-h);
+  background: var(--bg);
+  border: 0;
+  border-radius: 0;
+  color: var(--txt);
+  text-shadow: var(--ts);
+  box-shadow: var(--outline),
+              inset var(--px) var(--px) 0 0 var(--hi),
+              inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Variante dorada (acción principal) */
+#build-btn, #btn-upgrade, #btn-summon, #info-upgrade,
+.tool-btn.active, .build-tab.active {
+  --bg: var(--gold); --hi: var(--gold-hi); --lo: var(--gold-lo);
+  --bg-h: var(--gold-h); --hi-h: var(--gold-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-gold);
+}
+/* Variante roja (invasión en curso) */
+#invasion-btn.active {
+  --bg: var(--red); --hi: var(--red-hi); --lo: var(--red-lo);
+  --bg-h: var(--red-h); --hi-h: var(--red-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-red);
+}
+.tool-btn:hover:not(:disabled):not(.locked), .build-tab:hover, .action-btn:hover, #build-btn:hover,
+#invasion-btn:hover, #info-close:hover, #summon-close:hover,
+#info-upgrade:hover:not(:disabled), .build-item:hover:not(.locked), .troop-info-btn:hover {
+  background: var(--bg-h);
+  box-shadow: var(--outline),
+              inset var(--px) var(--px) 0 0 var(--hi-h),
+              inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo);
+}
+/* Pulsado / seleccionado: el bisel se invierte (botón hundido) */
+.tool-btn:active:not(:disabled), .build-tab:active, .action-btn:active, #build-btn:active, #invasion-btn:active,
+#info-close:active, #summon-close:active, #info-upgrade:active:not(:disabled),
+.build-item:active:not(.locked), .troop-info-btn:active,
+.tool-btn.active, .build-tab.active, #build-btn.active, #invasion-btn.active {
+  box-shadow: var(--outline),
+              inset var(--px) var(--px) 0 0 var(--lo),
+              inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--hi);
+}
+#info-close:hover { --bg-h: var(--red); --hi-h: var(--red-hi); }
+.tool-btn:focus-visible, .build-tab:focus-visible, .action-btn:focus-visible, #build-btn:focus-visible,
+#invasion-btn:focus-visible, #info-close:focus-visible, #summon-close:focus-visible,
+#info-upgrade:focus-visible, .build-item:focus-visible, .troop-info-btn:focus-visible {
+  outline: var(--focus-w) solid var(--white); outline-offset: var(--focus-offset);
+}
+.build-item.locked, .tool-btn.locked { opacity: 0.55; cursor: not-allowed; }
+#info-upgrade:disabled {
+  --bg: var(--dis-bg); --hi: var(--dis-hi); --lo: var(--dis-lo);
+  color: var(--dis-txt); text-shadow: 2px 2px 0 var(--dis-shadow); cursor: not-allowed;
+}

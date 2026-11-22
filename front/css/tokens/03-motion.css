@@ -1,0 +1,15 @@
+/* ==========================================================
+ * MOVIMIENTO — duraciones y curvas. Poner --dur-instant a 0s deja
+ * la interfaz sin animaciones desde un solo sitio.
+ * ========================================================== */
+:root {
+  --dur-fast: 0.2s;      /* avisos, overlays */
+  --dur-fade: 0.25s;     /* desvanecido de los paneles que deslizan */
+  --dur-mid: 0.28s;      /* entrada de ventanas modales */
+  --dur-panel: 0.38s;    /* paneles que deslizan */
+  --dur-fill: 0.55s;     /* barras de estadísticas */
+  --dur-blink: 1s;       /* cronómetro en rojo */
+  --dur-next: 1.1s;      /* tramo "siguiente nivel" */
+  --ease-panel: cubic-bezier(0.22, 0.9, 0.3, 1);
+  --dur-instant: 0.01s;  /* prefers-reduced-motion */
+}

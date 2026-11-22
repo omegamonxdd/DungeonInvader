@@ -1,0 +1,147 @@
+/* ---------- Ventana de información (modal reutilizable) ---------- */
+#info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 20px;
+  background-color: var(--overlay-bg);
+  background-image: var(--overlay-tile);
+  background-size: var(--overlay-tile-size);
+  background-position: var(--overlay-tile-pos);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-fast) ease, visibility 0s linear var(--dur-fast);
+}
+#info-overlay.open { opacity: 1; visibility: visible; transition: opacity var(--dur-fast) ease, visibility 0s; }
+#info-panel {
+  position: relative;
+  box-sizing: border-box;
+  width: min(var(--w-info), calc(100% - 8px));
+  max-height: calc(100% - 8px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px 24px 24px;
+  transform: translateY(12px) scale(0.95);
+  transition: transform var(--dur-mid) var(--ease-panel);
+}
+#info-overlay.open #info-panel { transform: none; }
+#info-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+#info-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 3; }
+
+.info-head { display: flex; align-items: center; gap: 16px; margin: 0 50px 18px 0; }
+.info-badge { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; color: var(--txt-gold); }
+.info-badge svg, .stat-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; }
+.info-badge svg { width: 30px; height: 30px; }
+#info-title { margin: 0; color: var(--txt-gold); font: 700 var(--fs-lg)/1.2 var(--font); text-shadow: 3px 3px 0 var(--shadow-gold); }
+#info-sub { margin-top: 4px; color: var(--txt-dim); font: 500 var(--fs-md)/1.3 var(--font); }
+
+.stat { margin-bottom: 12px; padding: 14px 16px; }
+.stat-top { display: flex; align-items: center; gap: 12px; }
+.stat-icon { flex: 0 0 auto; width: 26px; height: 26px; color: var(--c); filter: drop-shadow(2px 2px 0 var(--black)); }
+.stat-label { flex: 1 1 auto; color: var(--txt); font: 500 var(--fs-md)/1.3 var(--font); }
+.stat-value { color: var(--txt-gold); font: 700 var(--fs-lg)/1 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat-desc { margin: 8px 0 0; color: var(--txt-dim); font: 400 var(--fs-xs)/1.45 var(--font); text-shadow: 1px 1px 0 var(--black); }
+.stat-bar {
+  position: relative; margin-top: 12px; height: 8px; overflow: hidden; border-radius: 0; background: var(--bar-bg);
+  box-shadow: 0 0 0 2px var(--ink), inset 1px 1px 0 0 var(--black), inset -1px -1px 0 0 var(--dis-bg);
+}
+.stat-bar::after {            /* segmentos tipo barra de vida de videojuego */
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 10px, var(--strip) 10px 12px);
+}
+.stat-fill {
+  width: 0; height: 100%; border-radius: 0; background: var(--c);
+  box-shadow: inset 0 2px 0 var(--c2), inset 0 -2px 0 var(--fill-shade);
+  transition: width var(--dur-fill) steps(16);
+}
+.stat-arrow { margin: 0 3px; color: var(--txt-gold); }
+.stat-next {
+  position: absolute; top: 0; bottom: 0;
+  background: var(--next);
+  box-shadow: inset 0 2px 0 var(--white), inset 0 -2px 0 var(--c2);
+  opacity: 0;
+  animation: stat-next-blink var(--dur-next) steps(2, jump-none) 0.6s infinite;
+}
+
+/* Estadísticas en doble columna (Información y Mejorar); lo que ocupa todo el ancho abarca las dos columnas */
+#info-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; }
+#info-stats .stat { margin-bottom: 0; min-width: 0; }
+#info-stats .stat-wide, #info-stats .army-section { grid-column: 1 / -1; }
+@media (max-width: 700px) { #info-stats { grid-template-columns: 1fr; } }
+
+/* Botón de confirmar al pie de la pantalla de Mejorar */
+#info-footer { display: flex; justify-content: center; margin: 22px 4px 4px; }
+#info-footer[hidden] { display: none; }
+#info-upgrade {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  box-sizing: border-box; width: 100%; padding: 15px 18px;
+  font: 600 var(--fs-lg)/1 var(--font);
+}
+#info-upgrade svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; }
+#info-upgrade:disabled:active { box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--hi), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo); }
+
+/* ---------- Ejército en la ventana de Información de la entrada ---------- */
+.army-section { margin: 4px 0 12px; }
+.army-label { margin: 0 0 10px 2px; color: var(--txt-gold); font: 600 var(--fs-md)/1.2 var(--font); }
+.army-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+.army-tile {
+  box-sizing: border-box; width: var(--w-army); padding: 22px 6px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--well);
+  box-shadow: var(--well-edge-outline);
+}
+.army-name { color: var(--txt); font: 500 var(--fs-sm)/1.1 var(--font); text-align: center; }
+.army-count { color: var(--txt-gold); font: 700 var(--fs-md)/1 var(--font); font-variant-numeric: tabular-nums; }
+.army-empty { margin: 0 0 4px 2px; color: var(--txt-dim); font: 400 var(--fs-xs)/1.4 var(--font); text-shadow: 1px 1px 0 var(--black); }
+/* "-" de quitar: botón pixel rojo en la esquina superior derecha del recuadro */
+.army-remove {
+  --bg: var(--red); --hi: var(--red-hi); --lo: var(--red-lo); --bg-h: var(--red-h); --hi-h: var(--red-hi-h);
+  top: 4px; right: 4px; width: 24px; height: 24px; font-size: var(--fs-19); text-shadow: 2px 2px 0 var(--shadow-red);
+}
+
+/* Recuadro "Construye antes de mejorar" (mejora del núcleo): ancho completo, lista deslizante en horizontal */
+#info-missing {
+  margin: 18px 0 0; padding: 12px 14px 8px; box-sizing: border-box;
+  background: var(--well);
+  box-shadow: var(--well-edge-outline);
+}
+#info-missing[hidden] { display: none; }
+#info-missing .army-label { margin: 0 0 10px 2px; }
+.miss-list {
+  display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
+  padding: 4px 4px 10px;
+}
+
+/* Etiqueta "Nuevo" y cantidad "xN" de las tarjetas de edificios que se desbloquean */
+.miss-card { position: relative; }
+.miss-card.unlock .miss-count { color: var(--ok-text); }
+.miss-new {
+  position: absolute; top: 4px; right: 4px; padding: 2px 4px;
+  background: var(--gold); color: var(--white); text-shadow: 2px 2px 0 var(--shadow-gold);
+  font: 700 var(--fs-xs)/1 var(--font);
+  box-shadow: var(--outline), inset 2px 2px 0 0 var(--gold-hi), inset -2px -2px 0 0 var(--gold-lo);
+}
+
+.miss-card {
+  flex: 0 0 auto; box-sizing: border-box; width: var(--w-miss); padding: 8px 4px 9px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--stone); color: var(--txt); text-shadow: var(--ts); text-align: center;
+  box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--stone-hi), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--stone-lo);
+}
+.miss-ic { width: 44px; height: 44px; image-rendering: pixelated; }
+.miss-name { font: 500 var(--fs-sm)/1.1 var(--font); }
+.miss-count { color: var(--txt-gold); font: 700 var(--fs-sm)/1 var(--font); font-variant-numeric: tabular-nums; }

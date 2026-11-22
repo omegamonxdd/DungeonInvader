@@ -1,0 +1,24 @@
+{
+  "generator": "tools/core-art/generate.mjs",
+  "cell": 384,
+  "pad": 4,
+  "supersampling": 4,
+  "ppm": 62,
+  "elevationDeg": 30,
+  "azimuthDeg": 45,
+  "anchor": {
+    "x": 192,
+    "y": 306
+  },
+  "artScale": 1.0947,
+  "glow": {
+    "lift": 43,
+    "size": 168
+  },
+  "bbox": [
+    60,
+    164,
+    323,
+    370
+  ]
+}

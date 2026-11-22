@@ -1,0 +1,83 @@
+/* ==========================================================
+ * FIN DE INVASIÓN: cronómetro (arriba en el centro) y letrero de victoria / derrota con botón Volver.
+ * Cargar DESPUÉS de styles.css y atajos.css (usa sus variables y el botón .action-btn.gold).
+ * ========================================================== */
+
+/* Cronómetro: solo existe durante la invasión; centrado arriba, sin tapar el estado (izquierda) ni los recursos (derecha) */
+#invasion-timer {
+  position: fixed; left: 50%; top: 16px; z-index: 1; transform: translateX(-50%);
+  display: none; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 150px; box-sizing: border-box; padding: 8px 22px 10px;
+  background-color: var(--panel);
+  background-image: var(--panel-tile);
+  background-size: var(--panel-tile-size); background-position: var(--panel-tile-pos);
+  color: var(--txt); text-shadow: var(--ts); text-align: center;
+  box-shadow: var(--panel-edge-lift);
+  pointer-events: none; user-select: none;
+}
+body.invading #invasion-timer { display: flex; }
+#invasion-timer .it-label { color: var(--txt-dim); font: 500 var(--fs-sm)/1 var(--font); }
+#invasion-timer .it-time { color: var(--txt-gold); font: 700 var(--fs-xl)/1 var(--font); font-variant-numeric: tabular-nums; text-shadow: 3px 3px 0 var(--shadow-gold); }
+#invasion-timer.prep .it-time { color: var(--ok-text); text-shadow: 3px 3px 0 var(--prep-shadow); }
+#invasion-timer.low .it-time { color: var(--bad-text); text-shadow: 3px 3px 0 var(--shadow-red); animation: it-blink 1s steps(2, jump-none) infinite; }
+
+/* Letrero de victoria / derrota: ahora tiene botón Volver y se queda hasta pulsarlo */
+#victory-banner.show { pointer-events: auto; }
+#victory-banner #victory-back { margin: 16px auto 0; justify-content: center; padding: 12px 34px; font-size: var(--fs-lg); }
+#victory-banner.defeat b { color: var(--bad-text); text-shadow: 3px 3px 0 var(--shadow-red); }
+
+
+/* Nivel actual de la tropa: recuadrito abajo a la derecha de cada tarjeta (Invocar/Criar, Invasión y ejército de la Entrada) */
+.troop-lvl {
+  position: absolute; right: 6px; bottom: 6px; z-index: 1; box-sizing: border-box; min-width: 22px; padding: 3px 5px;
+  background: var(--well); color: var(--txt-gold); text-align: center; text-shadow: none; pointer-events: none;
+  font: 700 var(--fs-sm)/1 var(--font); font-variant-numeric: tabular-nums;
+  box-shadow: var(--outline), inset 2px 2px 0 0 var(--well-lo), inset -2px -2px 0 0 var(--well-hi);
+}
+
+/* Nivel máximo: fuego azul alrededor del recuadro. El número se aclara para
+   que siga siendo legible sobre el resplandor. */
+.troop-lvl.max {
+  background: #0b2b4d;
+  color: #eafaff;
+  text-shadow: 0 0 3px #35c4ff, 0 0 7px #1677ff;
+  box-shadow: var(--outline), inset 2px 2px 0 0 #3a9de3, inset -2px -2px 0 0 #062040,
+    0 0 6px 1px rgba(46, 144, 255, 0.9), 0 0 14px 2px rgba(24, 104, 255, 0.55);
+  animation: troop-lvl-fire 900ms ease-in-out infinite alternate;
+}
+.troop-lvl.max::before, .troop-lvl.max::after {
+  content: '';
+  position: absolute; bottom: -5px; width: 6px; height: 9px;
+  background: linear-gradient(to top, #1677ff, #46d6ff 60%, #eafcff);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+  animation: troop-lvl-flame 620ms steps(3, jump-none) infinite alternate;
+}
+.troop-lvl.max::before { left: 2px; }
+.troop-lvl.max::after { right: 2px; height: 7px; animation-delay: -310ms; }
+@keyframes troop-lvl-fire {
+  from {
+    box-shadow: var(--outline), inset 2px 2px 0 0 #3a9de3, inset -2px -2px 0 0 #062040,
+      0 0 4px 1px rgba(46, 144, 255, 0.75), 0 0 9px 1px rgba(24, 104, 255, 0.4);
+  }
+  to {
+    box-shadow: var(--outline), inset 2px 2px 0 0 #8ad9ff, inset -2px -2px 0 0 #062040,
+      0 0 9px 2px rgba(70, 214, 255, 1), 0 0 20px 4px rgba(24, 104, 255, 0.7);
+  }
+}
+@keyframes troop-lvl-flame {
+  from { transform: translateY(1px) scaleY(0.7); opacity: 0.7; }
+  to { transform: translateY(-1px) scaleY(1.15); opacity: 1; }
+}
+
+/* Con el panel de Mejoras abierto se oculta el botón del editor (chocan visualmente) */
+body.upg-open:not(.editing) #editor-btn { display: none; }
+
+/* Al invadir se oculta el recuadro de estado (casillas excavadas + camino) y el botón de configuración de atajos */
+body.invading #topbar { display: none; }
+
+/* Al invadir, las barras de recursos pasan arriba a la izquierda (a la derecha las tapa el panel de tropas) */
+body.invading #resources { right: auto; left: 18px; }
+
+/* Botón "i" dentro de una estadística (crías de la Araña madre): en línea, no en la esquina de la tarjeta */
+.stat-info { position: static; flex: 0 0 auto; width: 26px; height: 26px; }

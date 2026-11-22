@@ -1,0 +1,103 @@
+/* ---------- Botones principales de las esquinas ---------- */
+#build-btn, #invasion-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  padding: 14px 30px;
+  font: 600 var(--fs-lg)/1 var(--font);
+}
+#invasion-btn { right: auto; left: 24px; }
+body.invading #build-btn { display: none; }
+
+/* Disposición en tres columnas: herramientas (izq.) · edificios (centro) · etiquetas (der.) */
+#build-tools .tool-btn { flex: 1 1 0; }
+.build-slot { flex: 0 0 auto; width: var(--w-slot); height: 72px; }
+
+/* ---------- Barra de acciones contextuales ---------- */
+#action-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px;
+  transform: translate(-50%, calc(100% + 50px));
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.3s var(--ease-panel), opacity var(--dur-fast) ease, visibility 0s linear 0.3s;
+}
+#action-bar.open {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.3s var(--ease-panel), opacity var(--dur-fast) ease, visibility 0s;
+}
+#action-title { padding: 0 6px; color: var(--txt-gold); font: 600 var(--fs-md)/1.2 var(--font); white-space: nowrap; }
+.action-btn { display: flex; align-items: center; gap: 8px; padding: 12px 18px; font: 600 var(--fs-md)/1 var(--font); }
+.action-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; flex: 0 0 auto; }
+.action-btn span { white-space: nowrap; }
+.action-btn[hidden] { display: none; }
+
+/* Aviso fijo del modo Mover */
+#move-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  padding: 12px 22px;
+  font: 500 var(--fs-md)/1.35 var(--font);
+  pointer-events: none;
+  user-select: none;
+  transform: translate(-50%, calc(100% + 50px));
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.3s var(--ease-panel), opacity var(--dur-fast) ease, visibility 0s linear 0.3s;
+}
+#move-hint.open { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform 0.3s var(--ease-panel), opacity var(--dur-fast) ease, visibility 0s; }
+#move-dot {
+  flex: 0 0 auto; width: 12px; height: 12px; border-radius: 0; background: var(--ok);
+  box-shadow: 0 0 0 2px var(--ink), inset 3px 3px 0 var(--ok-hi), inset -3px -3px 0 var(--ok-lo);
+}
+#move-hint.invalid #move-dot { background: var(--bad); box-shadow: 0 0 0 2px var(--ink), inset 3px 3px 0 var(--bad-hi), inset -3px -3px 0 var(--bad-lo); }
+#move-status { color: var(--ok-text); }
+#move-hint.invalid #move-status { color: var(--red-hi-h); }
+
+
+/* Aviso breve */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 112px;
+  z-index: 4;
+  padding: 10px 20px;
+  color: var(--txt-gold);
+  font: 500 var(--fs-md)/1.2 var(--font);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#victory-banner {
+  position: fixed; left: 50%; top: 22%; z-index: 60; transform: translate(-50%, -12px);
+  padding: 20px 48px; text-align: center; pointer-events: none;
+  font-family: var(--font);
+  opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease;
+}
+#victory-banner.show { opacity: 1; transform: translate(-50%, 0); }
+#victory-banner b { display: block; font-size: var(--fs-xl); font-weight: 700; color: var(--txt-gold); text-shadow: 3px 3px 0 var(--shadow-gold); }
+#victory-banner span { display: block; margin-top: 6px; font-size: var(--fs-md); font-weight: 500; }
+
+/* Botón Invasión bloqueado: no hay camino válido hasta el núcleo */
+#invasion-btn.locked { opacity: 0.55; cursor: not-allowed; --bg-h: var(--stone); --hi-h: var(--stone-hi); }

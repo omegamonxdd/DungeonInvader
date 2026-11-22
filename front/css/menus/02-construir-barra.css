@@ -1,0 +1,66 @@
+/* ==========================================================
+ * MENÚ CONSTRUIR: barra a todo el ancho de la pantalla.
+ * Fila superior: Excavar / Rellenar (izquierda) · edificios (centro, con scroll horizontal) · botón X.
+ * Fila inferior: etiquetas (Recursos, Militar, Defensas…) en línea, centradas.
+ * El fondo, el borde y la sombra de la barra vienen del grupo "Paneles pixel" de styles.css.
+ * Cargar DESPUÉS de styles.css y mejoras.css.
+ * ========================================================== */
+
+/* Con el menú abierto desaparecen Construir, Invasión, el editor y las Mejoras (botón y panel) */
+body.build-open #build-btn,
+body.build-open #invasion-btn,
+body.build-open #editor-btn,
+body.build-open #upg-btn,
+body.build-open #upg-panel { display: none; }
+
+/* El aviso breve sube para no quedar tapado por la barra */
+body.build-open #toast { bottom: 270px; }
+
+#build-bar {
+  /* ancho = 80 % del que tenía (pantalla - 2×24 px), centrado; el alto no cambia */
+  position: fixed; left: calc(24px + (100vw - 48px) * 0.1); right: calc(24px + (100vw - 48px) * 0.1); bottom: 24px; z-index: 2;
+  box-sizing: border-box; padding: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 10px 12px;
+  align-items: stretch;
+  transform: translateY(calc(100% + 50px)); opacity: 0; visibility: hidden;
+  transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease, visibility 0s linear var(--dur-panel);
+}
+#build-bar.open {
+  transform: none; opacity: 1; visibility: visible;
+  transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease, visibility 0s;
+}
+#build-main { display: contents; }
+
+/* Fila superior, izquierda: Excavar y Rellenar */
+#build-tools { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 8px; }
+#build-tools .tool-btn { flex: 1 1 0; }
+
+/* Fila superior, centro: edificios de la etiqueta activa (el fondo hundido viene de styles.css) */
+#build-items {
+  grid-column: 2; grid-row: 1;
+  display: flex; align-items: center; gap: 8px;
+  min-width: 0; padding: 6px; overflow-x: auto;
+}
+#build-items [hidden] { display: none; }
+
+/* Fila superior, derecha: cerrar */
+#build-close { grid-column: 3; grid-row: 1; align-self: start; justify-self: end; width: 38px; height: 38px; padding: 0; justify-content: center; }
+#build-close svg { width: 18px; height: 18px; stroke-width: 3; }
+#build-close:hover { --bg-h: var(--red); --hi-h: var(--red-hi); }
+
+/* Fila inferior: etiquetas en línea, centradas */
+#build-tabs {
+  grid-column: 1 / -1; grid-row: 2;
+  display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px;
+  padding: 4px;
+}
+#build-tabs .build-tab { flex: 0 0 auto; padding: 9px 22px; }
+
+@media (max-width: 700px) {
+  #build-bar { left: calc(12px + (100vw - 24px) * 0.1); right: calc(12px + (100vw - 24px) * 0.1); bottom: 12px; }
+  #build-tabs .build-tab { padding: 8px 12px; }
+  body.build-open #toast { bottom: 250px; }
+}

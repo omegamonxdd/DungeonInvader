@@ -1,0 +1,2 @@
+@keyframes stat-next-blink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes it-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }

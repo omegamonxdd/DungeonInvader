@@ -1,0 +1,73 @@
+/* ==========================================================
+ * ATAJOS DE TECLADO: botón de configuración, indicadores de tecla y ventanas
+ * Reutiliza las variables y clases del estilo pixel de styles.css (cargar DESPUÉS de styles.css).
+ * ========================================================== */
+
+/* Botón de configuración (solo icono) bajo el panel de estado, arriba a la izquierda */
+#settings-btn { align-self: flex-start; padding: 9px; pointer-events: auto; }
+#settings-btn svg { width: 22px; height: 22px; }
+
+/* Variantes de .action-btn: dorada (acción principal / escuchando) y roja (peligro) */
+.action-btn.gold {
+  --bg: var(--gold); --hi: var(--gold-hi); --lo: var(--gold-lo); --bg-h: var(--gold-h); --hi-h: var(--gold-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-gold);
+}
+.action-btn.danger {
+  --bg: var(--red); --hi: var(--red-hi); --lo: var(--red-lo); --bg-h: var(--red-h); --hi-h: var(--red-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-red);
+}
+
+/* Indicador de la tecla asignada dentro de cada botón */
+.key-hint {
+  display: inline-block; margin-left: 6px; padding: 2px 5px;
+  background: var(--panel-shadow); color: var(--txt-gold);
+  font: 700 var(--fs-xs)/1 var(--font); text-shadow: none; vertical-align: middle;
+}
+.key-hint[hidden] { display: none; }
+.tool-btn { position: relative; }
+.tool-btn .key-hint { position: absolute; top: 4px; right: 5px; margin: 0; }
+
+/* Ventanas modales (misma estética que la ventana de información) */
+.kb-overlay {
+  position: fixed; inset: 0; z-index: 11;
+  display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box; padding: 20px;
+  background-color: var(--overlay-bg);
+  background-image: var(--overlay-tile);
+  background-size: var(--overlay-tile-size);
+  background-position: var(--overlay-tile-pos);
+  opacity: 0; visibility: hidden;
+  transition: opacity var(--dur-fast) ease, visibility 0s linear var(--dur-fast);
+}
+.kb-overlay.open { opacity: 1; visibility: visible; transition: opacity var(--dur-fast) ease, visibility 0s; }
+.kb-panel {
+  position: relative; box-sizing: border-box;
+  width: min(var(--w-kb), calc(100% - 8px)); max-height: calc(100% - 8px);
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 22px 24px 24px;
+  background-color: var(--panel);
+  background-image: var(--panel-tile);
+  background-size: var(--panel-tile-size); background-position: var(--panel-tile-pos);
+  color: var(--txt); text-shadow: var(--ts);
+  box-shadow: var(--panel-edge-lift);
+  transform: translateY(12px) scale(0.95);
+  transition: transform var(--dur-mid) var(--ease-panel);
+}
+.kb-overlay.open .kb-panel { transform: none; }
+.kb-confirm { width: min(var(--w-confirm), calc(100% - 8px)); }
+
+.kb-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; padding: 0; justify-content: center; }
+.kb-close svg { width: 18px; height: 18px; stroke-width: 3; }
+.kb-title { margin: 0 50px 6px 0; color: var(--txt-gold); font: 700 var(--fs-lg)/1.2 var(--font); text-shadow: 3px 3px 0 var(--shadow-gold); }
+.kb-sub { margin: 0 0 16px; color: var(--txt-dim); font: 500 var(--fs-md)/1.3 var(--font); min-height: 1.3em; }
+.kb-text { margin: 10px 0 4px; color: var(--txt-dim); font: 500 var(--fs-md)/1.4 var(--font); }
+
+.kb-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; }
+.kb-label { flex: 1 1 auto; color: var(--txt); font: 500 var(--fs-md)/1.3 var(--font); }
+.kb-key { flex: 0 0 auto; min-width: 110px; justify-content: center; padding: 8px 12px; font-weight: 700; }
+
+.kb-footer { display: flex; justify-content: center; gap: 14px; margin: 18px 4px 4px; }
+.kb-footer .action-btn { flex: 1 1 0; justify-content: center; padding: 14px 16px; font-size: var(--fs-md); }
+
+/* El aviso breve debe verse también por encima de las ventanas */
+#toast { z-index: 20; }

@@ -1,0 +1,31 @@
+/* ==========================================================
+ * VALORES COMPUESTOS — patrones y biseles que se repetían
+ * literalmente en seis hojas. Cambiarlos aquí cambia todas las
+ * ventanas a la vez, sin tener que tocar cada selector.
+ * ========================================================== */
+:root {
+  /* Trama de cuadros de los paneles */
+  --panel-tile:
+    linear-gradient(45deg, var(--panel-pattern) 25%, transparent 25% 75%, var(--panel-pattern) 75%),
+    linear-gradient(45deg, var(--panel-pattern) 25%, transparent 25% 75%, var(--panel-pattern) 75%);
+  --panel-tile-size: 6px 6px;
+  --panel-tile-pos: 0 0, 3px 3px;
+
+  /* Trama de los fondos oscuros (overlays) */
+  --overlay-tile:
+    linear-gradient(45deg, var(--overlay-pattern) 25%, transparent 25% 75%, var(--overlay-pattern) 75%),
+    linear-gradient(45deg, var(--overlay-pattern) 25%, transparent 25% 75%, var(--overlay-pattern) 75%);
+  --overlay-tile-size: 4px 4px;
+  --overlay-tile-pos: 0 0, 2px 2px;
+
+  /* Bisel de hueco hundido (listas y contadores) */
+  --well-edge: inset var(--px) var(--px) 0 0 var(--well-lo),
+               inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--well-hi);
+  --well-edge-outline: var(--outline), var(--well-edge);
+
+  /* Bisel de panel: plano y con sombra proyectada */
+  --panel-edge: var(--outline),
+                inset var(--px) var(--px) 0 0 var(--panel-hi),
+                inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--panel-lo);
+  --panel-edge-lift: var(--panel-edge), 7px 7px 0 0 var(--panel-shadow);
+}

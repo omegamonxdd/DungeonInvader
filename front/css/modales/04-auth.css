@@ -1,0 +1,146 @@
+/* ==========================================================
+ * ACCESO / GUARDADO — modal de inicio de sesión y chip de estado.
+ * Usa los mismos tokens que el resto de paneles pixel.
+ * ========================================================== */
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147481000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 20px;
+  background-color: var(--overlay-bg);
+  background-image: var(--overlay-tile);
+  background-size: var(--overlay-tile-size);
+  background-position: var(--overlay-tile-pos);
+  overflow-y: auto;
+}
+.auth-overlay[hidden] { display: none; }
+body.auth-open #game canvas { pointer-events: none; }
+
+.auth-card {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+  padding: 26px 24px 22px;
+  color: var(--txt);
+  text-shadow: var(--ts);
+  background-color: var(--panel);
+  background-image: var(--panel-tile);
+  background-size: var(--panel-tile-size);
+  background-position: var(--panel-tile-pos);
+  box-shadow: var(--panel-edge-lift);
+  text-align: center;
+}
+.auth-rune {
+  color: var(--crystal);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 0 12px #9be0ff90;
+}
+.auth-card h2 {
+  margin: 10px 0 2px;
+  color: var(--txt-gold);
+  font: 600 clamp(18px, 4.5vw, 24px)/1.2 var(--font);
+  letter-spacing: .14em;
+}
+#auth-sub {
+  margin: 0 0 16px;
+  color: var(--txt-dim);
+  font: 500 var(--fs-sm)/1.4 var(--font);
+}
+.auth-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.auth-tabs .build-tab { flex: 1 1 0; }
+
+.auth-field {
+  display: block;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.auth-field span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--txt-dim);
+  font: 600 var(--fs-sm)/1.2 var(--font);
+}
+.auth-field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--txt);
+  background: var(--well);
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--well-edge-outline);
+  font: 500 var(--fs-md)/1.2 var(--font);
+  outline-offset: 3px;
+}
+.auth-field input:focus-visible { outline: 2px solid var(--crystal); }
+.auth-error {
+  margin: 2px 0 12px;
+  color: var(--bad-text);
+  font: 600 var(--fs-sm)/1.35 var(--font);
+}
+.auth-error[hidden] { display: none; }
+.auth-card form .action-btn { width: 100%; }
+#auth-guest { width: 100%; margin-top: 10px; }
+.auth-note {
+  margin: 14px 2px 0;
+  color: var(--txt-dim);
+  font: 500 var(--fs-sm)/1.4 var(--font);
+  opacity: .85;
+}
+
+/* Chip pegajoso: identidad + estado del guardado, debajo de los recursos. */
+#auth-bar {
+  position: fixed;
+  right: 18px;
+  top: 136px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 36px);
+  pointer-events: auto;
+}
+#auth-bar[hidden] { display: none; }
+.auth-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  padding: 6px 10px;
+  color: var(--txt);
+  background: var(--panel);
+  border: 0;
+  box-shadow: var(--panel-edge);
+  font: 600 var(--fs-sm)/1.2 var(--font);
+  cursor: default;
+}
+.auth-chip.guest { cursor: pointer; }
+.auth-chip .auth-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+.auth-chip.guest .auth-dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.auth-chip.offline .auth-dot { background: var(--txt-dim); box-shadow: none; }
+#auth-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auth-status {
+  color: var(--txt-dim);
+  font-size: var(--fs-xs, 11px);
+  white-space: nowrap;
+}
+#auth-bar .action-btn { padding: 6px 10px; white-space: nowrap; }
+body.editing #auth-bar, body.invading #auth-bar { display: none; }

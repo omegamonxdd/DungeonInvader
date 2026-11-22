@@ -1,0 +1,47 @@
+
+.build-tab { flex: 0 0 auto; padding: 7px 6px; font: 600 var(--fs-md)/1 var(--font); }
+
+.tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: var(--w-tool);
+  font: 600 var(--fs-md)/1 var(--font);
+}
+.tool-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; }
+
+/* Edificios construibles (icono, nombre y contador) */
+.build-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  box-sizing: border-box;
+  width: var(--w-item);
+  height: auto;
+  min-height: 72px;
+  padding: 6px 4px 7px;
+  font: 500 var(--fs-xs)/1.05 var(--font);
+  text-align: center;
+}
+.build-item canvas { width: 38px; height: 38px; }
+.build-item .build-count { color: var(--txt-gold); font-size: var(--fs-xs); font-weight: 700; }
+.build-item .build-name { white-space: nowrap; }
+/* Menú Construir: recuadros +43 % sobre el original (92×72 → 131×103: +10 % y luego +30 %), todos del mismo tamaño.
+   Icono y texto escalados +30 % junto con el recuadro. */
+#build-items .build-item { width: var(--w-item-menu); height: var(--h-item-menu); min-height: 0; padding: 6px 4px 8px; gap: 4px; }
+#build-items .build-item canvas { width: 49px; height: 49px; }
+#build-items .build-item { font-size: var(--fs-sm); }
+#build-items .build-item .build-count { font-size: var(--fs-sm); }
+
+/* Costo bajo el contador de cada ranura del menú Construir */
+.build-cost { display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--txt); font-weight: 600; }
+#build-items .build-item .build-cost { font-size: var(--fs-sm); }
+.build-cost svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: -2px; margin-left: 3px; }
+.build-cost .cost-coins { color: var(--coin); }
+.build-cost .cost-crystals { color: var(--crystal); }
+.build-cost.poor, .build-cost.poor span { color: var(--bad-text); }   /* no alcanzan los recursos */

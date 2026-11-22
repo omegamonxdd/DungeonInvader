@@ -1,0 +1,66 @@
+/* ---------- Grieta de invocación y panel de invasión ---------- */
+#summon-panel, #invasion-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2;
+  box-sizing: border-box;
+  width: min(var(--w-summon), calc(100vw - 32px));
+  padding: 14px;
+  transform: translate(-50%, calc(100% + 50px));
+  opacity: 0;
+  visibility: hidden;
+  transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease, visibility 0s linear var(--dur-panel);
+}
+#summon-panel.open, #invasion-panel.open {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease, visibility 0s;
+}
+#summon-head, #invasion-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 0 4px; color: var(--txt-gold); font: 600 var(--fs-md)/1.2 var(--font); }
+#summon-head .grow, #invasion-head .grow { flex: 1; }
+#summon-space, #invasion-status { color: var(--txt); }
+/* Panel de invasión: columna vertical pegada al borde derecho y centrada en altura */
+#invasion-panel {
+  left: auto; right: 22px; top: 50%; bottom: auto;
+  width: var(--w-invasion); max-height: calc(100vh - 40px);
+  display: flex; flex-direction: column;
+  transform: translate(calc(100% + 50px), -50%);
+}
+#invasion-panel.open { transform: translate(0, -50%); }
+#invasion-head { flex-wrap: wrap; gap: 8px 8px; }
+#invasion-head > span:first-child { flex: 1; min-width: 0; }
+#invasion-head .grow { display: none; }
+#invasion-status { order: 3; flex: 1 0 100%; font-size: var(--fs-xs); }
+#invasion-items { flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+#summon-close { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; }
+#summon-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; }
+#summon-items, #invasion-items { display: flex; align-items: center; gap: 14px; min-height: 92px; padding: 10px; overflow-x: auto; }
+#invasion-select-all {
+  --bg: var(--stone); --hi: var(--stone-hi); --lo: var(--stone-lo); --bg-h: var(--stone-h); --hi-h: var(--stone-hi-h);
+  flex: 0 0 auto; box-sizing: border-box; width: 100%; margin-top: 10px; padding: 10px 8px;
+  background: var(--bg); border: 0; border-radius: 0; color: var(--txt); text-shadow: var(--ts); cursor: pointer;
+  font: 600 var(--fs-14)/1.2 var(--font); display: flex; flex-direction: column; align-items: center; gap: 3px;
+  box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--hi), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo);
+}
+#invasion-select-all .kbd { font: 400 var(--fs-kbd)/1 var(--font); color: var(--txt-dim); }
+#invasion-select-all:hover { background: var(--bg-h); box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--hi-h), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo); }
+#invasion-select-all:active { box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--lo), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--hi); }
+#invasion-select-all:focus-visible { outline: var(--focus-w) solid var(--white); outline-offset: var(--focus-offset); }
+#invasion-hint { margin: 10px 4px 0; color: var(--txt-dim); font: 400 var(--fs-xs)/1.35 var(--font); }
+#invasion-hint b { color: var(--txt-gold); font-weight: 600; }
+#select-box {
+  position: fixed; z-index: 2; display: none; pointer-events: none; box-sizing: border-box;
+  border: 2px solid var(--txt-gold); border-radius: 0; background: var(--select-bg);
+}
+.summon-empty { color: var(--txt-dim); font: 500 var(--fs-md)/1.3 var(--font); padding: 0 10px; }
+.troop-wrap { position: relative; flex: 0 0 auto; }
+.troop-info-btn {
+  position: absolute; top: 4px; right: 4px; z-index: 1; width: 22px; height: 22px; padding: 0;
+  display: grid; place-items: center; --px: 2px;
+  font: 700 var(--fs-xs)/1 var(--font); color: var(--txt-gold);
+}
+.troop-dot { width: 38px; height: 38px; border-radius: 0; box-shadow: 0 0 0 3px var(--ink), inset 4px 4px 0 var(--troop-hi), inset -4px -4px 0 var(--troop-lo); }
+.troop-cost { display: flex; gap: 6px; color: var(--txt-gold); font-size: var(--fs-xs); font-weight: 600; }
+.troop-cost svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; vertical-align: -1px; }
