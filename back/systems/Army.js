@@ -1,0 +1,136 @@
+/* ==========================================================
+ * FASE 10 — EJÉRCITO, INVOCACIÓN, CRÍA Y MUTACIÓN
+ * ----------------------------------------------------------
+ * Estado del ejército fuera de la invasión. Sustituye al ejército fijo de la
+ * Fase 8 por un registro vivo alimentado por la grieta y la incubadora.
+ * Los números (espacio, niveles, requisitos de laboratorio) vienen de
+ * balance/; aquí solo se validan las reglas del legacy.
+ * ========================================================== */
+
+import { BALANCE, levelRow, tropaAt } from '../balance/index.js';
+import { TROOP_ART } from '../enemies/troopArt.js';
+
+const T = BALANCE.tropas;
+
+export class Army {
+  constructor(deps = {}) {
+    this.deps = deps;
+    this.onChange = deps.onChange || (() => {});
+    this.onToast = deps.onToast || (() => {});
+    // El escenario de prueba de la Fase 8 sigue disponible al arrancar.
+    this.counts = { ...BALANCE.invasion.ejercitoPrueba };
+    this.levels = {};
+    for (const id of Object.keys(this.counts)) this.levels[id] = 1;
+  }
+
+  capacity() {
+    const lvl = this.deps.entranceLevel?.() || 1;
+    return BALANCE.entrada.espacioTropas[lvl] || BALANCE.entrada.espacioTropas[1];
+  }
+
+  used() {
+    let n = 0;
+    for (const [id, count] of Object.entries(this.counts)) {
+      n += (T.tipos[id]?.space || 0) * count;
+    }
+    return n;
+  }
+
+  free() { return Math.max(0, this.capacity() - this.used()); }
+
+  levelOf(id) { return this.levels[id] || 1; }
+
+  sourceLevel(source) {
+    if (source === 'rift') return this.deps.riftLevel?.() || 0;
+    if (source === 'incubator') return this.deps.incubatorLevel?.() || 0;
+    return 1;
+  }
+
+  unlocked(typeId) {
+    const def = T.tipos[typeId];
+    if (!def || def.source === 'summoned') return false;
+    return this.sourceLevel(def.source) >= (def.minNivel || 1);
+  }
+
+  availableTypes(source = null) {
+    return Object.keys(T.tipos).filter(id => {
+      const def = T.tipos[id];
+      if (def.source === 'summoned') return false;
+      if (source && def.source !== source) return false;
+      return this.unlocked(id);
+    });
+  }
+
+  canAdd(id) {
+    const def = T.tipos[id];
+    if (!def) return 'Tropa desconocida';
+    if (def.source === 'summoned') return 'No se puede invocar';
+    if (!this.unlocked(id)) {
+      const building = def.source === 'incubator' ? 'incubadora' : 'grieta';
+      return `Necesitas ${building} nivel ${def.minNivel}`;
+    }
+    if ((def.space || 0) > this.free()) return 'Sin espacio en la entrada';
+    return '';
+  }
+
+  add(id) {
+    const why = this.canAdd(id);
+    if (why) { this.onToast(why); return false; }
+    this.counts[id] = (this.counts[id] || 0) + 1;
+    if (!this.levels[id]) this.levels[id] = 1;
+    this.onChange();
+    return true;
+  }
+
+  remove(id) {
+    if (!this.counts[id]) return false;
+    this.counts[id]--;
+    if (!this.counts[id]) delete this.counts[id];
+    this.onChange();
+    return true;
+  }
+
+  labLevel() { return this.deps.labLevel?.() || 0; }
+
+  labRequired(id, to) {
+    return levelRow(T.labRequerido[id], to) ?? 1;
+  }
+
+  canMutate(id) {
+    const def = T.tipos[id];
+    if (!def) return 'Tropa desconocida';
+    if (!this.counts[id]) return 'No tienes esa tropa';
+    const to = this.levelOf(id) + 1;
+    if (to > (def.maxNivel || 1)) return 'Nivel máximo';
+    const need = this.labRequired(id, to);
+    if (this.labLevel() < need) return `Necesitas laboratorio nivel ${need}`;
+    return '';
+  }
+
+  mutate(id) {
+    const why = this.canMutate(id);
+    if (why) { this.onToast(why); return false; }
+    this.levels[id] = this.levelOf(id) + 1;
+    this.onToast(`${TROOP_NAME(id)} → nivel ${this.levels[id]}`);
+    this.onChange();
+    return true;
+  }
+
+  snapshot() {
+    return {
+      counts: { ...this.counts },
+      levels: { ...this.levels },
+    };
+  }
+}
+
+export function TROOP_NAME(id) {
+  return TROOP_ART[id]?.name || id;
+}
+
+export function troopStatsText(id, level) {
+  const row = tropaAt(id, level);
+  if (!row) return '';
+  const dmg = row.damage ?? Math.round(row.dps * (T.tipos[id]?.interval || 1));
+  return `${row.hp} vida · ${dmg} daño`;
+}

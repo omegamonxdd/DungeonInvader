@@ -1,0 +1,74 @@
+import { iso } from '../systems/iso.js';
+import { EMPTY, DIRT, CORE, HEIGHTS, heightAt, noise } from '../systems/map.js';
+import {
+  DIRT_VARIANTS, FACE_LEFT, FACE_RIGHT, TILE_TEXTURE, dirtKey, coreStoneKey,
+} from '../systems/textures.js';
+
+/* Capa visual del terreno.
+ * Cada casilla es una imagen con textura horneada; el orden de dibujo es
+ * isométrico: profundidad = x + y (de atrás hacia delante).
+ * Las caras laterales solo se dibujan si el vecino es más bajo, igual que
+ * en el render legacy.
+ */
+export class TerrainView {
+  constructor(scene, map) {
+    this.scene = scene;
+    this.map = map;
+    this.tiles = [];
+  }
+
+  build() {
+    const size = this.map.length;
+    const { originX, originY } = TILE_TEXTURE;
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const p = iso(x, y);
+        const tile = this.scene.add.image(p.x, p.y, this.textureFor(x, y))
+          .setOrigin(originX, originY)
+          .setDepth(x + y);
+
+        this.tiles[y * size + x] = tile;
+      }
+    }
+  }
+
+  // Una excavación o relleno cambia la textura de la casilla y las caras
+  // laterales visibles de sus dos vecinas traseras (02-terreno.js).
+  refresh(x, y) {
+    const size = this.map.length;
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    const { originX, originY } = TILE_TEXTURE;
+    const update = (cx, cy) => {
+      if (cx < 0 || cy < 0 || cx >= size || cy >= size) return;
+      const p = iso(cx, cy);
+      this.tiles[cy * size + cx]
+        .setTexture(this.textureFor(cx, cy))
+        .setPosition(p.x, p.y)
+        .setOrigin(originX, originY);
+    };
+    update(x, y);
+    update(x, y - 1);
+    update(x - 1, y);
+  }
+
+  faceMask(x, y, height) {
+    const left = heightAt(this.map, x, y + 1) < height ? FACE_LEFT : 0;
+    const right = heightAt(this.map, x + 1, y) < height ? FACE_RIGHT : 0;
+    return left | right;
+  }
+
+  textureFor(x, y) {
+    const id = this.map[y][x];
+
+    if (id === DIRT) {
+      const variant = Math.min(DIRT_VARIANTS - 1, Math.floor(noise(x, y) * DIRT_VARIANTS));
+      return dirtKey(variant, this.faceMask(x, y, HEIGHTS[DIRT]));
+    }
+    if (id === CORE) {
+      return coreStoneKey(this.faceMask(x, y, HEIGHTS[CORE]));
+    }
+    if (id === EMPTY) return 'floor';
+    return 'floor';
+  }
+}
