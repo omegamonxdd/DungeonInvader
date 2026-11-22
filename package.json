@@ -1,0 +1,23 @@
+{
+  "name": "dungeon-build-phaser",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Dungeon Build migrado a Phaser 3. Independiente del legacy: front/ (visual), back/ (lógica) y raíz (arranque).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "art:ballista": "node tools/ballista-art/generate.mjs",
+    "art:turret": "node tools/turret-art/generate.mjs",
+    "art:catapult": "node tools/catapult-art/generate.mjs",
+    "art:core": "node tools/core-art/generate.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.8"
+  }
+}
