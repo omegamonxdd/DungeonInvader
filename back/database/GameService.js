@@ -1,0 +1,268 @@
+/* ==========================================================
+ * SERVICIO DE PROGRESO (orquestador)
+ * ----------------------------------------------------------
+ * Conecta autenticación, guardado local y Supabase con los sistemas
+ * vivos de MainScene. Expone una API pequeña para la UI:
+ *
+ *   service.start()                 arranca y carga la partida
+ *   service.signIn/signUp/signOut   identidad
+ *   service.markDirty()             avisa de que algo cambió
+ *   service.onStatus(cb)            estado para el HUD
+ * ========================================================== */
+
+import { AUTOSAVE_MS, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
+import { AuthService } from './auth.js';
+import { SaveRepository } from './repository.js';
+import { buildSnapshot, sameProgress } from './snapshot.js';
+import { applySnapshot } from './restore.js';
+
+export class GameService {
+  constructor() {
+    this.auth = new AuthService();
+    this.repository = new SaveRepository();
+    this.ctx = null;
+    this.started = false;
+    this.dirty = false;
+    this.saving = false;
+    this.pendingApply = null;
+    this.pendingSave = false;
+    this.lastSaved = null;
+    this.lastUserId = null;
+    this.status = 'idle';       // idle | loading | saving | saved | offline | error
+    this.error = null;
+    this.savedAt = null;
+    this.listeners = new Set();
+    this._timer = null;
+    this._debounce = null;
+    this._onAuthUnsub = null;
+    this.startPromise = null;
+    this._attachResolve = null;
+    this._attached = new Promise(resolve => { this._attachResolve = resolve; });
+    this._boundPageHide = () => this.save({ force: true, sync: false });
+    this._boundVisibility = () => {
+      if (document.visibilityState === 'hidden') this.save({ force: true, sync: false });
+    };
+  }
+
+  /* ---------- Suscripción de estado ------------------------------------ */
+
+  onStatus(cb) {
+    this.listeners.add(cb);
+    cb(this.getStatus());
+    return () => this.listeners.delete(cb);
+  }
+
+  getStatus() {
+    return {
+      status: this.status,
+      error: this.error,
+      savedAt: this.savedAt,
+      configured: this.repository.remoteEnabled,
+      user: { id: this.auth.id, email: this.auth.email, guest: this.auth.isGuest },
+    };
+  }
+
+  _emit() {
+    const state = this.getStatus();
+    for (const cb of this.listeners) {
+      try { cb(state); }
+      catch (err) { console.warn('[database] listener de estado falló:', err); }
+    }
+  }
+
+  _setStatus(status, error = null) {
+    this.status = status;
+    this.error = error;
+    this._emit();
+  }
+
+  /* ---------- Arranque -------------------------------------------------- */
+
+  attach(ctx) {
+    this.ctx = ctx;
+    this._attachResolve?.();
+    this._attachResolve = null;
+  }
+
+  start() {
+    if (this.startPromise) return this.startPromise;
+    this.started = true;
+    this._setStatus('loading');
+    this.startPromise = this._boot();
+    return this.startPromise;
+  }
+
+  async _boot() {
+    // main.js puede llamar a start() antes de que Phaser cree MainScene.
+    await this._attached;
+
+    await this.repository.init();
+    await this.auth.restore();
+    this.lastUserId = this.auth.id;
+
+    // Caché local: se aplica siempre, esté o no configurada la nube.
+    const local = this.repository.loadLocal(this.auth.id);
+    if (local) {
+      this.apply(local);
+      this.lastSaved = local;
+      this.savedAt = local.savedAt;
+    }
+
+    if (!this.auth.isGuest) await this.syncFromCloud(this.auth.user, local);
+
+    this._onAuthUnsub = this.auth.onChange(user => this.handleAuthChange(user));
+    this._timer = setInterval(() => this.tick(), AUTOSAVE_MS);
+    window.addEventListener('pagehide', this._boundPageHide);
+    window.addEventListener('beforeunload', this._boundPageHide);
+    document.addEventListener('visibilitychange', this._boundVisibility);
+
+    this._setStatus(this.repository.remoteEnabled ? 'saved' : 'offline');
+  }
+
+  async handleAuthChange(user) {
+    if (user.id === this.lastUserId) return;
+    const previousId = this.lastUserId;
+    this.lastUserId = user.id;
+
+    // Guarda lo que hubiera antes de cambiar de identidad para no perderlo.
+    if (this.dirty && previousId) await this.save({ force: true });
+    if (user.guest) {
+      const local = this.repository.loadLocal(user.id);
+      if (local) this.apply(local);
+      this._setStatus('offline');
+      return;
+    }
+    await this.syncFromCloud(user, null);
+  }
+
+  /** Decide entre la copia local y la remota (last-write-wins) y empuja si hace falta. */
+  async syncFromCloud(user, localHint) {
+    const local = localHint || this.repository.loadLocal(user.id) || this.lastSaved;
+    const remote = await this.repository.loadRemote(user.id);
+    if (remote && (!local || SaveRepository.newer(remote, local))) {
+      this.apply(remote);
+      this.lastSaved = remote;
+      this.savedAt = remote.savedAt;
+      this.repository.saveLocal(remote, user.id);
+    } else if (local && (!remote || this.dirty || SaveRepository.newer(local, remote))) {
+      await this.upload(local, user.id);
+    }
+  }
+
+  /* ---------- Guardado -------------------------------------------------- */
+
+  markDirty() {
+    if (!this.started) return;
+    this.dirty = true;
+    clearTimeout(this._debounce);
+    this._debounce = setTimeout(() => this.save(), SAVE_DEBOUNCE_MS);
+  }
+
+  tick() { if (this.dirty) this.save(); }
+
+  async save({ force = false, sync = true } = {}) {
+    if (!this.ctx || !this.started) return false;
+    if (this.invasionActive()) {
+      this.pendingSave = true;
+      return false;
+    }
+    if (this.saving) return false;
+
+    const snapshot = buildSnapshot(this.ctx, DEFAULT_SLOT);
+    if (!force && !this.dirty && sameProgress(snapshot, this.lastSaved)) return false;
+
+    this.saving = true;
+    this._setStatus('saving');
+    const userId = this.auth.id;
+    this.repository.saveLocal(snapshot, userId);
+
+    if (sync && !this.auth.isGuest && this.repository.remoteEnabled) {
+      await this.upload(snapshot, userId);
+    } else {
+      this.savedAt = snapshot.savedAt;
+      this._setStatus(this.repository.remoteEnabled ? 'saved' : 'offline');
+    }
+
+    this.lastSaved = snapshot;
+    this.dirty = false;
+    this.pendingSave = false;
+    this.saving = false;
+    this._emit();
+    return true;
+  }
+
+  async upload(snapshot, userId) {
+    const result = await this.repository.saveRemote(userId, snapshot);
+    if (result.ok) {
+      this.savedAt = result.savedAt || snapshot.savedAt;
+      this._setStatus('saved');
+    } else if (result.reason === 'local') {
+      this.savedAt = snapshot.savedAt;
+      this._setStatus('offline');
+    } else {
+      this.savedAt = snapshot.savedAt;
+      this._setStatus('error', result.error);
+    }
+  }
+
+  /** Llamar al terminar una invasión: aplica guardados/cargas pospuestos. */
+  async flushPending() {
+    if (this.pendingApply) {
+      const snap = this.pendingApply;
+      this.pendingApply = null;
+      this.apply(snap);
+    }
+    if (this.pendingSave || this.dirty) await this.save({ force: true });
+  }
+
+  invasionActive() { return Boolean(this.ctx?.invasion?.active && !this.ctx?.invasion?.over); }
+
+  /* ---------- Carga en caliente ---------------------------------------- */
+
+  apply(snapshot) {
+    if (!this.ctx) return;
+    if (this.invasionActive()) {
+      this.pendingApply = snapshot;
+      return;
+    }
+    const applied = applySnapshot(snapshot, this.ctx);
+    this.lastSaved = applied;
+    this.savedAt = applied.savedAt;
+    this.dirty = false;
+  }
+
+  /* ---------- APIs que usa la UI --------------------------------------- */
+
+  signIn(email, password) { return this.auth.signIn(email, password); }
+  signUp(email, password) { return this.auth.signUp(email, password); }
+  signOut() { return this.auth.signOut(); }
+  continueAsGuest() { return this.auth.continueAsGuest(); }
+
+  /** Estadísticas de partida: se guardan con el resto del progreso. */
+  recordInvasion(result) {
+    const stats = this.ctx?.stats || (this.ctx ? this.ctx.stats = {} : {});
+    stats.invasions = (stats.invasions || 0) + 1;
+    if (result === 'won' || result?.kind === 'won' || result?.won || result?.victory) {
+      stats.wins = (stats.wins || 0) + 1;
+    }
+    else stats.losses = (stats.losses || 0) + 1;
+    this.markDirty();
+  }
+
+  dispose() {
+    clearInterval(this._timer);
+    clearTimeout(this._debounce);
+    this._onAuthUnsub?.();
+    this.auth.dispose();
+    window.removeEventListener('pagehide', this._boundPageHide);
+    window.removeEventListener('beforeunload', this._boundPageHide);
+    document.removeEventListener('visibilitychange', this._boundVisibility);
+    this.listeners.clear();
+  }
+}
+
+/* Instancia compartida: main.js la crea antes del Phaser.Game y MainScene
+ * la recoge con getService(). Evita depender del orden de boot de Phaser. */
+let active = null;
+export function setService(service) { active = service; return service; }
+export function getService() { return active; }

@@ -1,0 +1,75 @@
+/* ==========================================================
+ * GUARDADO LOCAL (fallback sin Supabase y caché offline)
+ * ----------------------------------------------------------
+ * Siempre se escribe en localStorage, incluso con Supabase activo:
+ * es la caché que permite jugar sin red y la copia de seguridad si
+ * la nube falla. El formato es exactamente el mismo snapshot.
+ * ========================================================== */
+
+import { STORAGE_KEYS } from './config.js';
+import { normalizeSnapshot, savedAtMs } from './snapshot.js';
+
+function safeGet(key) {
+  try { return globalThis.localStorage?.getItem(key) || null; }
+  catch { return null; }
+}
+function safeSet(key, value) {
+  try { globalThis.localStorage?.setItem(key, value); return true; }
+  catch { return false; }
+}
+function safeRemove(key) {
+  try { globalThis.localStorage?.removeItem(key); }
+  catch { /* almacenamiento bloqueado: se ignora */ }
+}
+
+/** Identificador estable de este navegador para el modo invitado. */
+export function getGuestId() {
+  let id = safeGet(STORAGE_KEYS.guest);
+  if (!id) {
+    const uuid = globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    id = `guest:${uuid}`;
+    safeSet(STORAGE_KEYS.guest, id);
+  }
+  return id;
+}
+
+function parse(raw) {
+  if (!raw) return null;
+  try { return normalizeSnapshot(JSON.parse(raw)); }
+  catch { return null; }
+}
+
+/** Carga el guardado local: primero el del usuario, luego el genérico. */
+export function loadLocal(userId = null) {
+  const candidates = [
+    userId ? STORAGE_KEYS.byUser(userId) : null,
+    STORAGE_KEYS.current,
+    ...STORAGE_KEYS.legacy,
+  ].filter(Boolean);
+  let best = null;
+  for (const key of candidates) {
+    const snap = parse(safeGet(key));
+    if (snap && (!best || savedAtMs(snap) > savedAtMs(best))) best = snap;
+  }
+  return best;
+}
+
+/** Escribe el snapshot en local. Devuelve true si al menos una clave se guardó. */
+export function saveLocal(snapshot, userId = null) {
+  const json = JSON.stringify(snapshot);
+  let ok = safeSet(STORAGE_KEYS.current, json);
+  if (userId) ok = safeSet(STORAGE_KEYS.byUser(userId), json) || ok;
+  return ok;
+}
+
+export function clearLocal(userId = null) {
+  safeRemove(STORAGE_KEYS.current);
+  if (userId) safeRemove(STORAGE_KEYS.byUser(userId));
+}
+
+/** Tamaño aproximado del guardado (para el panel de depuración). */
+export function localSize() {
+  return (safeGet(STORAGE_KEYS.current) || '').length;
+}
