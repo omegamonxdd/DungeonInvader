@@ -269,7 +269,11 @@ export class GameService {
 
   /* ---------- Rivales de invasión --------------------------------------- */
 
-  listOpponents() { return this.repository.listOpponents(); }
+  async listOpponents() {
+    const list = await this.repository.listOpponents();
+    const mine = String(this.auth.id || '');
+    return list.filter(r => String(r.id) !== mine);
+  }
   loadOpponentBase(userId) { return this.repository.loadOpponentBase(userId); }
   loadOpponentCheckpoint(userId) { return this.repository.loadOpponentCheckpoint(userId); }
 

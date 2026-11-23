@@ -198,6 +198,10 @@ export class InvasionController {
 
   async start({ opponentId = null, opponentName = '' } = {}) {
     if (this.active) return false;
+    if (opponentId && String(opponentId) === String(this.service?.auth?.id)) {
+      this.onToast('No puedes invadir tu propia base');
+      return false;
+    }
 
     const ctx = this.getContext();
     const service = this.service || getService();

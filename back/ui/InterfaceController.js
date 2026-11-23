@@ -101,6 +101,7 @@ export class InterfaceController {
       invasionPanel: byId('invasion-panel'),
       invasionItems: byId('invasion-items'), invasionStatus: byId('invasion-status'),
       lootCoins: byId('loot-coins'), lootCrystals: byId('loot-crystals'),
+      invasionTarget: byId('invasion-target'),
       timer: byId('invasion-timer'), timerLabel: document.querySelector('#invasion-timer .it-label'),
       timerTime: document.querySelector('#invasion-timer .it-time'),
       victory: byId('victory-banner'), victoryBack: byId('victory-back'),
@@ -1253,6 +1254,7 @@ export class InterfaceController {
       this.els.victory.classList.remove('show', 'defeat');
       this.invClockKey = '';
       this.syncLoot(null);
+      if (this.els.invasionTarget) this.els.invasionTarget.hidden = true;
       this.renderInvasionItems();
       return;
     }
@@ -1286,6 +1288,11 @@ export class InterfaceController {
       ? `Invadiendo a ${inv.opponent.name} · ` : '';
     this.els.invasionStatus.textContent =
       `${rival}Seleccionadas ${selected} · En campo ${inv.inField()} · Bajas ${dead}`;
+    if (this.els.invasionTarget) {
+      this.els.invasionTarget.hidden = !inv.opponent?.name;
+      this.els.invasionTarget.textContent = inv.opponent?.name
+        ? `Botín de ${inv.opponent.name}` : '';
+    }
     this.syncLoot(inv.availableLoot?.());
   }
 

@@ -574,6 +574,8 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
 - Con sesión iniciada y Supabase configurado se abre **Elegir rival**: se ataca
   una copia de la base del jugador elegido, no la propia. Sin sesión (invitado)
   o sin nube se conserva la simulación de siempre sobre la base propia.
+  Tu propia cuenta nunca aparece en el selector: no se puede atacar a uno
+  mismo. El nombre del rival se muestra sobre los recursos robables.
   Ver [§11.1](#111-invasión-contra-otro-jugador).
 - **Cronómetro**: fases de preparación y batalla con los tiempos definidos en
   `BALANCE.invasion`; al desplegar la primera tropa (o acabarse la preparación)
