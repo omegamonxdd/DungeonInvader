@@ -131,6 +131,10 @@ export class InvasionController {
   availableLoot() {
     const out = { coins: 0, crystals: 0 };
     if (!this.active) return out;
+    // El botín base siempre cuenta: el panel muestra «1500 + robo» por recurso.
+    const base = BALANCE.invasion.botinBase || {};
+    out.coins = Math.max(0, Math.floor(base.coins || 0));
+    out.crystals = Math.max(0, Math.floor(base.crystals || 0));
     for (const def of this.structures) {
       if (def?.kind === 'core') {
         if ((this.siege[def.id] ?? this.maxHpOf(def)) <= 0) continue;
@@ -371,25 +375,43 @@ export class InvasionController {
       def.view?.setHidden?.(false);
     }
     const swap = this.baseSwap;
-    const loot = { ...(this.lootGained || {}) };
+    const baseLoot = BALANCE.invasion.botinBase || {};
+    const baseCoins = Math.max(0, Math.floor(baseLoot.coins || 0));
+    const baseCrystals = Math.max(0, Math.floor(baseLoot.crystals || 0));
+    const loot = {
+      coins: (this.lootGained?.coins || 0) + baseCoins,
+      crystals: (this.lootGained?.crystals || 0) + baseCrystals,
+    };
+    // El botín base se guarda directamente en el núcleo, sin depender del
+    // hueco libre en almacenes (también en invasiones locales, sin rival).
+    const depositBase = (structures) => {
+      const core = structures?.find(d => d?.kind === 'core' && d.placed && !d.shelved);
+      if (!core) return;
+      core.stored = Math.max(0, Math.floor(core.stored || 0)) + baseCoins;
+      core.storedCrystals = Math.max(0, Math.floor(core.storedCrystals || 0)) + baseCrystals;
+    };
     this.baseSwap = null;
     this.opponent = null;
     document.body.classList.remove('invading', 'inv-end');
     if (swap) {
-      restoreOwnBase(this.getContext(), swap.own);
+      const ctx = this.getContext();
+      restoreOwnBase(ctx, swap.own);
+      depositBase(ctx.structures);
       // restoreOwnBase reaplica el snapshot propio, que tiene los recursos
       // de ANTES del botín: los robados se vuelven a sumar aquí para que
       // flushPending() los guarde con la base ya restaurada.
       if (this.resources) {
-        if (loot.coins) this.resources.add('coins', loot.coins);
-        if (loot.crystals) this.resources.add('crystals', loot.crystals);
+        if (this.lootGained?.coins) this.resources.add('coins', this.lootGained.coins);
+        if (this.lootGained?.crystals) this.resources.add('crystals', this.lootGained.crystals);
       }
-      // applySnapshot ya refrescó el HUD con los recursos anteriores al
-      // botín: se vuelve a sincronizar después de re-sumir lo robado.
-      this.scene?.ui?.syncResources?.();
-      if (loot.coins || loot.crystals) {
-        this.onToast(`Botín: +${loot.coins || 0} oro · +${loot.crystals || 0} cristales`);
-      }
+    } else {
+      depositBase(this.structures);
+    }
+    // applySnapshot ya refrescó el HUD con los recursos anteriores al botín:
+    // se vuelve a sincronizar después de re-sumirlo.
+    this.scene?.ui?.syncResources?.();
+    if (loot.coins || loot.crystals) {
+      this.onToast(`Botín: +${loot.coins || 0} oro · +${loot.crystals || 0} cristales`);
     }
     this.reset();
     if (swap) {

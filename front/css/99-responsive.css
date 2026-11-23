@@ -23,8 +23,10 @@
   body.invading #invasion-btn .btn-label { display: none; }
   body.invading #invasion-btn .btn-short { display: inline; }
 
-  /* Select: alterna arrastrar la cámara / seleccionar tropas con el dedo. */
-  #select-mode-btn {
+  /* Select solo aparece durante la invasión: alterna arrastrar la cámara /
+     seleccionar tropas con el dedo. En la base normal estorba. */
+  #select-mode-btn { display: none; }
+  body.invading #select-mode-btn {
     display: block;
     position: fixed; right: 10px; top: 50%; z-index: 4;
     transform: translateY(-50%);
@@ -53,6 +55,20 @@
 
   /* Barras de recursos un 20 % más cortas en móvil. */
   #resources { width: calc(var(--w-recursos) * 0.8); }
+
+  /* Móvil: al abrir, el botón Mejoras desaparece y el panel nace justo donde
+     estaba (bajo los recursos), un 10 % más pequeño en conjunto. La X de la
+     cabecera sirve para cerrarlo. */
+  body.upg-open #upg-btn { display: none; }
+  #upg-panel {
+    right: 8px; left: auto; top: 88px; bottom: 84px;
+    width: var(--w-upg); max-width: calc(100vw - 16px);
+    transform-origin: top right;
+    transform: translateX(calc(100% + 50px)) scale(0.9); opacity: 0;
+    transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease;
+  }
+  #upg-panel.open { transform: scale(0.9); opacity: 1; }
+  .upg-close { flex: 0 0 auto; }
 
   /* Construcción: sustituye el panel de aviso por un botón de cancelar. */
   #move-hint { display: none !important; }

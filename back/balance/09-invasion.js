@@ -25,4 +25,8 @@ export const invasion = {
   // mismos porcentajes; el dueño conserva el resto.
   botinAlmacenes: 0.25,
   botinProductores: 0.5,
+
+  // Botín base garantizado por invasión (se suma a lo robado y se guarda en
+  // el núcleo al volver la base propia): 1500 de cada recurso.
+  botinBase: { coins: 1500, crystals: 1500 },
 };

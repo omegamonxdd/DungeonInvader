@@ -609,8 +609,11 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
   aplican esos mismos porcentajes al botín y la mazmorra entera se destruye
   (colapso).
   El importe disponible se ve en «Recursos disponibles». La base real del
-  invadido no se modifica: solo se ataca una copia.
+  invadido no se modifica: solo se ataca una copia. El botín base (`botinBase`,
+  1500 monedas y 1500 cristales) siempre se cuenta y se guarda en el núcleo.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
+- En móvil, `Select` solo aparece durante la invasión; al abrir Mejoras su botón
+  desaparece y el panel ocupa ese hueco un 10 % más pequeño, con una X para cerrarlo.
 
 ### 11.1 Invasión contra otro jugador
 
