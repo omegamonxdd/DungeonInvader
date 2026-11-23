@@ -98,6 +98,15 @@ cancela. `GameService` mantiene `invasionPreparing` en `true` mientras se
 descarga la base prestada para que ningún autoguardado escriba el snapshot del
 rival como progreso propio. Ver `../enemies/invasionBase.js`.
 
+## Aislamiento entre cuentas
+
+El guardado local se lee **solo desde la clave del usuario actual**
+(`byUser(userId)`); la clave genérica `current` y las legacy se usan únicamente
+cuando no hay identidad. Al cambiar de cuenta, `GameService` guarda el progreso
+anterior con el id anterior, descarta `lastSaved`/pendientes y, si la cuenta
+nueva no tiene guardado propio ni remoto, aplica `freshSnapshot()`. Así una
+cuenta nueva nunca hereda la base, recursos ni sesión de la anterior.
+
 ## Resolución de conflictos
 
 Se compara `savedAt` (o `updated_at` en Supabase): gana el más reciente. Si el

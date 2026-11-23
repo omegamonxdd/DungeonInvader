@@ -15,8 +15,10 @@ import { devResources } from '../config/devResources.js';
 import { AUTOSAVE_MS, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
 import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
-import { buildSnapshot, sameProgress, snapshotHasPath } from './snapshot.js';
+import { buildSnapshot, freshSnapshot, sameProgress, snapshotHasPath } from './snapshot.js';
 import { applySnapshot } from './restore.js';
+
+const isGuestId = id => String(id || '').startsWith('guest:');
 
 export class GameService {
   constructor() {
@@ -111,6 +113,8 @@ export class GameService {
       this.apply(local);
       this.lastSaved = local;
       this.savedAt = local.savedAt;
+    } else if (this.auth.isGuest) {
+      this.applyFresh();
     }
 
     if (!this.auth.isGuest) await this.syncFromCloud(this.auth.user, local);
@@ -129,27 +133,67 @@ export class GameService {
     const previousId = this.lastUserId;
     this.lastUserId = user.id;
 
-    // Guarda lo que hubiera antes de cambiar de identidad para no perderlo.
-    if (this.dirty && previousId) await this.save({ force: true });
+    // Guarda lo del usuario anterior CON SU id: al dispararse el evento,
+    // `auth.id` ya es la cuenta nueva.
+    if (this.dirty && previousId) {
+      await this.save({ force: true, userId: previousId });
+    }
+
+    // Nada del estado anterior puede filtrarse a la nueva identidad.
+    this.pendingApply = null;
+    this.pendingSave = false;
+    this.dirty = false;
+    this.lastSaved = null;
+    this.savedAt = null;
+
     if (user.guest) {
       const local = this.repository.loadLocal(user.id);
-      if (local) this.apply(local);
+      if (local) {
+        this.apply(local);
+        this.lastSaved = local;
+        this.savedAt = local.savedAt;
+      } else {
+        this.applyFresh();
+      }
       this._setStatus('offline');
       return;
     }
     await this.syncFromCloud(user, null);
   }
 
-  /** Decide entre la copia local y la remota (last-write-wins) y empuja si hace falta. */
+  /** Partida limpia para una identidad sin guardado propio. */
+  applyFresh() {
+    const snap = freshSnapshot(DEFAULT_SLOT);
+    this.apply(snap);
+    this.lastSaved = null;
+    this.savedAt = null;
+    this.dirty = false;
+    this.pendingApply = null;
+    this.pendingSave = false;
+  }
+
+  /** Decide entre la copia local y la remota (last-write-wins) y empuja si hace falta.
+   *  Ambos bandos se leen SOLO para `user.id`: nunca se usa `lastSaved` de otra
+   *  cuenta como origen. */
   async syncFromCloud(user, localHint) {
-    const local = localHint || this.repository.loadLocal(user.id) || this.lastSaved;
+    const local = localHint || this.repository.loadLocal(user.id);
     const remote = await this.repository.loadRemote(user.id);
-    if (remote && (!local || SaveRepository.newer(remote, local))) {
-      this.apply(remote);
-      this.lastSaved = remote;
-      this.savedAt = remote.savedAt;
+    const remoteWins = Boolean(remote && (!local || SaveRepository.newer(remote, local)));
+    const chosen = remoteWins ? remote : local;
+
+    if (chosen) {
+      this.apply(chosen);
+      this.lastSaved = chosen;
+      this.savedAt = chosen.savedAt;
+      this.dirty = false;
+    } else {
+      this.applyFresh();
+    }
+
+    if (remoteWins) {
       this.repository.saveLocal(remote, user.id);
-    } else if (local && (!remote || this.dirty || SaveRepository.newer(local, remote))) {
+      this._rememberCheckpoint(remote, user.id);
+    } else if (local && (!remote || SaveRepository.newer(local, remote))) {
       await this.upload(local, user.id);
     }
   }
@@ -165,7 +209,7 @@ export class GameService {
 
   tick() { if (this.dirty) this.save(); }
 
-  async save({ force = false, sync = true } = {}) {
+  async save({ force = false, sync = true, ownerId = null } = {}) {
     if (!this.ctx || !this.started) return false;
     if (this.invasionActive()) {
       this.pendingSave = true;
@@ -184,11 +228,11 @@ export class GameService {
 
     this.saving = true;
     this._setStatus('saving');
-    const userId = this.auth.id;
+    const userId = ownerId || this.auth.id;
     this.repository.saveLocal(snapshot, userId);
-    this._rememberCheckpoint(snapshot);
+    this._rememberCheckpoint(snapshot, userId);
 
-    if (sync && !this.auth.isGuest && this.repository.remoteEnabled) {
+    if (sync && !isGuestId(userId) && this.repository.remoteEnabled) {
       await this.upload(snapshot, userId);
     } else {
       this.savedAt = snapshot.savedAt;
@@ -205,10 +249,10 @@ export class GameService {
 
   /** Guarda el checkpoint solo cuando el núcleo era alcanzable. Es
    *  best-effort: un fallo de red nunca debe romper el autoguardado. */
-  _rememberCheckpoint(snapshot) {
+  _rememberCheckpoint(snapshot, userId = this.auth.id) {
     if (!snapshot || this.ctx?.terrain?.pathValid === false || !snapshotHasPath(snapshot)) return;
     try {
-      Promise.resolve(this.repository.saveCheckpoint(snapshot, this.auth.id))
+      Promise.resolve(this.repository.saveCheckpoint(snapshot, userId))
         .catch(err => console.warn('[database] No se pudo guardar el checkpoint:', err));
     } catch (err) {
       console.warn('[database] No se pudo guardar el checkpoint:', err);

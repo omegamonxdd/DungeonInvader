@@ -9,7 +9,7 @@ export {
   CHECKPOINT_SLOT, SUPABASE_ENABLED, SNAPSHOT_VERSION, BALANCE_VERSION,
 } from './config.js';
 export {
-  buildSnapshot, normalizeSnapshot, sameProgress, snapshotHasPath,
+  buildSnapshot, freshSnapshot, normalizeSnapshot, sameProgress, snapshotHasPath,
 } from './snapshot.js';
 export { applySnapshot } from './restore.js';
 export { migrate, emptySnapshot } from './migrations.js';

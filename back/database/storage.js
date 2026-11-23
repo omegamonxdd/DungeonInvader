@@ -41,13 +41,13 @@ function parse(raw) {
   catch { return null; }
 }
 
-/** Carga el guardado local: primero el del usuario, luego el genérico. */
+/** Carga el guardado local SOLO del usuario dado.
+ *  La clave genérica `current` se usa únicamente cuando no hay identidad:
+ *  si se mezclara, una cuenta nueva vería el progreso de la anterior. */
 export function loadLocal(userId = null) {
-  const candidates = [
-    userId ? STORAGE_KEYS.byUser(userId) : null,
-    STORAGE_KEYS.current,
-    ...STORAGE_KEYS.legacy,
-  ].filter(Boolean);
+  const candidates = userId
+    ? [STORAGE_KEYS.byUser(userId)]
+    : [STORAGE_KEYS.current, ...STORAGE_KEYS.legacy];
   let best = null;
   for (const key of candidates) {
     const snap = parse(safeGet(key));
@@ -66,10 +66,9 @@ export function saveLocal(snapshot, userId = null) {
 
 /** Último guardado con camino al núcleo libre (para invades imposibles). */
 export function loadCheckpoint(userId = null) {
-  const candidates = [
-    userId ? STORAGE_KEYS.checkpointByUser(userId) : null,
-    STORAGE_KEYS.checkpoint,
-  ].filter(Boolean);
+  const candidates = userId
+    ? [STORAGE_KEYS.checkpointByUser(userId)]
+    : [STORAGE_KEYS.checkpoint];
   let best = null;
   for (const key of candidates) {
     const snap = parse(safeGet(key));

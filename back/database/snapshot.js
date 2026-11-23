@@ -11,9 +11,10 @@
 import { BALANCE } from '../balance/index.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import {
+  CORE_MIN, CORE_SIZE,
   ENTRANCE_X, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
 } from '../config/world.js';
-import { CORE, EMPTY } from '../systems/map.js';
+import { CORE, DIRT, EMPTY, createMap } from '../systems/map.js';
 import { specFor } from '../systems/structureSpecs.js';
 import { BALANCE_VERSION, DEFAULT_SLOT, SNAPSHOT_VERSION } from './config.js';
 import { emptySnapshot, migrate } from './migrations.js';
@@ -98,6 +99,44 @@ export function buildSnapshot(ctx, slot = DEFAULT_SLOT) {
     settings: { ...(ctx.settings || {}) },
     orphans: Array.isArray(ctx.orphans) ? ctx.orphans : [],
     extra: { ...(ctx.extra || {}) },
+  };
+}
+
+/**
+ * Partida nueva: mapa inicial, solo núcleo y entrada, recursos de inicio y
+ * ejército vacío. Se usa al cambiar de identidad cuando el usuario no tiene
+ * guardado propio, para que no herede el estado de la cuenta anterior.
+ */
+export function freshSnapshot(slot = DEFAULT_SLOT) {
+  const map = createMap();
+  const rows = map.map(row => row.join(''));
+  const base = emptySnapshot();
+  const structure = (id, kind, x, y, w, h, movable) => ({
+    id, kind, level: 1, x, y, w, h,
+    placed: true, shelved: false, movable,
+    work: null, frozenUpgrade: null, pending: 0,
+  });
+
+  return {
+    ...base,
+    version: SNAPSHOT_VERSION,
+    balanceVersion: BALANCE_VERSION,
+    savedAt: null,
+    slot,
+    resources: { ...BALANCE.recursos.inicio },
+    terrain: {
+      size: rows.length,
+      rows,
+      digLimit: DIG_LIMITS[1] || 100,
+      digCount: map.reduce((n, row) => n + row.filter(c => c !== DIRT).length, 0),
+      coreShelved: false,
+    },
+    structures: [
+      structure('core', 'core', CORE_MIN, CORE_MIN, CORE_SIZE, CORE_SIZE, true),
+      structure('entrance', 'entrance', ENTRANCE_X, ENTRANCE_Y_MIN,
+        1, ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1, false),
+    ],
+    army: { counts: {}, levels: {} },
   };
 }
 
