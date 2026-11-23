@@ -35,6 +35,8 @@
 @import './modales/03-editor.css';
 /* Persistencia: inicio de sesión y estado del guardado. */
 @import './modales/04-auth.css';
+/* Invasión multijugador: elección de la base rival. */
+@import './modales/05-rival.css';
 
 /* Fase 8: tropas y letrero de fin de invasión (mismos estilos del legacy). */
 @import './invasion/01-tropas.css';

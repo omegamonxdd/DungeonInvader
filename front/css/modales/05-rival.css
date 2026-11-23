@@ -1,0 +1,75 @@
+/* ==========================================================
+ * SELECTOR DE RIVAL — INVASIÓN MULTIJUGADOR
+ * ----------------------------------------------------------
+ * Modal pequeño que se abre desde el botón de Invasión. Usa los tokens
+ * de front/css/tokens/ para no duplicar colores ni medidas.
+ * ========================================================== */
+
+.rival-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 7, 12, 0.82);
+}
+.rival-overlay[hidden] { display: none; }
+body.rival-open #game canvas { pointer-events: none; }
+
+.rival-card {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 20px;
+  background: var(--panel-bg, var(--stone));
+  border: var(--px, 2px) solid var(--stone-hi);
+  box-shadow: var(--outline), 0 18px 48px rgba(0, 0, 0, 0.55);
+  color: var(--txt);
+  font-family: var(--font);
+}
+.rival-card h2 {
+  margin: 0 0 6px;
+  color: var(--txt-gold);
+  font: 700 var(--fs-lg, 20px)/1.2 var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.rival-card p {
+  margin: 0 0 14px;
+  font: 500 var(--fs-sm)/1.5 var(--font);
+  opacity: 0.86;
+}
+
+#rival-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.rival-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--stone);
+  border: 0;
+  box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--stone-hi),
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--stone-lo);
+  color: var(--txt);
+  font: 600 var(--fs-sm)/1.3 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.rival-item:hover:not(:disabled) { background: var(--stone-h); }
+.rival-item:disabled { opacity: 0.55; cursor: wait; }
+.rival-item .rival-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rival-item .rival-date { color: var(--txt-gold); font-size: 0.85em; white-space: nowrap; }
+
+.rival-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rival-actions .action-btn { flex: 1; }

@@ -19,6 +19,7 @@ import { TROOP_NAME, troopStatsText } from '../systems/Army.js';
 import { fmtDur } from '../systems/WorkController.js';
 import { SLOTS, CATS } from '../config/buildSlots.js';
 import { drawBuildIcon } from './buildIcons.js';
+import { getService } from '../database/GameService.js';
 
 // Las ranuras son un catálogo compartido con la lógica de obras (bloqueo del
 // núcleo y desbloqueos). Se reexporta para no romper importaciones antiguas.
@@ -102,6 +103,9 @@ export class InterfaceController {
       timer: byId('invasion-timer'), timerLabel: document.querySelector('#invasion-timer .it-label'),
       timerTime: document.querySelector('#invasion-timer .it-time'),
       victory: byId('victory-banner'), victoryBack: byId('victory-back'),
+      rivalOverlay: byId('rival-overlay'), rivalList: byId('rival-list'),
+      rivalEmpty: byId('rival-empty'), rivalClose: byId('rival-close'),
+      rivalLocal: byId('rival-local'), rivalNote: byId('rival-note'),
       summonPanel: byId('summon-panel'), summonItems: byId('summon-items'),
       summonTitle: byId('summon-title'), summonSpace: byId('summon-space'),
       summonClose: byId('summon-close'),
@@ -122,6 +126,8 @@ export class InterfaceController {
     this.syncResources();
     this.syncBuilders();
     this.invasionClockKey = '';
+    this.rivalPickerOpen = false;
+    this.rivals = [];
     this.renderInvasionItems();
   }
 
@@ -223,6 +229,11 @@ export class InterfaceController {
     // Fase 8: invasión. El botón vuelve a la base cuando ya terminó.
     this.els.invasionBtn.addEventListener('click', () => this.toggleInvasion());
     this.els.victoryBack.addEventListener('click', () => this.invasion.end());
+    this.els.rivalClose?.addEventListener('click', () => this.closeRivalPicker());
+    this.els.rivalOverlay?.addEventListener('pointerdown', e => {
+      if (e.target === this.els.rivalOverlay) this.closeRivalPicker();
+    });
+    this.els.rivalLocal?.addEventListener('click', () => this.startInvasion(null));
 
     // Los atajos (E, Z/X, 1–5 y los del editor) los resuelve ShortcutController
     // en MainScene; aquí solo quedan los clics de los botones.
@@ -244,9 +255,83 @@ export class InterfaceController {
       this.setBuildOpen(false);
       this.closePanel();
       this.closeSummon();
-      this.invasion.start();
+      const service = getService();
+      if (service?.repository?.remoteEnabled && !service.auth?.isGuest) {
+        this.openRivalPicker();
+      } else {
+        // Invitado o sin Supabase: se conserva la simulación sobre la base propia.
+        this.invasion.start();
+      }
     }
     return true;
+  }
+
+  /* ---------- Selección de rival ---------------------------------------- */
+
+  async openRivalPicker() {
+    const overlay = this.els.rivalOverlay;
+    if (!overlay) return false;
+    this.rivalPickerOpen = true;
+    overlay.hidden = false;
+    document.body.classList.add('rival-open');
+    this.els.rivalEmpty.hidden = true;
+    this.els.rivalList.replaceChildren();
+    if (this.els.rivalNote) this.els.rivalNote.textContent = 'Cargando rivales…';
+
+    const rivals = await getService()?.listOpponents?.() || [];
+    if (!this.rivalPickerOpen) return true;
+    this.rivals = rivals;
+    if (this.els.rivalNote) {
+      this.els.rivalNote.textContent = 'Se invadirá una copia de su base. Tu mazmorra volverá al terminar.';
+    }
+    this.renderRivals();
+    return true;
+  }
+
+  renderRivals() {
+    const list = this.els.rivalList;
+    if (!list) return;
+    const frag = document.createDocumentFragment();
+    for (const rival of this.rivals) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rival-item';
+      btn.setAttribute('role', 'listitem');
+      btn.dataset.id = rival.id;
+      const name = document.createElement('span');
+      name.className = 'rival-name';
+      name.textContent = rival.name || 'Jugador';
+      btn.appendChild(name);
+      const when = Date.parse(rival.updatedAt || '');
+      if (Number.isFinite(when)) {
+        const date = document.createElement('span');
+        date.className = 'rival-date';
+        date.textContent = new Date(when).toLocaleDateString();
+        btn.appendChild(date);
+      }
+      btn.addEventListener('click', () => this.startInvasion(rival));
+      frag.appendChild(btn);
+    }
+    list.replaceChildren(frag);
+    if (this.els.rivalEmpty) this.els.rivalEmpty.hidden = this.rivals.length > 0;
+  }
+
+  closeRivalPicker() {
+    this.rivalPickerOpen = false;
+    if (this.els.rivalOverlay) this.els.rivalOverlay.hidden = true;
+    document.body.classList.remove('rival-open');
+  }
+
+  async startInvasion(rival) {
+    if (!this.invasion || this.invasion.active) return false;
+    this.closeRivalPicker();
+    const ok = await this.invasion.start({
+      opponentId: rival?.id || null,
+      opponentName: rival?.name || '',
+    });
+    // Si la base elegida no se pudo cargar, se ofrece otra sin salir del modal.
+    if (!ok && rival && !this.invasion.active) this.openRivalPicker();
+    return ok;
   }
 
   // El botón rojo de abajo a la izquierda (y el atajo Q) piden confirmación
@@ -1178,8 +1263,10 @@ export class InterfaceController {
     const dead = Object.values(inv.dead).reduce((a, b) => a + b, 0);
     // La vida del núcleo se muestra ahora sobre el propio núcleo en el mundo;
     // el panel de despliegue solo informa del estado del ejército.
+    const rival = inv.opponent?.name
+      ? `Invadiendo a ${inv.opponent.name} · ` : '';
     this.els.invasionStatus.textContent =
-      `Seleccionadas ${selected} · En campo ${inv.inField()} · Bajas ${dead}`;
+      `${rival}Seleccionadas ${selected} · En campo ${inv.inField()} · Bajas ${dead}`;
   }
 
   showEnd({ kind, sub }) {

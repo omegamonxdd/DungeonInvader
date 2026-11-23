@@ -178,6 +178,20 @@
 
   <div id="game"></div>
 
+  <!-- Elegir rival antes de invadir. Sin sesión se cae a la simulación local. -->
+  <div id="rival-overlay" class="rival-overlay" role="dialog" aria-modal="true" aria-labelledby="rival-title" hidden>
+    <section class="rival-card">
+      <h2 id="rival-title">Elegir rival</h2>
+      <p id="rival-note">Se invadirá una copia de su base. Tu mazmorra volverá al terminar.</p>
+      <div id="rival-list" role="list"></div>
+      <p id="rival-empty" hidden>No hay rivales disponibles.</p>
+      <div class="rival-actions">
+        <button id="rival-local" class="action-btn" type="button">Simular en mi base</button>
+        <button id="rival-close" class="action-btn" type="button">Cancelar</button>
+      </div>
+    </section>
+  </div>
+
   <!-- HUD de excavación (Fase 7) y de constructores (Fase 9) -->
   <div id="topbar">
     <div id="status">
