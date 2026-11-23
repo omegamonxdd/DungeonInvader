@@ -89,6 +89,7 @@ export class InvasionController {
     this.coreHitAt = -Infinity;
     this.lootBase = null;       // recursos totales de la base invadida
     this.lootTaken = false;
+    this.lootGained = { coins: 0, crystals: 0 };
     this.orderPreview = null;   // { kind: 'move'|'attack', x, y, defId? }
     this.fxG?.clear();
   }
@@ -114,7 +115,10 @@ export class InvasionController {
     if (!this.lootBase || this.lootTaken || !this.resources) return;
     for (const res of ['coins', 'crystals']) {
       const amount = Math.max(0, Math.floor((this.lootBase[res] || 0) * this.lootResourceRate));
-      if (amount) this.resources.add(res, amount);
+      if (amount) {
+        this.resources.add(res, amount);
+        this.lootGained[res] = (this.lootGained[res] || 0) + amount;
+      }
     }
     this.lootTaken = true;
   }
@@ -302,10 +306,20 @@ export class InvasionController {
       def.view?.setHidden?.(false);
     }
     const swap = this.baseSwap;
+    const loot = { ...(this.lootGained || {}) };
     this.baseSwap = null;
     this.opponent = null;
     document.body.classList.remove('invading', 'inv-end');
-    if (swap) restoreOwnBase(this.getContext(), swap.own);
+    if (swap) {
+      restoreOwnBase(this.getContext(), swap.own);
+      // restoreOwnBase reaplica el snapshot propio, que tiene los recursos
+      // de ANTES del botín: los robados se vuelven a sumar aquí para que
+      // flushPending() los guarde con la base ya restaurada.
+      if (this.resources) {
+        if (loot.coins) this.resources.add('coins', loot.coins);
+        if (loot.crystals) this.resources.add('crystals', loot.crystals);
+      }
+    }
     this.reset();
     if (swap) {
       // finish() pudo dejar guardados/cargas pospuestos mientras la base
