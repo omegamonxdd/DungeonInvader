@@ -573,7 +573,7 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
 - Botón "Invasión" (abajo izquierda, atajo Q). Bloqueado si no hay camino válido en la base que se va a invadir.
 - Con sesión iniciada y Supabase configurado se abre **Elegir rival**: se ataca
   una copia de la base del jugador elegido, no la propia. Sin sesión (invitado)
-  o sin nube se conserva la simulación de siempre sobre la base propia.
+  o sin nube se conserva la simulación sobre la base propia, sin selector.
   Tu propia cuenta nunca aparece en el selector: no se puede atacar a uno
   mismo. El nombre del rival se muestra sobre los recursos robables.
   Ver [§11.1](#111-invasión-contra-otro-jugador).
@@ -611,7 +611,8 @@ y [`back/database/sql/003-display-name.sql`](back/database/sql/003-display-name.
 El primero crea tres RPC de solo lectura (`security definer`, solo para
 `authenticated`) para listar rivales y leer su base sin relajar las políticas
 RLS de `saves`; el segundo guarda el nombre elegido al registrarse. Si no se
-ejecutan, el selector aparece vacío y queda la opción "Simular en mi base".
+ejecutan, el selector aparece vacío (solo el botón Cancelar); como invitado o
+sin Supabase se sigue simulando sobre la base propia sin pasar por el selector.
 
 **Ciclo al invadir a un rival:**
 

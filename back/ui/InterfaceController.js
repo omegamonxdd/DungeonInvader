@@ -107,7 +107,7 @@ export class InterfaceController {
       victory: byId('victory-banner'), victoryBack: byId('victory-back'),
       rivalOverlay: byId('rival-overlay'), rivalList: byId('rival-list'),
       rivalEmpty: byId('rival-empty'), rivalClose: byId('rival-close'),
-      rivalLocal: byId('rival-local'), rivalNote: byId('rival-note'),
+      rivalNote: byId('rival-note'),
       tabLockOverlay: byId('tab-lock-overlay'), tabLockResume: byId('tab-lock-resume'),
       summonPanel: byId('summon-panel'), summonItems: byId('summon-items'),
       summonTitle: byId('summon-title'), summonSpace: byId('summon-space'),
@@ -237,7 +237,6 @@ export class InterfaceController {
     this.els.rivalOverlay?.addEventListener('pointerdown', e => {
       if (e.target === this.els.rivalOverlay) this.closeRivalPicker();
     });
-    this.els.rivalLocal?.addEventListener('click', () => this.startInvasion(null));
     this.els.tabLockResume?.addEventListener('click', () => getService()?.sessionLock?.resume?.());
 
     // Los atajos (E, Z/X, 1–5 y los del editor) los resuelve ShortcutController
