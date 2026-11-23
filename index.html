@@ -382,6 +382,20 @@
     <button id="victory-back" class="action-btn gold" type="button">Volver</button>
   </div>
 
+  <!-- Guarda contra el fallo silencioso: si el bundle no llega a ejecutarse
+       (p. ej. Pages sirviendo el código fuente en vez de dist/), la pantalla
+       de carga deja de fingir que sigue cargando y explica qué pasa. -->
+  <script>
+    setTimeout(() => {
+      const splash = document.getElementById('loading-screen');
+      if (!splash || splash.classList.contains('is-ready') || splash.classList.contains('is-error')) return;
+      splash.classList.add('is-error');
+      const phase = document.getElementById('loading-phase');
+      const detail = document.getElementById('loading-detail');
+      if (phase) phase.textContent = 'No se pudo iniciar el juego';
+      if (detail) detail.textContent = 'El script no se ejecutó. En GitHub Pages publica dist/ con GitHub Actions y revisa la consola (F12).';
+    }, 12000);
+  </script>
   <script type="module" src="/back/main.js"></script>
 </body>
 </html>

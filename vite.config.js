@@ -9,6 +9,9 @@ import { fileURLToPath, URL } from 'node:url';
 // ya no forma parte del grafo de build.
 export default defineConfig({
   root: '.',
+  // GitHub Pages sirve el sitio bajo /DungeonInvader/. Con rutas relativas
+  // el mismo build funciona en la raíz local, en `vite preview` y en Pages.
+  base: './',
   publicDir: 'public',
   resolve: {
     alias: {

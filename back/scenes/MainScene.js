@@ -87,11 +87,8 @@ export class MainScene extends Phaser.Scene {
     entrance.h = ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1;
     entrance.depth = ENTRANCE_DEPTH;
 
-    const ballista = this.factory.create('ballista', 23, 19, { id: 'ballista-1' });
-    this.terrain.setFootprint(23, 19, ballista.size, ballista.size, true);
-    // Lanzadardos 2.5D de nivel 1 junto a la ballesta, para comparar estilo.
-    const turret = this.factory.create('turret', 23, 22, { id: 'turret-1' });
-    this.terrain.setFootprint(23, 22, turret.size, turret.size, true);
+    // El usuario empieza sin defensas: solo el núcleo (y la entrada fija).
+    // Las defensas se colocan desde el editor de construcción.
     this.selection = null;
 
     // Fase 9: recursos vivos y obras en tiempo real.

@@ -14,11 +14,20 @@
 
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
 
+/* Valores por defecto de este prototipo. La URL y la publishable/anon key son
+ * públicas por diseño: la seguridad la dan las políticas RLS de schema.sql.
+ * Un .env con VITE_SUPABASE_* (o window.__DUNGEON_SUPABASE__) manda, para poder
+ * apuntar a otro proyecto de Supabase sin reconstruir el bundle. */
+const DEFAULTS = Object.freeze({
+  VITE_SUPABASE_URL: 'https://tgpyeoogdhebgutjycdq.supabase.co',
+  VITE_SUPABASE_ANON_KEY: 'sb_publishable_7BeH9LRYcfwL9c3cUoSvDA_-P3KnHHh',
+});
+
 function readEnv(name) {
   const fromWindow = typeof window !== 'undefined'
     ? window.__DUNGEON_SUPABASE__?.[name]
     : undefined;
-  return String(fromWindow || env[name] || '').trim();
+  return String(fromWindow || env[name] || DEFAULTS[name] || '').trim();
 }
 
 export const SUPABASE_URL = readEnv('VITE_SUPABASE_URL');
