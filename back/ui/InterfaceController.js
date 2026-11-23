@@ -1200,9 +1200,14 @@ export class InterfaceController {
       btn.className = 'inv-troop';
       btn.dataset.id = id;
       btn.setAttribute('role', 'listitem');
+      // Tarjeta compacta: icono + disponibles. El nombre se pone en title/aria
+      // para no estirar el botón a lo ancho de la barra de invasión.
+      const label = `${art.name} · ${left}/${total} · Nivel ${this.army?.levelOf(id) || 1}`;
+      btn.title = label;
+      btn.setAttribute('aria-label', `Desplegar ${label}`);
       btn.innerHTML =
         `<span class="troop-dot" style="--troop-hi:${art.hi};--troop-lo:${art.lo};background:${art.color}"></span>` +
-        `<span class="inv-name">${art.name}</span><span class="inv-left">${left}/${total}</span>`;
+        `<span class="inv-left">${left}/${total}</span>`;
       // Durante la invasión no hay botón "i", pero sí el nivel de la tropa.
       const level = this.army?.levelOf(id) || 1;
       const max = BALANCE.tropas.tipos[id]?.maxNivel || 1;

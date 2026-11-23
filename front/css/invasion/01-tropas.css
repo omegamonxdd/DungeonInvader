@@ -40,7 +40,7 @@
 #summon-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; }
 #summon-items, #invasion-items { display: flex; align-items: center; gap: 14px; min-height: 92px; padding: 10px; overflow-x: auto; }
 #invasion-items {
-  align-items: stretch; gap: 10px; min-height: 72px; max-height: 96px;
+  align-items: center; gap: 10px; min-height: 84px; max-height: 100px;
   padding: 8px 10px; overflow-x: auto; overflow-y: hidden;
 }
 #invasion-select-all {

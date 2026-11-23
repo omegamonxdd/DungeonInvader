@@ -86,19 +86,23 @@ body.editing #upg-btn { display: none; }
 /* Fase 9: el botón de Mejorar muestra el motivo cuando está bloqueado. */
 #info-upgrade.locked { opacity: 0.62; cursor: not-allowed; }
 
+/* Ficha de despliegue: recuadro compacto (no se estira con la barra inferior). */
 .inv-troop {
   --troop-hi: #d9c7a0;
   --troop-lo: #7d7054;
   position: relative;
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 0 84px;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 5px;
   box-sizing: border-box;
-  width: 100%;
-  padding: 8px;
+  width: 84px;
+  min-height: 76px;
+  padding: 8px 6px 14px;
   color: var(--txt);
-  text-align: left;
+  text-align: center;
   background: var(--stone);
   border: 0;
   border-radius: 0;
@@ -109,9 +113,9 @@ body.editing #upg-btn { display: none; }
 }
 .inv-troop:hover:not(:disabled) { background: var(--stone-h); }
 .inv-troop:disabled { opacity: 0.55; cursor: not-allowed; }
-.inv-troop .troop-dot { flex: 0 0 auto; }
-.inv-troop .inv-name { flex: 1; min-width: 0; }
-.inv-troop .inv-left { color: var(--txt-gold); font-variant-numeric: tabular-nums; }
+.inv-troop .troop-dot { flex: 0 0 auto; width: 36px; height: 36px; }
+.inv-troop .inv-name { display: none; }
+.inv-troop .inv-left { color: var(--txt-gold); font: 700 var(--fs-xs)/1 var(--font); font-variant-numeric: tabular-nums; }
 .inv-troop[data-id="slime"] { --troop-hi: #b6f5a4; --troop-lo: #2e7e3a; }
 #select-box {
   left: 0;
