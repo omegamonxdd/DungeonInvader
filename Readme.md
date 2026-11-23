@@ -695,7 +695,7 @@ un **fuego azul** y el número se aclara para seguir siendo legible.
 
 Trabajo en la rama `feat/invasion-multijugador` (aún no en `main`).
 
-**Puesta en marcha:** además de `schema.sql`, ejecutar en el SQL Editor de
+**Puesta en marcha:** además de `sql/001-saves.sql`, ejecutar en el SQL Editor de
 Supabase [`back/database/sql/002-invasion-targets.sql`](back/database/sql/002-invasion-targets.sql).
 Crea tres RPC de solo lectura (`security definer`, solo para `authenticated`)
 para listar rivales y leer su base sin relajar las políticas RLS de `saves`.

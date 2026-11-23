@@ -15,7 +15,8 @@
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
 
 /* Valores por defecto de este prototipo. La URL y la publishable/anon key son
- * públicas por diseño: la seguridad la dan las políticas RLS de schema.sql.
+ * públicas por diseño: la seguridad la dan las políticas RLS de
+ * sql/001-saves.sql.
  * Un .env con VITE_SUPABASE_* (o window.__DUNGEON_SUPABASE__) manda, para poder
  * apuntar a otro proyecto de Supabase sin reconstruir el bundle. */
 const DEFAULTS = Object.freeze({

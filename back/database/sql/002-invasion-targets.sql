@@ -1,7 +1,7 @@
 -- ==========================================================
 -- INVASIÓN CONTRA OTROS JUGADORES — LECTURA CONTROLADA
 -- ----------------------------------------------------------
--- Ejecutar en el SQL Editor de Supabase DESPUÉS de schema.sql.
+-- Ejecutar en el SQL Editor de Supabase DESPUÉS de 001-saves.sql.
 --
 -- RLS impide que un usuario lea los `saves` de otro. En vez de abrir la
 -- tabla, se exponen tres funciones `security definer` (se ejecutan con los

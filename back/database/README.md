@@ -25,15 +25,15 @@ ese modo.
 | `migrations.js` | Cadena de migraciones por número de versión |
 | `GameService.js` | Orquestador: arranque, autoguardado, cambios de usuario |
 | `AuthUI.js` | Modal de acceso y chip de estado del guardado |
-| `schema.sql` | Tablas, índices, trigger de `updated_at` y políticas RLS |
+| `sql/001-saves.sql` | Tablas, índices, trigger de `updated_at` y políticas RLS |
 | `sql/002-invasion-targets.sql` | RPC de solo lectura para invadir bases ajenas |
 | `index.js` | API pública del módulo |
 
 ## Puesta en marcha con Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ejecuta `schema.sql` en el SQL Editor. Para habilitar la invasión contra
-   otros jugadores ejecuta también `sql/002-invasion-targets.sql` (tres RPC
+2. Ejecuta `sql/001-saves.sql` en el SQL Editor. Para habilitar la invasión
+   contra otros jugadores ejecuta después `sql/002-invasion-targets.sql` (tres RPC
    `security definer` que solo leen la lista de rivales, su guardado `main` y su
    checkpoint; no relajan las políticas RLS de `saves`).
 3. Copia `.env.example` a `.env` y rellena:
@@ -44,7 +44,7 @@ ese modo.
    ```
 
    La *anon key* es pública y está pensada para el navegador; la seguridad la
-   dan las políticas RLS de `schema.sql`. **Nunca** pongas la *service role
+   dan las políticas RLS de `sql/001-saves.sql`. **Nunca** pongas la *service role
    key* en el front.
 
 4. `npm run dev`. En el arranque aparece el modal de acceso (también se puede
