@@ -167,15 +167,6 @@
       <p id="auth-note" class="auth-note"></p>
     </section>
   </div>
-  <div id="auth-bar" hidden>
-    <button id="auth-chip" class="auth-chip guest" type="button" aria-label="Estado de la cuenta">
-      <span class="auth-dot" aria-hidden="true"></span>
-      <span id="auth-chip-label">Invitado</span>
-      <span id="auth-chip-status" class="auth-status">Guardado local</span>
-    </button>
-    <button id="auth-logout" class="action-btn" type="button" hidden>Cerrar sesión</button>
-  </div>
-
   <div id="game"></div>
 
   <!-- Elegir rival antes de invadir. Sin sesión se cae a la simulación local. -->
@@ -195,6 +186,19 @@
   <!-- HUD de excavación (Fase 7) y de constructores (Fase 9) -->
   <div id="topbar">
     <div id="status">
+      <div id="status-tools">
+        <button id="profile-btn" class="action-btn" type="button" aria-label="Perfil de usuario" aria-expanded="false" aria-controls="profile-popover" title="Perfil">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+        </button>
+      </div>
+      <div id="profile-popover" class="profile-popover" role="dialog" aria-label="Perfil de usuario" hidden>
+        <div class="profile-who">
+          <span class="profile-avatar" aria-hidden="true">◆</span>
+          <span class="profile-text"><b id="profile-email">Invitado</b><span id="profile-status">Guardado local</span></span>
+        </div>
+        <button id="profile-login" class="action-btn" type="button" hidden>Iniciar sesión</button>
+        <button id="profile-logout" class="action-btn danger" type="button" hidden>Cerrar sesión</button>
+      </div>
       <div id="dig-counter">Casillas excavadas: 79 / 100</div>
       <div id="path-status"><span id="path-light"></span><span id="path-text">Camino Válido</span></div>
     </div>

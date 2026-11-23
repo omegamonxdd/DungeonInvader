@@ -14,6 +14,7 @@
   user-select: none;
 }
 #status {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;

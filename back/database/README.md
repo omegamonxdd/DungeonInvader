@@ -24,7 +24,7 @@ ese modo.
 | `restore.js` | Aplica un snapshot a los sistemas vivos de `MainScene` |
 | `migrations.js` | Cadena de migraciones por número de versión |
 | `GameService.js` | Orquestador: arranque, autoguardado, cambios de usuario |
-| `AuthUI.js` | Modal de acceso y chip de estado del guardado |
+| `AuthUI.js` | Modal de acceso y perfil (correo/estado y cierre de sesión) junto a los ajustes de teclado |
 | `sql/001-saves.sql` | Tablas, índices, trigger de `updated_at` y políticas RLS |
 | `sql/002-invasion-targets.sql` | RPC de solo lectura para invadir bases ajenas |
 | `index.js` | API pública del módulo |

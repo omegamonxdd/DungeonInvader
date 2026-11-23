@@ -180,7 +180,8 @@ export class ShortcutsUI {
       btn.setAttribute('aria-label', 'Configuración de atajos de teclado');
       btn.title = 'Configuración';
       btn.innerHTML = SVG_SETTINGS;
-      const host = document.getElementById('status') || document.getElementById('topbar') || document.body;
+      const host = document.getElementById('status-tools')
+        || document.getElementById('status') || document.getElementById('topbar') || document.body;
       host.insertBefore(btn, host.firstChild);
     }
     this.settingsBtn = btn;

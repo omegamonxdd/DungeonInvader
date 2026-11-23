@@ -1,5 +1,5 @@
 /* ==========================================================
- * ACCESO / GUARDADO — modal de inicio de sesión y chip de estado.
+ * ACCESO / GUARDADO — modal de inicio de sesión y perfil junto a los ajustes.
  * Usa los mismos tokens que el resto de paneles pixel.
  * ========================================================== */
 
@@ -96,51 +96,52 @@ body.auth-open #game canvas { pointer-events: none; }
   opacity: .85;
 }
 
-/* Chip pegajoso: identidad + estado del guardado, debajo de los recursos. */
-#auth-bar {
-  position: fixed;
-  right: 18px;
-  top: 136px;
-  z-index: 3;
+/* Perfil: icono junto a los ajustes de teclado; el correo y Cerrar sesión
+   solo aparecen al pulsarlo para no estorbar a la vista. */
+#status-tools {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100vw - 36px);
   pointer-events: auto;
 }
-#auth-bar[hidden] { display: none; }
-.auth-chip {
+#settings-btn, #profile-btn { margin: 0; padding: 9px; align-self: auto; }
+#profile-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+.profile-popover {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  z-index: 5;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  max-width: 240px;
-  padding: 6px 10px;
-  color: var(--txt);
+  box-sizing: border-box;
+  width: 244px;
+  padding: 12px;
   background: var(--panel);
   border: 0;
-  box-shadow: var(--panel-edge);
-  font: 600 var(--fs-sm)/1.2 var(--font);
-  cursor: default;
+  box-shadow: var(--panel-edge), 0 12px 28px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
-.auth-chip.guest { cursor: pointer; }
-.auth-chip .auth-dot {
+.profile-popover[hidden] { display: none; }
+.profile-who { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.profile-avatar {
   flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  background: var(--ok);
-  box-shadow: 0 0 6px var(--ok);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--txt-gold);
+  background: var(--stone);
+  box-shadow: var(--panel-edge);
 }
-.auth-chip.guest .auth-dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
-.auth-chip.offline .auth-dot { background: var(--txt-dim); box-shadow: none; }
-#auth-chip-label {
+.profile-text { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+#profile-email {
   overflow: hidden;
+  color: var(--txt);
+  font: 600 var(--fs-sm)/1.2 var(--font);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.auth-status {
-  color: var(--txt-dim);
-  font-size: var(--fs-xs, 11px);
-  white-space: nowrap;
-}
-#auth-bar .action-btn { padding: 6px 10px; white-space: nowrap; }
-body.editing #auth-bar, body.invading #auth-bar { display: none; }
+#profile-status { color: var(--txt-dim); font: 400 var(--fs-xs)/1.2 var(--font); }
+.profile-popover .action-btn { padding: 7px 10px; white-space: nowrap; }

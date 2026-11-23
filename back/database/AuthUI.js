@@ -2,7 +2,8 @@
  * INTERFAZ DE INICIO DE SESIÓN
  * ----------------------------------------------------------
  * Panel modal ligero (HTML en index.html, estilos en
- * front/css/modales/04-auth.css) + chip con el estado del guardado.
+ * front/css/modales/04-auth.css) + icono de perfil junto a los ajustes de
+ * teclado: al pulsarlo muestra la sesión (correo) y Cerrar sesión.
  * No conoce Supabase directamente: solo habla con GameService.
  * ========================================================== */
 
@@ -31,12 +32,14 @@ export class AuthUI {
       guest: byId('auth-guest'),
       note: byId('auth-note'),
       tabs: [...document.querySelectorAll('#auth-overlay [data-mode]')],
-      bar: byId('auth-bar'),
-      chip: byId('auth-chip'),
-      chipLabel: byId('auth-chip-label'),
-      chipStatus: byId('auth-chip-status'),
-      logout: byId('auth-logout'),
+      profileBtn: byId('profile-btn'),
+      popover: byId('profile-popover'),
+      emailLabel: byId('profile-email'),
+      statusLabel: byId('profile-status'),
+      login: byId('profile-login'),
+      logout: byId('profile-logout'),
     };
+    this.popoverOpen = false;
     this.bind();
     this.service.onStatus(state => this.renderStatus(state));
   }
@@ -50,15 +53,40 @@ export class AuthUI {
       this.service.continueAsGuest();
       this.hide();
     });
-    this.els.chip?.addEventListener('click', () => {
-      if (this.service.auth.isGuest) this.show();
+    this.els.profileBtn?.addEventListener('click', e => {
+      e.stopPropagation();
+      if (this.popoverOpen) this.closeProfile();
+      else this.openProfile();
+    });
+    this.els.popover?.addEventListener('pointerdown', e => e.stopPropagation());
+    document.addEventListener('pointerdown', e => {
+      if (this.popoverOpen && !this.els.profileBtn?.contains(e.target)) this.closeProfile();
+    });
+    this.els.login?.addEventListener('click', () => {
+      this.closeProfile();
+      this.show();
     });
     this.els.logout?.addEventListener('click', async () => {
       this.els.logout.disabled = true;
       const { error } = await this.service.signOut();
       if (error) this.setError(error);
       this.els.logout.disabled = false;
+      this.closeProfile();
     });
+  }
+
+  openProfile() {
+    if (!this.els.popover) return;
+    this.els.popover.hidden = false;
+    this.popoverOpen = true;
+    this.els.profileBtn?.setAttribute('aria-expanded', 'true');
+  }
+
+  closeProfile() {
+    if (!this.els.popover) return;
+    this.els.popover.hidden = true;
+    this.popoverOpen = false;
+    this.els.profileBtn?.setAttribute('aria-expanded', 'false');
   }
 
   setMode(mode) {
@@ -127,20 +155,18 @@ export class AuthUI {
   }
 
   renderStatus(state) {
-    const { user, status, configured } = state;
+    const { user, status } = state;
     const label = user.guest
       ? 'Invitado'
       : (user.email || user.id.slice(0, 8));
-    if (this.els.chipLabel) this.els.chipLabel.textContent = label;
-    if (this.els.chipStatus) this.els.chipStatus.textContent = STATUS_TEXT[status] || status;
-    if (this.els.bar) this.els.bar.hidden = false;
-    if (this.els.chip) {
-      this.els.chip.classList.toggle('guest', user.guest);
-      this.els.chip.classList.toggle('offline', !configured);
-      this.els.chip.title = user.guest
-        ? 'Progreso guardado en este navegador. Pulsa para iniciar sesión.'
+    if (this.els.emailLabel) this.els.emailLabel.textContent = label;
+    if (this.els.statusLabel) this.els.statusLabel.textContent = STATUS_TEXT[status] || status;
+    if (this.els.profileBtn) {
+      this.els.profileBtn.title = user.guest
+        ? 'Invitado · pulsa para iniciar sesión'
         : `Sesión de ${user.email || user.id}`;
     }
+    if (this.els.login) this.els.login.hidden = !user.guest;
     if (this.els.logout) this.els.logout.hidden = user.guest;
     // Si la sesión se restauró al arrancar, cerramos el modal automáticamente.
     if (!user.guest && this.els.overlay && !this.els.overlay.hidden) this.hide();
