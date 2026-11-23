@@ -16,10 +16,20 @@
   #toast { bottom: 176px; }
   #action-title { display: none; }
 
-  /* Botón rojo "Cancelar", un 20 % más pequeño durante la invasión. */
-  body.invading #invasion-btn { padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8); }
+  /* Botón rojo "Cancelar", un 20 % más pequeño, justo sobre el panel. */
+  body.invading #invasion-btn {
+    bottom: 138px; padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8);
+  }
   body.invading #invasion-btn .btn-label { display: none; }
   body.invading #invasion-btn .btn-short { display: inline; }
+
+  /* Select: alterna arrastrar la cámara / seleccionar tropas con el dedo. */
+  #select-mode-btn {
+    display: block;
+    position: fixed; right: 10px; top: 50%; z-index: 4;
+    transform: translateY(-50%);
+    padding: 12px 10px; font: 700 var(--fs-sm)/1 var(--font);
+  }
 
   /* Cronómetro un 35 % más pequeño. */
   #invasion-timer {

@@ -13,7 +13,7 @@ import {
  * del mapa. El estado se guarda como punto del mundo en el centro de la vista.
  */
 export class CameraController {
-  constructor(scene) {
+  constructor(scene, deps = {}) {
     this.scene = scene;
     this.camera = scene.cameras.main;
 
@@ -38,6 +38,7 @@ export class CameraController {
     window.addEventListener('blur', () => this.keys.clear());
 
     this.bindPointer();
+    this.bindTouchZoom(deps);
   }
 
   /* Debe llamarse cuando el tamaño del lienzo ya es definitivo. */
@@ -117,6 +118,66 @@ export class CameraController {
       this.clamp();
       this.apply();
     });
+  }
+
+  /** Zoom centrado en un punto de la pantalla (mismo criterio que la rueda). */
+  zoomAt(factor, sx, sy) {
+    const before = this.screenToWorld(sx, sy);
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, this.zoom * factor));
+    if (next === this.zoom) return;
+    this.zoom = next;
+    this.x = before.x - (sx - this.viewWidth / 2) / this.zoom;
+    this.y = before.y - (sy - this.viewHeight / 2) / this.zoom;
+    this.clamp();
+    this.apply();
+  }
+
+  /** Pellizco con dos dedos en móvil: la distancia entre dedos escala el zoom. */
+  bindTouchZoom(deps) {
+    const canvas = this.scene.game?.canvas;
+    if (!canvas?.addEventListener) return;
+    let lastDistance = 0;
+    let pinching = false;
+
+    const distance = e => {
+      const [a, b] = e.touches;
+      return a && b ? Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) : 0;
+    };
+    const center = e => {
+      const rect = canvas.getBoundingClientRect();
+      const [a, b] = e.touches;
+      return {
+        x: (a.clientX + b.clientX) / 2 - rect.left,
+        y: (a.clientY + b.clientY) / 2 - rect.top,
+      };
+    };
+
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length < 2) return;
+      pinching = true;
+      lastDistance = distance(e);
+      deps.onPinchStart?.();
+      e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      if (!pinching || e.touches.length < 2) return;
+      e.preventDefault();
+      const d = distance(e);
+      if (lastDistance > 0 && d > 0) {
+        const p = center(e);
+        this.zoomAt(d / lastDistance, p.x, p.y);
+      }
+      lastDistance = d;
+    }, { passive: false });
+
+    const end = e => {
+      if (e.touches.length >= 2) return;
+      pinching = false;
+      lastDistance = 0;
+    };
+    canvas.addEventListener('touchend', end);
+    canvas.addEventListener('touchcancel', end);
   }
 
   update(deltaMs) {

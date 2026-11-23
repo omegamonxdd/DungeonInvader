@@ -8,6 +8,12 @@
   font: 600 var(--fs-lg)/1 var(--font);
 }
 #invasion-btn { right: auto; left: 24px; }
+#select-mode-btn { display: none; }
+#select-mode-btn.active {
+  --bg: var(--gold); --hi: var(--gold-hi); --lo: var(--gold-lo);
+  --bg-h: var(--gold-h); --hi-h: var(--gold-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-gold);
+}
 #invasion-btn .btn-short { display: none; }
 #btn-info .label-short { display: none; }
 /* Con la barra de invasión pegada abajo, el botón "Terminar invasión" se

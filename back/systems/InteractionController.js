@@ -30,6 +30,8 @@ export class InteractionController {
 
     this.pointerDown = false;
     this.mode = null;               // 'click' | 'pan' | 'tool'
+    this.touchSelect = false;       // móvil: arrastrar = seleccionar tropas
+    this.moved = false;
     this.downX = 0; this.downY = 0;
     this.lastX = 0; this.lastY = 0;
     this.lastCell = null;
@@ -40,6 +42,21 @@ export class InteractionController {
   screenCell(sx, sy) {
     const w = this.camera.screenToWorld(sx, sy);
     return pickCell(this.terrain.map, w.x, w.y);
+  }
+
+  /** Botón móvil «Select»: invierte arrastrar-cámara / recuadro de tropas. */
+  toggleTouchSelect() {
+    this.touchSelect = !this.touchSelect;
+    return this.touchSelect;
+  }
+
+  /** Un pellizco cancela el arrastre que pudiera haber empezado un dedo. */
+  cancelPointer() {
+    if (!this.pointerDown) return;
+    this.pointerDown = false;
+    this.mode = null;
+    this.ui?.setSelectBox?.(0, 0, 0, 0, false);
+    this.view?.setHoverStructure?.(null);
   }
 
   useToolAlong(x0, y0, x1, y1) {
@@ -115,14 +132,16 @@ export class InteractionController {
         return;
       }
       this.pointerDown = true;
+      this.moved = false;
       this.downX = this.lastX = p.x;
       this.downY = this.lastY = p.y;
 
       // Fase 8: durante la invasión el botón izq. selecciona tropas (o dibuja
-      // un cuadro), el der. da órdenes y el central sigue paneando.
+      // un cuadro), el der. da órdenes y el central sigue paneando. En móvil,
+      // el botón «Select» invierte esto: por defecto se arrastra la cámara.
       if (this.invasion?.active && !this.invasion.over) {
         if (p.button === 0) {
-          this.mode = 'inv-select';
+          this.mode = this.touchSelect ? 'inv-select' : 'pan';
           this.invasion.clearOrderPreview();
         } else {
           this.mode = p.button === 2 ? 'inv-order' : 'pan';
@@ -184,6 +203,7 @@ export class InteractionController {
       if (this.mode === 'inv-select') {
         if (Math.hypot(p.x - this.downX, p.y - this.downY) < CLICK_TOLERANCE) return;
         this.mode = 'inv-box';
+        this.moved = true;
       }
       if (this.mode === 'inv-box') {
         this.ui?.setSelectBox(this.downX, this.downY, p.x, p.y, true);
@@ -193,6 +213,7 @@ export class InteractionController {
       if (this.mode === 'click') {
         if (Math.hypot(p.x - this.downX, p.y - this.downY) < CLICK_TOLERANCE) return;
         this.mode = 'pan';
+        this.moved = true;
         this.view.setHoverStructure(null);
       }
 
@@ -215,7 +236,9 @@ export class InteractionController {
           if (allowClick) {
             this.invasion.selectBox({ x0: this.downX, y0: this.downY, x1: p.x, y1: p.y }, p.shiftKey);
           }
-        } else if (mode === 'inv-select' && allowClick) {
+        } else if ((mode === 'inv-select' || (mode === 'pan' && !this.moved)) && allowClick) {
+          // Toque sin arrastre: selecciona una tropa aunque estemos en modo
+          // arrastre (el dedo que se mueve panea la cámara).
           const w = this.camera.screenToWorld(p.x, p.y);
           this.invasion.selectAtWorld(w.x, w.y, p.shiftKey);
         }

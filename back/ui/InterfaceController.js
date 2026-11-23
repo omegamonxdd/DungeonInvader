@@ -65,6 +65,7 @@ export class InterfaceController {
     this.works = deps.works;
     this.resources = deps.resources;
     this.army = deps.army || null;
+    this.selectMode = deps.selectMode || null;
     this.focus = deps.focus || (() => {});
 
     this.buildUI = { open: false, cat: 'recursos' };
@@ -98,6 +99,7 @@ export class InterfaceController {
       resTextCoins: byId('res-text-coins'), resTextCrystals: byId('res-text-crystals'),
       buildersCount: byId('bs-count'), buildersList: byId('bs-list'),
       invasionBtn: byId('invasion-btn'), invasionBtnLabel: byId('invasion-btn-label'),
+      selectModeBtn: byId('select-mode-btn'),
       invasionPanel: byId('invasion-panel'),
       invasionItems: byId('invasion-items'), invasionStatus: byId('invasion-status'),
       lootCoins: byId('loot-coins'), lootCrystals: byId('loot-crystals'),
@@ -256,6 +258,15 @@ export class InterfaceController {
     // Fase 8: invasión. El botón vuelve a la base cuando ya terminó.
     this.els.invasionBtn.addEventListener('click', () => this.toggleInvasion());
     this.els.victoryBack.addEventListener('click', () => this.invasion.end());
+    this.els.selectModeBtn?.addEventListener('click', () => {
+      const interaction = typeof this.selectMode === 'function' ? this.selectMode() : null;
+      const active = Boolean(interaction?.toggleTouchSelect?.());
+      this.els.selectModeBtn.classList.toggle('active', active);
+      this.els.selectModeBtn.setAttribute('aria-pressed', String(active));
+      this.els.selectModeBtn.title = active
+        ? 'Modo selección: arrastra para elegir tropas'
+        : 'Modo arrastre: arrastra para mover la cámara';
+    });
     this.els.rivalClose?.addEventListener('click', () => this.closeRivalPicker());
     this.els.rivalOverlay?.addEventListener('pointerdown', e => {
       if (e.target === this.els.rivalOverlay) this.closeRivalPicker();
@@ -1345,6 +1356,10 @@ export class InterfaceController {
       this.els.victory.classList.remove('show', 'defeat');
       this.invClockKey = '';
       this.syncLoot(null);
+      const interaction = typeof this.selectMode === 'function' ? this.selectMode() : null;
+      if (interaction?.touchSelect) interaction.toggleTouchSelect();
+      this.els.selectModeBtn?.classList.remove('active');
+      this.els.selectModeBtn?.setAttribute('aria-pressed', 'false');
       if (this.els.invasionTarget) this.els.invasionTarget.hidden = true;
       this.renderInvasionItems();
       return;

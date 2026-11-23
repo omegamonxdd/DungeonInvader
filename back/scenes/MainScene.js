@@ -133,7 +133,9 @@ export class MainScene extends Phaser.Scene {
       onChange: () => this.ui?.syncResources(),
     });
 
-    this.cameraController = new CameraController(this);
+    this.cameraController = new CameraController(this, {
+      onPinchStart: () => this.interaction?.cancelPointer?.(),
+    });
     this.cameraController.start();
 
     this.interactionView = new InteractionView(this);
@@ -206,6 +208,7 @@ export class MainScene extends Phaser.Scene {
       resources: this.resources,
       works: this.works,
       army: this.army,
+      selectMode: () => this.interaction,
       select: def => this.select(def),
       build: slot => this.placeNew(slot),
       focus: id => this.focusStructure(id),
