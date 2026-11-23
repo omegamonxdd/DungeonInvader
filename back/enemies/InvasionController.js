@@ -221,6 +221,15 @@ export class InvasionController {
 
   structureById(id) { return this.structures.find(d => d.id === id) || null; }
 
+  /* En invasión el núcleo cuenta como si nunca se hubiera movido: su huella
+   * seleccionable es siempre la del centro del mapa, igual que rectOf(). */
+  pickStructure(wx, wy) {
+    const list = this.structures.map(d => d?.kind === 'core'
+      ? { ...d, x: CORE_MIN, y: CORE_MIN, w: CORE_SIZE, h: CORE_SIZE }
+      : d);
+    return structureAt(wx, wy, list);
+  }
+
   rectOf(def) {
     if (def.kind === 'core') {
       return { x0: CORE_MIN, y0: CORE_MIN, x1: CORE_MIN + CORE_SIZE, y1: CORE_MIN + CORE_SIZE };
@@ -922,7 +931,7 @@ export class InvasionController {
       this.orderPreview = null;
       return;
     }
-    const def = structureAt(wx, wy, this.structures);
+    const def = this.pickStructure(wx, wy);
     if (def && this.targetable(def)) {
       const r = this.rectOf(def);
       this.orderPreview = {
@@ -980,7 +989,7 @@ export class InvasionController {
   /** Toque simple en móvil: selecciona una tropa o, si ya hay seleccionadas,
    *  da la orden sobre el edificio/suelo tocado (equivale al clic derecho). */
   tapAtWorld(wx, wy, additive = false) {
-    const def = structureAt(wx, wy, this.structures);
+    const def = this.pickStructure(wx, wy);
     if (def && this.targetable(def) && this.commandSelected().length) {
       return this.orderAtWorld(wx, wy);
     }
@@ -992,7 +1001,7 @@ export class InvasionController {
   orderAtWorld(wx, wy) {
     const chosen = this.troops.filter(t => t.selected);
     if (!chosen.length) return false;
-    const def = structureAt(wx, wy, this.structures);
+    const def = this.pickStructure(wx, wy);
     if (def && this.targetable(def)) {
       let ordered = 0;
       for (const t of chosen) if (t.orderAttack(def)) ordered++;
@@ -1054,9 +1063,10 @@ export class InvasionController {
   drawTargetMark(def, time, hover = false) {
     const g = this.fxG;
     const z = this.scene.cameras.main.zoom || 1;
-    const w = def.w || def.size || 1;
-    const h = def.h || def.size || 1;
-    const poly = footprintPoly(def.x, def.y, w, h);
+    const r = this.rectOf(def);
+    const w = r.x1 - r.x0;
+    const h = r.y1 - r.y0;
+    const poly = footprintPoly(r.x0, r.y0, w, h);
     const pulse = 0.5 + 0.5 * Math.sin(time / 170);
     const color = hover ? 0xffc16a : 0xff5a4a;
 
@@ -1082,15 +1092,15 @@ export class InvasionController {
     }
     g.strokePath();
 
-    const aim = iso(def.x + w / 2, def.y + h / 2, (def.height || 20) * 0.65);
-    const r = (9 + pulse * 3) / z;
+    const aim = iso((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, (def.height || 20) * 0.65);
+    const rad = (9 + pulse * 3) / z;
     g.lineStyle(2 / z, color, 0.9);
-    g.strokeCircle(aim.x, aim.y, r);
+    g.strokeCircle(aim.x, aim.y, rad);
     g.beginPath();
-    g.moveTo(aim.x - r - 5 / z, aim.y); g.lineTo(aim.x - r + 1 / z, aim.y);
-    g.moveTo(aim.x + r - 1 / z, aim.y); g.lineTo(aim.x + r + 5 / z, aim.y);
-    g.moveTo(aim.x, aim.y - r - 5 / z); g.lineTo(aim.x, aim.y - r + 1 / z);
-    g.moveTo(aim.x, aim.y + r - 1 / z); g.lineTo(aim.x, aim.y + r + 5 / z);
+    g.moveTo(aim.x - rad - 5 / z, aim.y); g.lineTo(aim.x - rad + 1 / z, aim.y);
+    g.moveTo(aim.x + rad - 1 / z, aim.y); g.lineTo(aim.x + rad + 5 / z, aim.y);
+    g.moveTo(aim.x, aim.y - rad - 5 / z); g.lineTo(aim.x, aim.y - rad + 1 / z);
+    g.moveTo(aim.x, aim.y + rad - 1 / z); g.lineTo(aim.x, aim.y + rad + 5 / z);
     g.strokePath();
   }
 
