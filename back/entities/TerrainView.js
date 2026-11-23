@@ -1,3 +1,4 @@
+import { ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { iso } from '../systems/iso.js';
 import { EMPTY, DIRT, CORE, HEIGHTS, heightAt, noise } from '../systems/map.js';
 import {
@@ -21,14 +22,24 @@ export class TerrainView {
     const size = this.map.length;
     const { originX, originY } = TILE_TEXTURE;
 
+    const addTile = (x, y, key) => {
+      const p = iso(x, y);
+      return this.scene.add.image(p.x, p.y, key)
+        .setOrigin(originX, originY)
+        .setDepth(x + y);
+    };
+
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
-        const p = iso(x, y);
-        const tile = this.scene.add.image(p.x, p.y, this.textureFor(x, y))
-          .setOrigin(originX, originY)
-          .setDepth(x + y);
+        this.tiles[y * size + x] = addTile(x, y, this.textureFor(x, y));
+      }
+    }
 
-        this.tiles[y * size + x] = tile;
+    // La columna exterior de la entrada (x=41) queda fuera del mapa 41×41:
+    // se pinta el mismo suelo para que las tropas no floten sobre el vacío.
+    for (let y = ENTRANCE_Y_MIN; y <= ENTRANCE_Y_MAX; y++) {
+      for (let x = ENTRANCE_X + 1; x <= ENTRANCE_X_MAX; x++) {
+        addTile(x, y, 'floor');
       }
     }
   }
