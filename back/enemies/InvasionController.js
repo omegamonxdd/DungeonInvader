@@ -159,13 +159,8 @@ export class InvasionController {
     const amount = Math.max(0, Math.floor(current * rate));
     if (amount <= 0) return;
     this.addLoot(resource, amount);
-    if (def.kind === 'vault') {
-      def.stored = Math.max(0, current - amount);
-      def.view?.setBubble?.(def.stored >= 1 ? `+${Math.floor(def.stored)}` : '');
-    } else {
-      def.pending = Math.max(0, current - amount);
-      def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
-    }
+    if (def.kind === 'vault') def.stored = Math.max(0, current - amount);
+    else def.pending = Math.max(0, current - amount);
   }
 
   /** Colapso de la mazmorra: al caer el núcleo se lleva TODO lo que quede
