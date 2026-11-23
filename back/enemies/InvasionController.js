@@ -137,16 +137,33 @@ export class InvasionController {
     return out;
   }
 
-  /** Se lleva el porcentaje de una estructura al destruirla. */
+  /** Se lleva el porcentaje de una estructura al destruirla. Se calcula
+   *  directamente: en este momento `siege` ya está a 0 y `lootOf()` lo
+   *  descartaría como estructura caída. */
   takeLootFrom(def) {
-    const { resource, amount } = this.lootOf(def);
-    if (!resource || amount <= 0) return;
+    if (!def || !this.resources) return;
+    const spec = specFor(def);
+    let resource = null;
+    let current = 0;
+    let rate = 0;
+    if (def.kind === 'vault') {
+      resource = def.resource || 'coins';
+      current = def.stored || 0;
+      rate = this.vaultLootRate;
+    } else if (spec?.producer) {
+      resource = spec.producer.resource;
+      current = def.pending || 0;
+      rate = this.producerLootRate;
+    }
+    if (!resource) return;
+    const amount = Math.max(0, Math.floor(current * rate));
+    if (amount <= 0) return;
     this.addLoot(resource, amount);
     if (def.kind === 'vault') {
-      def.stored = Math.max(0, (def.stored || 0) - amount);
+      def.stored = Math.max(0, current - amount);
       def.view?.setBubble?.(def.stored >= 1 ? `+${Math.floor(def.stored)}` : '');
     } else {
-      def.pending = Math.max(0, (def.pending || 0) - amount);
+      def.pending = Math.max(0, current - amount);
       def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
     }
   }
@@ -369,6 +386,12 @@ export class InvasionController {
       if (this.resources) {
         if (loot.coins) this.resources.add('coins', loot.coins);
         if (loot.crystals) this.resources.add('crystals', loot.crystals);
+      }
+      // applySnapshot ya refrescó el HUD con los recursos anteriores al
+      // botín: se vuelve a sincronizar después de re-sumir lo robado.
+      this.scene?.ui?.syncResources?.();
+      if (loot.coins || loot.crystals) {
+        this.onToast(`Botín: +${loot.coins || 0} oro · +${loot.crystals || 0} cristales`);
       }
     }
     this.reset();
@@ -843,13 +866,13 @@ export class InvasionController {
 
     if (hp > 0) return;
     if (id === 'core') {
+      // Antes de terminar: colapso de la mazmorra, se lleva TODO lo que quede.
+      this.collapseBase();
       this.finish('won', 'El núcleo ha caído');
       return;
     }
     // Botín por edificio: 25 % del almacén, 50 % de la burbuja del productor.
-    // Al caer el núcleo se lleva TODO y la mazmorra entera se destruye.
     this.takeLootFrom(def);
-    if (id === 'core') this.collapseBase();
     // Estructura caída: deja de defenderse y sus casillas son transitables.
     def.view?.setDestroyed?.(true);
     for (let j = 0; j < (def.h || def.size); j++) {
