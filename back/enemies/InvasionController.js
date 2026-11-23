@@ -281,8 +281,11 @@ export class InvasionController {
           return false;
         }
         own = captureOwnBase(ctx);
-        applyInvasionBase(ctx, loaded.snapshot);
+        // Se marca el cambio ANTES de aplicar la copia: así el HUD congela
+        // los totales del jugador en vez de leer los almacenes del rival.
         this.baseSwap = { own };
+        this.scene?.ui?.cacheOwnResources?.();
+        applyInvasionBase(ctx, loaded.snapshot);
         this.opponent = {
           id: opponentId,
           name: opponentName || 'Rival',

@@ -836,16 +836,39 @@ export class InterfaceController {
     return (this.resources?.get(res) || 0) + stored;
   }
 
-  syncResources() {
+  /** Guarda los totales del jugador antes de prestar la escena a una base
+   *  rival: durante la invasión los edificios visibles son los del rival. */
+  cacheOwnResources() {
     if (!this.resources) return;
-    const caps = {
-      coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
-      crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
-    };
-    const totals = {
+    this.ownResourceTotals = {
       coins: this.resourceTotal('coins'),
       crystals: this.resourceTotal('crystals'),
     };
+    this.ownResourceCaps = {
+      coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
+      crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
+    };
+  }
+
+  syncResources() {
+    if (!this.resources) return;
+    const liveCaps = {
+      coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
+      crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
+    };
+    const liveTotals = {
+      coins: this.resourceTotal('coins'),
+      crystals: this.resourceTotal('crystals'),
+    };
+    const borrowed = Boolean(this.invasion?.active || this.invasion?.baseSwap);
+    if (!borrowed) {
+      this.ownResourceTotals = { ...liveTotals };
+      this.ownResourceCaps = { ...liveCaps };
+    }
+    const totals = borrowed && this.ownResourceTotals
+      ? this.ownResourceTotals : liveTotals;
+    const caps = borrowed && this.ownResourceCaps
+      ? this.ownResourceCaps : liveCaps;
     const key = `${totals.coins}|${totals.crystals}|${caps.coins}|${caps.crystals}`;
     if (key === this.resKey) return;
     this.resKey = key;
