@@ -7,7 +7,6 @@
  * los niveles nuevos se aprovechan automáticamente.
  * ========================================================== */
 
-import { devResources } from '../config/devResources.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import { ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { DIRT } from '../systems/map.js';
@@ -30,6 +29,7 @@ function derive(def) {
   def.splash = atk?.splash ?? null;
   def.storage = spec.storage ? spec.storage(lvl) : null;
   def.stored = spec.storage ? (def.stored || 0) : null;
+  if (def.kind === 'core') def.storedCrystals = def.storedCrystals || 0;
   def.producer = spec.producer
     ? {
       resource: spec.producer.resource,
@@ -52,10 +52,7 @@ function syncView(def) {
   if (typeof v.setWorking === 'function') v.setWorking(Boolean(def.work));
   if (typeof v.setResource === 'function') v.setResource(def.resource);
   if (typeof v.setBubble === 'function') {
-    const bubble = def.kind === 'vault'
-      ? (def.stored >= 1 ? `+${Math.floor(def.stored)}` : '')
-      : (def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
-    v.setBubble(bubble);
+    v.setBubble(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
   }
   if (typeof v.baseDepth === 'number' && typeof def.depth === 'number') {
     v.baseDepth = def.depth + 0.03;
@@ -131,6 +128,7 @@ function restoreStructures(snap, ctx) {
     def.frozenUpgrade = rec.frozenUpgrade ? { ...rec.frozenUpgrade } : null;
     def.pending = rec.pending || 0;
     def.stored = rec.stored || 0;
+    def.storedCrystals = rec.storedCrystals || 0;
     derive(def);
     syncView(def);
   }
@@ -151,40 +149,6 @@ function restoreStructures(snap, ctx) {
   }
 }
 
-/** Partidas anteriores al cambio guardaban TODO el dinero en `resources`
- *  y los almacenes vacíos. Al cargar, se reparte ese excedente entre los
- *  almacenes del mismo recurso hasta su capacidad. Se salta en desarrollo
- *  con el override de recursos para no guardar cantidades de prueba. */
-function migrateLooseToVaults(ctx) {
-  if (!ctx?.resources || devResources() !== null) return;
-  const vaults = (ctx.structures || [])
-    .filter(d => d?.kind === 'vault' && d.placed && !d.shelved);
-  if (!vaults.length) return;
-
-  for (const res of ['coins', 'crystals']) {
-    const loose = Math.max(0, Math.floor(ctx.resources.get(res)));
-    if (!loose) continue;
-    const targets = vaults.filter(v => (v.resource || 'coins') === res);
-    const room = targets.reduce(
-      (n, v) => n + Math.max(0, (v.storage || 0) - (v.stored || 0)), 0,
-    );
-    if (room <= 0) continue;
-
-    const move = Math.min(loose, room);
-    let left = move;
-    for (const v of targets) {
-      if (left <= 0) break;
-      const space = Math.max(0, (v.storage || 0) - (v.stored || 0));
-      if (space <= 0) continue;
-      const put = Math.min(space, left);
-      v.stored = (v.stored || 0) + put;
-      v.view?.setBubble?.(v.stored >= 1 ? `+${Math.floor(v.stored)}` : '');
-      left -= put;
-    }
-    ctx.resources[res] = loose - move;
-  }
-}
-
 /**
  * Aplica un snapshot normalizado y refresca la interfaz. Devuelve el documento usado.
  * `withResources`/`withArmy` se desactivan al prestar la escena a una base
@@ -200,7 +164,6 @@ export function applySnapshot(snapshot, ctx, options = {}) {
   if (withResources && ctx.resources) {
     ctx.resources.coins = snap.resources.coins;
     ctx.resources.crystals = snap.resources.crystals;
-    migrateLooseToVaults(ctx);
   }
   if (withArmy && ctx.army) {
     ctx.army.counts = { ...snap.army.counts };

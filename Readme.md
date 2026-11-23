@@ -411,17 +411,22 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
 ## 7. Recursos
 
 - Dos recursos: **monedas** y **cristales** (`'coins'`, `'crystals'`).
-- Se guardan en `state.stored[recurso]` de cada estructura con stat
-  `kind:'storage'` (núcleo y almacenes). `monedas_actuales`/`cristales_actuales`
-  son un reflejo.
-- `gainResource(res, n)` reparte parejo respetando capacidad;
-  `spendResource(res, n)` quita parejo y devuelve `false` si no alcanza.
-- HUD arriba a la derecha: barra con total / capacidad total.
+- **No existen recursos sueltos**: todo está dentro del núcleo (reserva) y de
+  los almacenes del recurso. `Resources` calcula el total desde esas
+  estructuras y reparte los gastos proporcionalmente entre ellas.
+- `add()` respeta la capacidad; `pay()` quita proporcionalmente y falla si no
+  hay suficiente. Un guardado antiguo puede traer excedente (p. ej.
+  5500/5000): se conserva, pero no se puede volver a superar el límite hasta
+  que el total baje de él.
+- HUD arriba a la derecha: barra con total / capacidad total. Los almacenes
+  ya no muestran burbuja `+N`; su contenido se consulta en Información.
 - Inicio: los valores de `BALANCE.recursos.inicio`. Para pruebas locales se
   puede forzar otra cantidad con `VITE_DEV_RESOURCES` en `.env.local` (ignorado
   por git): esa cantidad se mantiene incluso al cargar guardados y no se
   persiste en la partida. Ver `back/config/devResources.js`.
-- Producción pasiva (mina/taller) va aparte de los almacenes y se recoge con clic.
+- Producción pasiva (mina/taller): la burbuja crece hasta el límite del
+  productor; al recoger se deposita en núcleo/almacenes y lo que no cabe
+  sigue en la burbuja.
 
 ### 7b. Obras (construcción y mejora con tiempo)
 

@@ -75,6 +75,7 @@ export class StructureFactory {
       source: spec.source || null,
       storage: spec.storage ? spec.storage(level) : null,
       stored: spec.storage ? 0 : null,
+      storedCrystals: kind === 'core' ? 0 : null,
       producer: spec.producer
         ? { resource: spec.producer.resource, rate: spec.producer.rate(level), cap: spec.producer.cap(level) }
         : null,

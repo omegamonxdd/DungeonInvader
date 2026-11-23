@@ -92,7 +92,10 @@ export class MainScene extends Phaser.Scene {
     this.selection = null;
 
     // Fase 9: recursos vivos y obras en tiempo real.
-    this.resources = new Resources();
+    this.resources = new Resources({
+      structures: this.structures,
+      getCoreLevel: () => this.works?.coreLevel() || 1,
+    });
     this.works = new WorkController({
       structures: this.structures,
       terrain: this.terrain,

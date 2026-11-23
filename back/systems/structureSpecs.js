@@ -41,6 +41,7 @@ const STRUCTURE_SPECS = Object.freeze({
     kind: 'core', name: 'Núcleo', size: 3, height: 30, category: 'especial',
     maxLevel: BALANCE.nucleo.maxLevel,
     hp: lvl => levelRow(BALANCE.nucleo.niveles, lvl)?.hp ?? 1000,
+    storage: lvl => levelRow(BALANCE.nucleo.niveles, lvl)?.storage ?? 0,
     targetable: true, movable: true, art: 'core',
   }),
   entrance: simple({

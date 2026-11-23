@@ -61,6 +61,7 @@ function structureRecord(def) {
       : null,
     pending: num(def.pending, 0),
     stored: num(def.stored, 0),
+    storedCrystals: num(def.storedCrystals, 0),
   };
 }
 
@@ -116,6 +117,7 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
     id, kind, level: 1, x, y, w, h,
     placed: true, shelved: false, movable,
     work: null, frozenUpgrade: null, pending: 0,
+    stored: 0, storedCrystals: 0,
   });
 
   return {
@@ -183,6 +185,7 @@ function normalizeStructure(rec) {
       : null,
     pending: Math.max(0, num(rec.pending, 0)),
     stored: Math.max(0, num(rec.stored, 0)),
+    storedCrystals: Math.max(0, num(rec.storedCrystals, 0)),
   };
 }
 

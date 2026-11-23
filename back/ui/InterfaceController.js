@@ -827,14 +827,8 @@ export class InterfaceController {
 
   fmtNumber(n) { return new Intl.NumberFormat('es-ES').format(Math.round(n)); }
 
-  /** Recursos totales: sueltos en el núcleo + guardados en los almacenes. */
-  resourceTotal(res) {
-    const stored = (this.structures || []).reduce((n, def) => {
-      if (def?.kind !== 'vault' || !def.placed || def.shelved) return n;
-      return (def.resource || 'coins') === res ? n + (def.stored || 0) : n;
-    }, 0);
-    return (this.resources?.get(res) || 0) + stored;
-  }
+  /** Recursos totales: ya los calcula Resources desde núcleo + almacenes. */
+  resourceTotal(res) { return this.resources?.get(res) || 0; }
 
   /** Guarda los totales del jugador antes de prestar la escena a una base
    *  rival: durante la invasión los edificios visibles son los del rival. */

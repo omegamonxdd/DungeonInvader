@@ -42,24 +42,11 @@ export class ProductionController {
     const res = spec.producer.resource;
     const total = Math.floor(def.pending);
     if (total <= 0) return false;
-    let left = total;
 
-    // Los recursos se guardan primero en los almacenes de ese mismo tipo;
-    // solo el exceso pasa a los recursos del núcleo.
-    for (const vault of this.structures) {
-      if (left <= 0) break;
-      if (vault.kind !== 'vault' || !vault.placed || vault.shelved || pausedByWork(vault)) continue;
-      if ((vault.resource || 'coins') !== res) continue;
-      const room = Math.max(0, (vault.storage || 0) - (vault.stored || 0));
-      if (room <= 0) continue;
-      const put = Math.min(room, left);
-      vault.stored = (vault.stored || 0) + put;
-      vault.view?.setBubble?.(vault.stored >= 1 ? `+${Math.floor(vault.stored)}` : '');
-      left -= put;
-    }
-    if (left > 0) this.resources.add(res, left);
-
-    def.pending = Math.max(0, def.pending - total);
+    // Todo se guarda en núcleo/almacenes. Si no cabe, el resto se queda en
+    // la burbuja del productor (hasta su propio límite).
+    const stored = this.resources.add(res, total);
+    def.pending = Math.max(0, def.pending - stored);
     if (def.pending < 1) def.pending = 0;
     def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
     this.onChange();
