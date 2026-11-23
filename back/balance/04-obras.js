@@ -7,8 +7,8 @@
  * ========================================================== */
 
 export const obras = {
-  limiteConstructores: 5,
-  toposDecorativos: 4,
+  limiteConstructores: 3,
+  toposDecorativos: 5,
   escalaTiempo: 1,
 
   tiemposConstruccion: {
