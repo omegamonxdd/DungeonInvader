@@ -257,6 +257,12 @@ export class InterfaceController {
         this.showToast('Termina de mover el edificio primero');
         return false;
       }
+      const counts = this.army?.snapshot?.()?.counts || {};
+      const troops = Object.values(counts).reduce((n, count) => n + Math.max(0, count || 0), 0);
+      if (!troops) {
+        this.showToast('Invoca al menos 1 tropa antes de invadir');
+        return false;
+      }
       this.setBuildOpen(false);
       this.closePanel();
       this.closeSummon();
@@ -1201,6 +1207,15 @@ export class InterfaceController {
 
   renderInvasionItems() {
     const inv = this.invasion;
+    // Sin ejército el botón se marca como bloqueado (la grieta es gratis).
+    const counts = this.army?.snapshot?.()?.counts || {};
+    const troops = Object.values(counts).reduce((n, count) => n + Math.max(0, count || 0), 0);
+    const locked = !troops && !inv?.active;
+    this.els.invasionBtn?.classList.toggle('locked', locked);
+    if (this.els.invasionBtn) {
+      this.els.invasionBtn.title = locked ? 'Invoca al menos 1 tropa antes de invadir' : '';
+    }
+
     const key = `${inv.active}|${inv.over}|` + Object.entries(inv.army)
       .map(([id, total]) => `${id}:${total - (inv.deployed[id] || 0)}:${this.army?.levelOf(id) || 1}`).join(',');
     if (key === this.invItemsKey) return;

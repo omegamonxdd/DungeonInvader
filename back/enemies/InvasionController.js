@@ -198,6 +198,17 @@ export class InvasionController {
 
   async start({ opponentId = null, opponentName = '' } = {}) {
     if (this.active) return false;
+
+    // No se puede invadir con el ejército vacío. La grieta es gratuita, así
+    // que siempre se puede invocar algo antes: no hay bloqueo posible.
+    const army = this.armyRef?.snapshot?.();
+    const troops = Object.values(army?.counts || {})
+      .reduce((n, count) => n + Math.max(0, count || 0), 0);
+    if (!troops) {
+      this.onToast('Invoca al menos 1 tropa antes de invadir');
+      return false;
+    }
+
     if (opponentId && String(opponentId) === String(this.service?.auth?.id)) {
       this.onToast('No puedes invadir tu propia base');
       return false;
