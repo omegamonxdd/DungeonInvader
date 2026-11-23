@@ -1013,8 +1013,12 @@ export class InterfaceController {
     this.els.actionTitle.textContent = `${nameOf(sel)} · Nivel ${sel.level || 1}`;
     if (this.infoUI.open) {
       const mode = this.infoUI.mode;
-      if (mode === 'troop' && this.infoUI.troop) {
-        this.openTroopInfo(this.infoUI.troop);
+      if ((mode === 'troop' || mode === 'troop-upgrade') && this.infoUI.troop) {
+        // Las ventanas de tropa no dependen de la obra que acaba de terminar:
+        // redibujarlas con openPanel(mode) las sustituiría por un panel de
+        // estructura y perdería el botón de confirmar la mutación.
+        if (mode === 'troop-upgrade') this.openTroopUpgrade(this.infoUI.troop);
+        else this.openTroopInfo(this.infoUI.troop);
         return;
       }
       this.closePanel();
