@@ -1,7 +1,7 @@
 import { iso } from '../systems/iso.js';
 import { COLORS, hexToInt } from '../config/palette.js';
 import {
-  DIRT_HEIGHT, ENTRANCE_X_MAX, SCALE, WORLD,
+  DIRT_HEIGHT, SCALE, WORLD,
 } from '../config/world.js';
 
 /* Entrada de mina con soportes de madera.
@@ -67,8 +67,11 @@ export class EntranceView {
     const FH = FRAME_H;
     const yA = yMin + 0.1;   // poste izquierdo
     const yB = yMax + 0.9;   // poste derecho
-    const xIn = X + 0.1;                  // marco interior (x=40)
-    const xOut = ENTRANCE_X_MAX + 0.9;    // marco exterior (x=41, hueco exterior)
+    // El marco se queda en la boca (x=40). Si se extendiera hasta x=41, sus
+    // vigas taparían el suelo nuevo de la columna exterior; esa columna es
+    // solo piso de espera para las tropas.
+    const xIn = X + 0.1;     // marco interior
+    const xOut = X + 0.9;    // marco exterior
 
     // Boca oscura sobre el muro del fondo
     const mouth = [
