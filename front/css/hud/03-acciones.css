@@ -83,6 +83,9 @@ body.invading #build-btn { display: none; }
 #move-status { color: var(--ok-text); }
 #move-hint.invalid #move-status { color: var(--red-hi-h); }
 
+/* El botón de cancelar solo sustituye al aviso en pantallas táctiles. */
+#move-cancel { display: none; }
+
 
 /* Aviso breve */
 #toast {

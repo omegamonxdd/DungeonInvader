@@ -87,7 +87,7 @@ export class InterfaceController {
       btnInfo: byId('btn-info'), btnUpgrade: byId('btn-upgrade'), btnMove: byId('btn-move'),
       btnRetire: byId('btn-retire'),
       btnSummon: byId('btn-summon'), btnBreed: byId('btn-breed'), btnMutate: byId('btn-mutate'),
-      moveHint: byId('move-hint'), moveText: byId('move-text'), toast: byId('toast'),
+      moveHint: byId('move-hint'), moveText: byId('move-text'), moveCancel: byId('move-cancel'), toast: byId('toast'),
       infoOverlay: byId('info-overlay'), infoPanel: byId('info-panel'), infoClose: byId('info-close'),
       infoBadge: byId('info-badge'), infoTitle: byId('info-title'), infoSub: byId('info-sub'),
       infoStats: byId('info-stats'), infoFooter: byId('info-footer'), infoUpgrade: byId('info-upgrade'),
@@ -219,6 +219,7 @@ export class InterfaceController {
     this.els.btnSummon.addEventListener('click', () => this.openSummon('summon'));
     this.els.btnBreed.addEventListener('click', () => this.openSummon('breed'));
     this.els.btnMutate.addEventListener('click', () => this.openSummon('mutate'));
+    this.els.moveCancel?.addEventListener('click', () => this.move.cancel());
     this.els.summonClose?.addEventListener('click', () => this.closeSummon());
     this.els.summonItems?.addEventListener('click', e => this.onSummonClick(e));
     this.els.summonItems?.addEventListener('contextmenu', e => this.onSummonContext(e));
@@ -813,6 +814,7 @@ export class InterfaceController {
     const active = this.move.active;
     this.els.actionBar.classList.toggle('open', Boolean(this.selection) && !active && !this.infoUI.open && !this.invasion?.active);
     this.els.moveHint.classList.toggle('open', active);
+    document.body.classList.toggle('moving', active);
     this.els.canvas?.classList.toggle('moving', active);
     if (active) {
       const name = this.move.def ? nameOf(this.move.def) : 'estructura';

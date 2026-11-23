@@ -373,7 +373,20 @@
     <span id="move-dot" aria-hidden="true"></span>
     <span id="move-text"></span>
   </div>
+  <button id="move-cancel" class="action-btn" type="button">Cancelar construccion</button>
   <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Retrato táctil: la mazmorra solo se juega en horizontal. -->
+  <div id="rotate-device" role="alertdialog" aria-modal="true" aria-label="Gira el dispositivo para jugar">
+    <div class="rotate-frame">
+      <svg class="rotate-icon" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M22 6h20v34H22z" fill="none" stroke="currentColor" stroke-width="4"/>
+        <path d="M28 34h8v4h-8z" fill="currentColor"/>
+        <path d="M8 20h6v-6h6v-6h6v6h6v6h6v6h-6v6h-6v6h-6v-6h-6v-6H8z" fill="currentColor"/>
+      </svg>
+      <strong>Gira el dispositivo para jugar</strong>
+    </div>
+  </div>
 
   <!-- Ventana reutilizable de Información / Mejorar (Fase 7) -->
   <div id="info-overlay">

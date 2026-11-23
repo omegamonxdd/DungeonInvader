@@ -53,6 +53,55 @@
 
   /* Barras de recursos un 20 % más cortas en móvil. */
   #resources { width: calc(var(--w-recursos) * 0.8); }
+
+  /* Construcción: sustituye el panel de aviso por un botón de cancelar. */
+  #move-hint { display: none !important; }
+  body.moving #move-cancel {
+    display: flex;
+    position: fixed; left: 50%; bottom: 92px; z-index: 5;
+    transform: translateX(-50%);
+    padding: 10px 16px;
+    font: 600 var(--fs-sm)/1 var(--font);
+    white-space: nowrap;
+  }
+  body.editing.moving #move-cancel { bottom: 148px; }
+}
+
+/* Retrato táctil: pantalla de piedra que bloquea el juego hasta girar. */
+#rotate-device { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate-device {
+    display: grid;
+    place-items: center;
+    position: fixed; inset: 0;
+    z-index: 2147483646;
+    padding: 24px;
+    box-sizing: border-box;
+    color: var(--txt-gold);
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 2px, transparent 2px 44px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.22) 0 2px, transparent 2px 88px),
+      var(--stone);
+    text-align: center;
+    touch-action: none;
+  }
+  #rotate-device .rotate-frame {
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+    max-width: 320px;
+    padding: 28px 24px;
+    border: var(--px) solid var(--ink);
+    background: var(--panel);
+    box-shadow: inset var(--px) var(--px) 0 var(--panel-hi),
+                inset calc(var(--px) * -1) calc(var(--px) * -1) 0 var(--panel-lo),
+                0 0 0 var(--px) var(--panel-lo);
+  }
+  #rotate-device .rotate-icon { width: 64px; height: 64px; color: var(--gold-hi); }
+  #rotate-device strong {
+    font: 700 var(--fs-lg)/1.3 var(--font);
+    text-shadow: var(--ts);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .stat-next, #invasion-timer.low .it-time { animation: none; }
