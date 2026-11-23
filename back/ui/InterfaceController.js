@@ -108,6 +108,7 @@ export class InterfaceController {
       rivalOverlay: byId('rival-overlay'), rivalList: byId('rival-list'),
       rivalEmpty: byId('rival-empty'), rivalClose: byId('rival-close'),
       rivalLocal: byId('rival-local'), rivalNote: byId('rival-note'),
+      tabLockOverlay: byId('tab-lock-overlay'), tabLockResume: byId('tab-lock-resume'),
       summonPanel: byId('summon-panel'), summonItems: byId('summon-items'),
       summonTitle: byId('summon-title'), summonSpace: byId('summon-space'),
       summonClose: byId('summon-close'),
@@ -237,6 +238,7 @@ export class InterfaceController {
       if (e.target === this.els.rivalOverlay) this.closeRivalPicker();
     });
     this.els.rivalLocal?.addEventListener('click', () => this.startInvasion(null));
+    this.els.tabLockResume?.addEventListener('click', () => getService()?.sessionLock?.resume?.());
 
     // Los atajos (E, Z/X, 1–5 y los del editor) los resuelve ShortcutController
     // en MainScene; aquí solo quedan los clics de los botones.
@@ -1181,6 +1183,18 @@ export class InterfaceController {
     this.els.infoOverlay.classList.remove('open');
     document.body.classList.remove('info-open');
     return true;
+  }
+
+  /* ---------- Sesión abierta en otra pestaña ---------------------------- */
+
+  showSessionLocked() {
+    if (this.els.tabLockOverlay) this.els.tabLockOverlay.hidden = false;
+    document.body.classList.add('tab-locked');
+  }
+
+  hideSessionLocked() {
+    if (this.els.tabLockOverlay) this.els.tabLockOverlay.hidden = true;
+    document.body.classList.remove('tab-locked');
   }
 
   /* ---------- Invasión (Fase 8) ----------------------------------------- */

@@ -37,6 +37,8 @@
 @import './modales/04-auth.css';
 /* Invasión multijugador: elección de la base rival. */
 @import './modales/05-rival.css';
+/* Sesión abierta en otra pestaña. */
+@import './modales/06-tab-lock.css';
 
 /* Fase 8: tropas y letrero de fin de invasión (mismos estilos del legacy). */
 @import './invasion/01-tropas.css';

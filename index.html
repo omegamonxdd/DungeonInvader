@@ -409,6 +409,16 @@
     <button id="victory-back" class="action-btn gold" type="button">Volver</button>
   </div>
 
+  <!-- Otra pestaña con la misma cuenta tomó el control de esta sesión. -->
+  <div id="tab-lock-overlay" class="tab-lock-overlay" role="alertdialog" aria-modal="true" aria-labelledby="tab-lock-title" hidden>
+    <section class="tab-lock-card">
+      <div class="auth-rune" aria-hidden="true">◆</div>
+      <h2 id="tab-lock-title">Se ha detectado una pestaña nueva</h2>
+      <p>Esta cuenta ya está abierta en otra pestaña. Esta se ha desactivado para proteger tu partida; puedes cerrarla.</p>
+      <button id="tab-lock-resume" class="action-btn gold" type="button">Reanudar esta pestaña</button>
+    </section>
+  </div>
+
   <!-- Guarda contra el fallo silencioso: si el bundle no llega a ejecutarse
        (p. ej. Pages sirviendo el código fuente en vez de dist/), la pantalla
        de carga deja de fingir que sigue cargando y explica qué pasa. -->

@@ -1,0 +1,46 @@
+/* ==========================================================
+ * PESTAÑA DESACTIVADA POR NUEVA SESIÓN
+ * ----------------------------------------------------------
+ * Se muestra cuando otra pestaña del mismo navegador entra con la
+ * misma cuenta. Bloquea el juego y ofrece recuperar esta pestaña.
+ * ========================================================== */
+
+.tab-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 20px;
+  background-color: var(--overlay-bg);
+  background-image: var(--overlay-tile);
+  background-size: var(--overlay-tile-size);
+  background-position: var(--overlay-tile-pos);
+}
+.tab-lock-overlay[hidden] { display: none; }
+body.tab-locked #game canvas { pointer-events: none; }
+
+.tab-lock-card {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+  padding: 26px 24px 22px;
+  color: var(--txt);
+  text-shadow: var(--ts);
+  background-color: var(--panel);
+  background-image: var(--panel-tile);
+  background-size: var(--panel-tile-size);
+  background-position: var(--panel-tile-pos);
+  box-shadow: var(--panel-edge-lift);
+  text-align: center;
+}
+.tab-lock-card h2 {
+  margin: 0 0 10px;
+  color: var(--txt-gold);
+  font: 700 var(--fs-lg)/1.25 var(--font);
+}
+.tab-lock-card p {
+  margin: 0 0 18px;
+  color: var(--txt-dim);
+  font: 500 var(--fs-sm)/1.5 var(--font);
+}

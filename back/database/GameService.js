@@ -17,6 +17,7 @@ import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
 import { buildSnapshot, freshSnapshot, sameProgress, snapshotHasPath } from './snapshot.js';
 import { applySnapshot } from './restore.js';
+import { SessionLock } from './sessionLock.js';
 
 const isGuestId = id => String(id || '').startsWith('guest:');
 
@@ -39,6 +40,17 @@ export class GameService {
     this.error = null;
     this.savedAt = null;
     this.listeners = new Set();
+    this.sessionLocked = false;
+    this.sessionLock = new SessionLock({
+      onLock: () => {
+        this.sessionLocked = true;
+        this.ctx?.ui?.showSessionLocked?.();
+      },
+      onUnlock: () => {
+        this.sessionLocked = false;
+        this.ctx?.ui?.hideSessionLocked?.();
+      },
+    });
     this._timer = null;
     this._debounce = null;
     this._onAuthUnsub = null;
@@ -106,6 +118,7 @@ export class GameService {
     await this.repository.init();
     await this.auth.restore();
     this.lastUserId = this.auth.id;
+    this.sessionLock.attach(this.auth.isGuest ? null : this.auth.id);
 
     // Caché local: se aplica siempre, esté o no configurada la nube.
     const local = this.repository.loadLocal(this.auth.id);
@@ -132,6 +145,7 @@ export class GameService {
     if (user.id === this.lastUserId) return;
     const previousId = this.lastUserId;
     this.lastUserId = user.id;
+    this.sessionLock.attach(user.guest ? null : user.id);
 
     // Cerrar sesión NO debe re-guardar ni re-subir la base del usuario: era
     // justo lo que recreaba el guardado aunque se borrara en Supabase.
@@ -207,16 +221,16 @@ export class GameService {
   /* ---------- Guardado -------------------------------------------------- */
 
   markDirty() {
-    if (!this.started) return;
+    if (!this.started || this.sessionLocked) return;
     this.dirty = true;
     clearTimeout(this._debounce);
     this._debounce = setTimeout(() => this.save(), SAVE_DEBOUNCE_MS);
   }
 
-  tick() { if (this.dirty) this.save(); }
+  tick() { if (this.dirty && !this.sessionLocked) this.save(); }
 
   async save({ force = false, sync = true, ownerId = null } = {}) {
-    if (!this.ctx || !this.started) return false;
+    if (!this.ctx || !this.started || this.sessionLocked) return false;
     if (this.invasionActive()) {
       this.pendingSave = true;
       return false;
@@ -299,6 +313,7 @@ export class GameService {
 
   /** Llamar al terminar una invasión: aplica guardados/cargas pospuestos. */
   async flushPending() {
+    if (this.sessionLocked) return;
     if (this.pendingApply) {
       const snap = this.pendingApply;
       this.pendingApply = null;
@@ -347,6 +362,7 @@ export class GameService {
   }
 
   dispose() {
+    this.sessionLock.dispose();
     clearInterval(this._timer);
     clearTimeout(this._debounce);
     this._onAuthUnsub?.();

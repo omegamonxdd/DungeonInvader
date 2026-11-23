@@ -116,6 +116,15 @@ modal de acceso. El guardado de Supabase **no se toca**, así que al iniciar
 sesión de nuevo se recupera desde la nube. Es la forma de evitar que una base
 quede visible en un equipo compartido sin destruir el progreso.
 
+## Una pestaña por cuenta
+
+`SessionLock` avisa por `BroadcastChannel` (o por `storage` si no está
+disponible) cuando se abre otra pestaña con la misma cuenta. La pestaña
+anterior deja de autoguardar y muestra «Se ha detectado una pestaña nueva»;
+intenta cerrarse y, si el navegador lo impide, queda bloqueada con un botón
+para reanudarla. Solo aplica a pestañas del mismo navegador: otra cuenta o
+otro dispositivo no se ven afectados.
+
 ## Resolución de conflictos
 
 Se compara `savedAt` (o `updated_at` en Supabase): gana el más reciente. Si el
