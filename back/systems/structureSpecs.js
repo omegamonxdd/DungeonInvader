@@ -22,7 +22,13 @@ const T = BALANCE.trampas;
 // el legacy: no se duplica aquí.
 const HIDDEN_IN_INVASION = new Set(BALANCE.visibilidad.ocultasAlInvadir || []);
 
-const hpFrom = table => lvl => levelRow(table, lvl)?.hp ?? 0;
+// Las tablas de 05 son de dos formas: `hp: { 1: 400 }` (número directo) y
+// `niveles: { 1: { hp: 400 } }` (fila con clave). Leer solo `?.hp` dejaba
+// los edificios de la primera forma en 0 puntos de vida.
+const hpFrom = table => lvl => {
+  const row = levelRow(table, lvl);
+  return (typeof row === 'number' ? row : row?.hp) ?? 0;
+};
 const simple = data => ({
   targetable: false,
   movable: true,
