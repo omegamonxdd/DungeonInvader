@@ -93,7 +93,40 @@ export class InvasionController {
 
   get over() { return this.phase === 'won' || this.phase === 'lost'; }
 
+  get lootRate() { return BALANCE.invasion.botinFraccion ?? 1; }
+
   troopDef(id) { return BALANCE.tropas.tipos[id]; }
+
+  /** Lo que aún se puede robar de una estructura de la base invadida. */
+  lootOf(def) {
+    if (!def?.placed || (this.siege[def.id] ?? this.maxHpOf(def)) <= 0) {
+      return { resource: null, amount: 0 };
+    }
+    const spec = specFor(def);
+    if (def.kind === 'vault') {
+      return {
+        resource: def.resource || 'coins',
+        amount: Math.max(0, Math.floor((def.stored || 0) * this.lootRate)),
+      };
+    }
+    if (spec?.producer) {
+      return {
+        resource: spec.producer.resource,
+        amount: Math.max(0, Math.floor((def.pending || 0) * this.lootRate)),
+      };
+    }
+    return { resource: null, amount: 0 };
+  }
+
+  /** Botín total disponible en la base, para el HUD de la invasión. */
+  availableLoot() {
+    const out = { coins: 0, crystals: 0 };
+    for (const def of this.structures) {
+      const { resource, amount } = this.lootOf(def);
+      if (resource && amount) out[resource] = (out[resource] || 0) + amount;
+    }
+    return out;
+  }
 
   guardRangeFor(typeId) {
     let range = 3;
@@ -734,18 +767,21 @@ export class InvasionController {
       this.finish('won', 'El núcleo ha caído');
       return;
     }
-    // Saqueo del legacy: almacenes pierden lo guardado y productores lo
-    // producido. La simulación no toca la base real salvo este botín.
+    // Saqueo: solo se roba `botinFraccion` (25 %) de lo guardado/producido.
+    // La simulación no toca la base real salvo este botín.
     if (this.resources) {
       const spec = specFor(def);
-      if (def.kind === 'vault' && def.stored) {
-        this.resources.add(def.resource || 'coins', def.stored);
-        def.stored = 0;
+      const takeFraction = (resource, current) => {
+        const loot = Math.max(0, Math.floor((current || 0) * this.lootRate));
+        if (loot > 0) this.resources.add(resource, loot);
+        return Math.max(0, (current || 0) - loot);
+      };
+      if (def.kind === 'vault') {
+        def.stored = takeFraction(def.resource || 'coins', def.stored);
       }
       if (spec?.producer && def.pending) {
-        this.resources.add(spec.producer.resource, Math.floor(def.pending));
-        def.pending = 0;
-        def.view?.setBubble?.('');
+        def.pending = takeFraction(spec.producer.resource, def.pending);
+        def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
       }
     }
     // Estructura caída: deja de defenderse y sus casillas son transitables.

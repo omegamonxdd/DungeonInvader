@@ -17,5 +17,9 @@ export const invasion = {
   rally: { x: 38.5, y: 20.5 },
 
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
-  ejercitoPrueba: { esqueleto: 8, slime: 4 },
+  ejercitoPrueba: { esqueleto: 1, slime: 0 },
+
+  // Botín al destruir un almacén o un productor: solo una cuarta parte de
+  // lo guardado/producido pasa al atacante; el resto se pierde con el edificio.
+  botinFraccion: 0.25,
 };
