@@ -47,7 +47,9 @@ export const entrada = {
 };
 
 export const recursos = {
-  inicio: { coins: 999999, crystals: 999999 }, // modo pruebas
+  // Partida nueva: 2000 de cada recurso. Para pruebas locales se puede
+  // forzar otra cantidad con VITE_DEV_RESOURCES (ver config/devResources.js).
+  inicio: { coins: 2000, crystals: 2000 },
 };
 
 export const camara = {

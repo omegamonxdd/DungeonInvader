@@ -10,6 +10,8 @@
  *   service.onStatus(cb)            estado para el HUD
  * ========================================================== */
 
+import { BALANCE } from '../balance/index.js';
+import { devResources } from '../config/devResources.js';
 import { AUTOSAVE_MS, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
 import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
@@ -172,6 +174,12 @@ export class GameService {
     if (this.saving) return false;
 
     const snapshot = buildSnapshot(this.ctx, DEFAULT_SLOT);
+    if (devResources() !== null) {
+      // El override de pruebas nunca se persiste: al quitarlo debe reaparecer
+      // el progreso real del jugador en vez de un guardado de 999999.
+      const fallback = this.lastSaved?.resources || BALANCE.recursos.inicio;
+      snapshot.resources = { coins: fallback.coins, crystals: fallback.crystals };
+    }
     if (!force && !this.dirty && sameProgress(snapshot, this.lastSaved)) return false;
 
     this.saving = true;

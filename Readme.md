@@ -421,7 +421,10 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
 - `gainResource(res, n)` reparte parejo respetando capacidad;
   `spendResource(res, n)` quita parejo y devuelve `false` si no alcanza.
 - HUD arriba a la derecha: barra con total / capacidad total.
-- Inicio: 999999 de prueba (supera la capacidad del núcleo).
+- Inicio: **2000 monedas y 2000 cristales** (`BALANCE.recursos.inicio`). Para
+  pruebas locales se puede forzar otra cantidad con `VITE_DEV_RESOURCES` en
+  `.env.local` (ignorado por git): esa cantidad se mantiene incluso al cargar
+  guardados y no se persiste en la partida. Ver `back/config/devResources.js`.
 - Producción pasiva (mina/taller) va aparte de los almacenes y se recoge con clic.
 
 ### 7b. Obras (construcción y mejora con tiempo)
@@ -799,7 +802,7 @@ su última base válida.
 
 ## 14. Observaciones
 
-- `core.stored` arranca en 999999 (modo pruebas) y `CORE_LEVELS` define nivel 4
+- Los recursos arrancan en 2000 de cada tipo (override de pruebas en `.env.local`) y `CORE_LEVELS` define nivel 4
   aunque `core.maxLevel = 3`.
 - Costes de tropas y mutaciones en 0.
 - Modelos provisionales en el legacy: torreta, catapulta e incubadora.

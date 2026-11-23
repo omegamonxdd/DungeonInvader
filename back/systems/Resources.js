@@ -5,10 +5,12 @@
  * mostraba el punto de partida del balance como "reflejo" y nunca
  * cobraba nada; aquí pasan a ser un estado real que se gasta al
  * confirmar una construcción o al iniciar una mejora.
- * Los valores iniciales siguen viniendo de balance/01 (modo pruebas).
+ * Los valores iniciales vienen de balance/01 (2000 de cada). En desarrollo
+ * local, VITE_DEV_RESOURCES fuerza la cantidad indicada en cualquier partida.
  * ========================================================== */
 
 import { BALANCE, levelRow } from '../balance/index.js';
+import { devResources } from '../config/devResources.js';
 import { pausedByWork } from './structureSpecs.js';
 
 export class Resources {
@@ -16,10 +18,23 @@ export class Resources {
     this.reset();
   }
 
+  get coins() {
+    const dev = devResources();
+    return dev === null ? (this._coins || 0) : dev;
+  }
+  set coins(v) { this._coins = Math.max(0, Math.round(Number(v) || 0)); }
+
+  get crystals() {
+    const dev = devResources();
+    return dev === null ? (this._crystals || 0) : dev;
+  }
+  set crystals(v) { this._crystals = Math.max(0, Math.round(Number(v) || 0)); }
+
   reset() {
     const start = BALANCE.recursos.inicio;
-    this.coins = start.coins;
-    this.crystals = start.crystals;
+    const dev = devResources();
+    this.coins = dev === null ? start.coins : dev;
+    this.crystals = dev === null ? start.crystals : dev;
   }
 
   get(kind) { return this[kind] || 0; }
@@ -39,8 +54,8 @@ export class Resources {
   // Ingreso libre usado por la recolección de minas/talleres y el saqueo.
   add(kind, amount) {
     const n = Math.max(0, Math.round(amount || 0));
-    if (!n || !Object.prototype.hasOwnProperty.call(this, kind)) return 0;
-    this[kind] += n;
+    if (!n || (kind !== 'coins' && kind !== 'crystals')) return 0;
+    this[kind] = this[kind] + n;
     return n;
   }
 
