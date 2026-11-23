@@ -45,7 +45,7 @@ const STRUCTURE_SPECS = Object.freeze({
     targetable: true, movable: true, art: 'core',
   }),
   entrance: simple({
-    kind: 'entrance', name: 'Entrada', size: 1, height: 24, category: 'especial',
+    kind: 'entrance', name: 'Entrada', size: 2, height: 24, category: 'especial',
     maxLevel: BALANCE.entrada.maxLevel,
     targetable: false, movable: false, art: 'entrance',
   }),

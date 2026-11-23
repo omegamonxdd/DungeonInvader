@@ -18,6 +18,7 @@ export const WORLD = Object.freeze({
   coreMin: mundo.coreMin,
   coreMax: mundo.coreMax,
   entranceX: mundo.entranceX,
+  entranceXMax: mundo.entranceXMax,
   entranceYMin: mundo.entranceYMin,
   entranceYMax: mundo.entranceYMax,
   factoryPathXMin: mundo.factoryPathXMin,
@@ -34,6 +35,7 @@ export const CORE_HEIGHT = WORLD.baseCoreH * SCALE;
 export const CORE_SIZE = WORLD.coreMax - WORLD.coreMin + 1;
 export const CORE_MIN = WORLD.coreMin;
 export const ENTRANCE_X = WORLD.entranceX;
+export const ENTRANCE_X_MAX = WORLD.entranceXMax;
 export const ENTRANCE_Y_MIN = WORLD.entranceYMin;
 export const ENTRANCE_Y_MAX = WORLD.entranceYMax;
 

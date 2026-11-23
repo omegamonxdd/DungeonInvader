@@ -12,7 +12,7 @@ import { BALANCE } from '../balance/index.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import {
   CORE_MIN, CORE_SIZE,
-  ENTRANCE_X, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
+  ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
 } from '../config/world.js';
 import { CORE, DIRT, EMPTY, createMap } from '../systems/map.js';
 import { specFor } from '../systems/structureSpecs.js';
@@ -137,7 +137,7 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
     structures: [
       structure('core', 'core', CORE_MIN, CORE_MIN, CORE_SIZE, CORE_SIZE, true),
       structure('entrance', 'entrance', ENTRANCE_X, ENTRANCE_Y_MIN,
-        1, ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1, false),
+        ENTRANCE_X_MAX - ENTRANCE_X + 1, ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1, false),
     ],
     army: { counts: {}, levels: {} },
   };

@@ -17,7 +17,10 @@ export const mundo = {
   clearMax: 22,
   coreMin: 19,
   coreMax: 21,
+  // Entrada 2×3: x=40 dentro del mapa 41×41 y x=41 fuera (3 casillas
+  // exteriores en y=19..21). Las tropas entran y se quedan en esa huella.
   entranceX: 40,
+  entranceXMax: 41,
   entranceYMin: 19,
   entranceYMax: 21,
   zoomMin: 0.3,

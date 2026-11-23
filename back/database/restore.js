@@ -115,7 +115,7 @@ function restoreStructures(snap, ctx) {
     def.x = rec.x;
     def.y = rec.y;
     def.w = size;
-    // La entrada ocupa 3 casillas en vertical (lo asigna MainScene al crearla).
+    // La entrada es 2×3: dos columnas (x=40 dentro, x=41 fuera) y tres filas.
     def.h = def.kind === 'entrance' ? (ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1) : size;
     def.size = size;
     def.placed = Boolean(rec.placed) && !rec.shelved;

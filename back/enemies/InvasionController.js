@@ -258,13 +258,6 @@ export class InvasionController {
 
   inField() { return this.troops.length + this.queue.length; }
 
-  rallySlot(seq) {
-    const r = BALANCE.invasion.rally;
-    const col = (seq % 3) - 1;
-    const row = (Math.floor(seq / 3) % 2) ? 1 : -1;
-    return { x: r.x + col * 0.4, y: r.y + row * 0.35 };
-  }
-
   /* ---------- Ciclo de vida --------------------------------------------- */
 
   async start({ opponentId = null, opponentName = '' } = {}) {

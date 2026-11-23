@@ -7,7 +7,7 @@
  * La cuadrícula sigue siendo la del legacy (casillas de 1×1).
  * ========================================================== */
 
-import { ENTRANCE_X, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
+import { ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { DIRT, EMPTY } from '../systems/map.js';
 
 const NB8 = [
@@ -54,8 +54,10 @@ export function distToRect(px, py, r) {
   return Math.hypot(dx, dy);
 }
 
-const isEntranceCell = (x, y) => (
-  x === ENTRANCE_X && y >= ENTRANCE_Y_MIN && y <= ENTRANCE_Y_MAX
+// Entrada 2×3: la columna x=41 es la parte exterior (3 casillas fuera del
+// mapa 41×41). Siempre es suelo válido para las tropas que entran.
+export const isEntranceCell = (x, y) => (
+  x >= ENTRANCE_X && x <= ENTRANCE_X_MAX && y >= ENTRANCE_Y_MIN && y <= ENTRANCE_Y_MAX
 );
 
 export class PathFinder {
@@ -70,6 +72,9 @@ export class PathFinder {
   // `open` son las casillas de estructuras destruidas durante la simulación.
   walkable(x, y, open) {
     const t = this.terrain;
+    // La huella de la entrada, incluida su columna exterior, siempre se puede
+    // pisar: no hay tierra ni estructuras que la bloqueen.
+    if (isEntranceCell(x, y)) return true;
     if (!t.inBounds(x, y)) return false;
     if (open?.has(t.key(x, y)) && t.map[y][x] !== DIRT) return true;
     // Estandartes y trampas se pueden atravesar durante la simulación.
@@ -81,8 +86,11 @@ export class PathFinder {
   // (sin la casilla de salida) o null. Mismo algoritmo que findPath() del legacy.
   find(sx, sy, goal, open) {
     const t = this.terrain;
-    if (!this.walkable(sx, sy, open)) return null;
     const n = t.n;
+    // Una orden recibida mientras la tropa aún está en la columna exterior
+    // (x=41, fuera del array n×n) arranca desde la casilla interior x=40.
+    if (sx >= n && isEntranceCell(sx, sy)) sx = n - 1;
+    if (!this.walkable(sx, sy, open)) return null;
     const dist = this.dist.fill(Infinity);
     const prev = this.prev.fill(-1);
     const start = sy * n + sx;

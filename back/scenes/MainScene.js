@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { COLORS } from '../config/palette.js';
 import {
   CORE_HEIGHT, CORE_MIN, DIRT_HEIGHT,
-  ENTRANCE_X, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
+  ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
 } from '../config/world.js';
 import { iso } from '../systems/iso.js';
 import { CORE_DEPTH, ENTRANCE_DEPTH } from '../config/interaction.js';
@@ -84,6 +84,7 @@ export class MainScene extends Phaser.Scene {
     const entrance = this.factory.create('entrance', ENTRANCE_X, ENTRANCE_Y_MIN, {
       id: 'entrance', placed: true, movable: false,
     });
+    entrance.w = ENTRANCE_X_MAX - ENTRANCE_X + 1; // 2 columnas: dentro + hueco exterior
     entrance.h = ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1;
     entrance.depth = ENTRANCE_DEPTH;
 

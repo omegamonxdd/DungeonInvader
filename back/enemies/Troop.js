@@ -7,7 +7,7 @@
  * ========================================================== */
 
 import { tropaAt } from '../balance/index.js';
-import { ENTRANCE_X, ENTRANCE_Y_MIN } from '../config/world.js';
+import { ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { iso } from '../systems/iso.js';
 import { distToRect } from './pathfinding.js';
 import { specFor } from '../systems/structureSpecs.js';
@@ -42,15 +42,22 @@ export class Troop {
     this.dmgAcc = 0;
     this.hpPrev = this.hp;
 
-    const iy = ENTRANCE_Y_MIN + (seq % 3);
+    // Las tropas nacen dentro de la huella 2×3 de la entrada (x=40 dentro,
+    // x=41 en el hueco exterior) y se quedan allí hasta que el jugador dé
+    // una orden. Nunca se les asigna un punto fijo del mapa: eso hacía que
+    // atravesaran tierra o estructuras si ese punto estaba bloqueado.
+    const lane = seq % 3;
+    const outer = Math.floor(seq / 3) % 2 === 1;
+    const iy = ENTRANCE_Y_MIN + lane;
     this.laneY = iy + 0.5;
-    this.x = opts.spawn?.x ?? ENTRANCE_X + 1.6;
+    this.x = opts.spawn?.x ?? (outer ? ENTRANCE_X_MAX : ENTRANCE_X) + 0.5;
     this.y = opts.spawn?.y ?? this.laneY;
-    this.path = opts.spawn ? [] : [{ x: ENTRANCE_X + 0.5, y: this.laneY }];
+    this.path = opts.spawn || !outer ? [] : [{ x: ENTRANCE_X + 0.5, y: this.laneY }];
     this.dest = null;
     this.target = null;
     this.auto = false;
     this.entering = !opts.spawn;
+    this.atEntrance = !opts.spawn;
     this.cd = 0;
     this.atk = 0;
     this.hurt = 0;
@@ -65,17 +72,6 @@ export class Troop {
     this.sprite = scene.add.image(0, 0, texKey).setOrigin(0.5, 0.82);
     this.gfx = scene.add.graphics();
 
-    if (!opts.spawn) {
-      const slot = invasion.rallySlot(seq);
-      const cell = invasion.path.nearestFree(slot.x, slot.y, invasion.open);
-      if (cell) {
-        const cells = invasion.path.find(ENTRANCE_X, iy, (x, y) => x === cell.x && y === cell.y, invasion.open);
-        if (cells) {
-          this.path.push(...cells, slot);
-          this.dest = slot;
-        }
-      }
-    }
     this.render(0);
   }
 
@@ -92,6 +88,7 @@ export class Troop {
     this.target = null;
     this.auto = false;
     this.entering = false;
+    this.atEntrance = false;
     this.path = cells;
     this.dest = { x: cell.x + 0.5, y: cell.y + 0.5 };
     this.repath = 0;
@@ -109,6 +106,7 @@ export class Troop {
     this.target = def.id;
     this.auto = false;
     this.entering = false;
+    this.atEntrance = false;
     this.path = cells;
     this.dest = null;
     this.repath = 0.5;
@@ -194,8 +192,9 @@ export class Troop {
     // Las crías van solas a por la estructura alcanzable más cercana.
     if (this.summoned) {
       if (!this.target && !this.path.length) this.invasion.assignSummonedTarget(this);
-    } else if (!this.target && !this.path.length && !this.entering) {
-      // Objetivo automático solo si está quieta, como en updateTroop().
+    } else if (!this.target && !this.path.length && !this.entering && !this.atEntrance) {
+      // Objetivo automático solo si está quieta y ya salió de la entrada.
+      // Las tropas recién llegadas esperan órdenes dentro del hueco 2×3.
       const near = this.invasion.nearestTarget(this.x, this.y, this.range);
       if (near) {
         this.target = near.def.id;

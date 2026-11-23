@@ -350,9 +350,10 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
   `DIRT_HEIGHT = 24`, `CORE_HEIGHT = 15` (la roca del núcleo está a media altura).
 - Proyección: `iso(x, y, z)` → `{ x: (x-y)*HALF_W, y: (x+y)*HALF_H - z }`.
   Acepta casillas fraccionarias y elevación `z` en px.
-- Inicio: zona despejada 5×5 (18..22), núcleo 3×3 (19..21), entrada en
-  `x=40, y=19..21` (3 casillas, es un edificio), camino de fábrica de x=23 a
-  x=39 (3 de ancho). `INITIAL_DUG = 79` casillas abiertas iniciales.
+- Inicio: zona despejada 5×5 (18..22), núcleo 3×3 (19..21), entrada 2×3 en
+  `x=40..41, y=19..21` (x=40 dentro del mapa 41×41 y x=41 en el hueco exterior
+  de 3 casillas; inrellenable), camino de fábrica de x=23 a x=39 (3 de ancho).
+  `INITIAL_DUG = 79` casillas abiertas iniciales.
 - **Z-ordering**: recorre de (0,0) a (40,40); por casilla pinta suelo → suelo de
   edificio → bloque de tierra/núcleo. Cada edificio se dibuja justo después de
   la última casilla de su huella (`buildingAnchor`). La entrada va tras (40,22).
@@ -593,8 +594,9 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
   así que la base real queda intacta. El panel de despliegue ya no repite la
   vida del núcleo.
 - **Despliegue**: barra inferior con fichas compactas de las tropas del ejército;
-  clic despliega una por la entrada hasta `INV_RALLY`, con la cola definida en
-  `BALANCE.invasion`.
+  clic despliega una tropa que se queda dentro de la entrada 2×3 hasta recibir
+  una orden (no hay punto fijo `INV_RALLY` que pueda estar bloqueado). La cola
+  la define `BALANCE.invasion`.
 - **Controles RTS**: clic+arrastrar = cuadro (Shift suma) · clic der. en suelo =
   mover con formación · clic der. en estructura = atacar · Ctrl+A = todas ·
   Esc = deseleccionar. Las crías no se seleccionan.

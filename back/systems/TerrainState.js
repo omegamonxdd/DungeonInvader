@@ -1,4 +1,4 @@
-import { WORLD } from '../config/world.js';
+import { ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN, WORLD } from '../config/world.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import { CORE, DIRT, EMPTY } from './map.js';
 
@@ -21,13 +21,20 @@ export class TerrainState {
     this.hover = null;
     this.pathValid = true;
 
-    // El núcleo cuenta como estructura; la entrada registra sus 3 celdas.
+    // El núcleo cuenta como estructura; la entrada registra sus 2×3 celdas
+    // (la columna exterior x=41 queda fuera del mapa pero también se reserva).
     for (let y = WORLD.coreMin; y <= WORLD.coreMax; y++) {
       for (let x = WORLD.coreMin; x <= WORLD.coreMax; x++) this.occupy(x, y);
     }
-    for (let y = WORLD.entranceYMin; y <= WORLD.entranceYMax; y++) {
-      this.occupy(WORLD.entranceX, y);
+    for (let y = ENTRANCE_Y_MIN; y <= ENTRANCE_Y_MAX; y++) {
+      for (let x = ENTRANCE_X; x <= ENTRANCE_X_MAX; x++) this.occupy(x, y);
     }
+  }
+
+  /** Huella completa de la entrada, incluida la columna exterior x=41. */
+  isEntranceCell(x, y) {
+    return x >= ENTRANCE_X && x <= ENTRANCE_X_MAX
+      && y >= ENTRANCE_Y_MIN && y <= ENTRANCE_Y_MAX;
   }
 
   key(x, y) { return y * this.n + x; }
@@ -48,6 +55,9 @@ export class TerrainState {
   }
 
   hasStructure(x, y) {
+    // La columna exterior de la entrada está fuera del mapa 41×41, pero es
+    // suelo reservado: nunca se puede excavar, rellenar ni construir sobre él.
+    if (this.isEntranceCell(x, y)) return true;
     return this.inBounds(x, y) && (this.map[y][x] === CORE || this.occupied.has(this.key(x, y)));
   }
 
@@ -65,6 +75,7 @@ export class TerrainState {
   digLimitReached() { return this.digCount >= this.digLimit; }
 
   digCell(x, y) {
+    if (this.isEntranceCell(x, y)) return false;
     if (!this.inBounds(x, y) || this.map[y][x] !== DIRT || this.hasStructure(x, y)) return false;
     if (this.digLimitReached()) return false;
     this.map[y][x] = EMPTY;
@@ -73,6 +84,8 @@ export class TerrainState {
   }
 
   fillCell(x, y) {
+    // La entrada (y su hueco exterior de 3 casillas) es inrellenable.
+    if (this.isEntranceCell(x, y)) return false;
     if (!this.inBounds(x, y) || this.map[y][x] !== EMPTY || this.hasStructure(x, y)) return false;
     this.map[y][x] = DIRT;
     this.digCount--;
