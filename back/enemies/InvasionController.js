@@ -87,46 +87,36 @@ export class InvasionController {
     this.traps = {};
     this.open = new Set();
     this.coreHitAt = -Infinity;
+    this.lootBase = null;       // recursos totales de la base invadida
+    this.lootTaken = false;
     this.orderPreview = null;   // { kind: 'move'|'attack', x, y, defId? }
     this.fxG?.clear();
   }
 
   get over() { return this.phase === 'won' || this.phase === 'lost'; }
 
-  get vaultLootRate() { return BALANCE.invasion.botinAlmacenes ?? 0.25; }
-  get producerLootRate() { return BALANCE.invasion.botinProductores ?? 0.5; }
+  get lootResourceRate() { return BALANCE.invasion.botinRecursos ?? 0.25; }
 
   troopDef(id) { return BALANCE.tropas.tipos[id]; }
 
-  /** Lo que aún se puede robar de una estructura de la base invadida. */
-  lootOf(def) {
-    if (!def?.placed || (this.siege[def.id] ?? this.maxHpOf(def)) <= 0) {
-      return { resource: null, amount: 0 };
-    }
-    const spec = specFor(def);
-    if (def.kind === 'vault') {
-      return {
-        resource: def.resource || 'coins',
-        amount: Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate)),
-      };
-    }
-    if (spec?.producer) {
-      return {
-        resource: spec.producer.resource,
-        amount: Math.max(0, Math.floor((def.pending || 0) * this.producerLootRate)),
-      };
-    }
-    return { resource: null, amount: 0 };
-  }
-
-  /** Botín total disponible en la base, para el HUD de la invasión. */
+  /** Botín aún disponible: un porcentaje de los recursos totales del rival. */
   availableLoot() {
     const out = { coins: 0, crystals: 0 };
-    for (const def of this.structures) {
-      const { resource, amount } = this.lootOf(def);
-      if (resource && amount) out[resource] = (out[resource] || 0) + amount;
+    if (!this.lootBase || this.lootTaken || !this.active) return out;
+    for (const res of ['coins', 'crystals']) {
+      out[res] = Math.max(0, Math.floor((this.lootBase[res] || 0) * this.lootResourceRate));
     }
     return out;
+  }
+
+  /** Se lleva el botín de una vez al caer un almacén o el núcleo. */
+  takeLoot() {
+    if (!this.lootBase || this.lootTaken || !this.resources) return;
+    for (const res of ['coins', 'crystals']) {
+      const amount = Math.max(0, Math.floor((this.lootBase[res] || 0) * this.lootResourceRate));
+      if (amount) this.resources.add(res, amount);
+    }
+    this.lootTaken = true;
   }
 
   guardRangeFor(typeId) {
@@ -217,6 +207,7 @@ export class InvasionController {
     const ctx = this.getContext();
     const service = this.service || getService();
     let own = null;
+    let lootBase = null;
 
     // Sin rival (invitado / sin nube) se mantiene la simulación de siempre
     // sobre la propia base. Con rival se monta su copia en la escena.
@@ -231,6 +222,7 @@ export class InvasionController {
           return false;
         }
         own = captureOwnBase(ctx);
+        lootBase = { ...(loaded.snapshot.resources || {}) };
         applyInvasionBase(ctx, loaded.snapshot);
         this.baseSwap = { own };
         this.opponent = {
@@ -262,6 +254,12 @@ export class InvasionController {
       return false;
     }
     this.reset();
+    if (!lootBase) {
+      const ownSnap = captureOwnBase(ctx);
+      lootBase = { ...(ownSnap.resources || {}) };
+    }
+    this.lootBase = lootBase;
+    this.lootTaken = false;
     this.clearSelection();
     this.active = true;
     this.phase = 'prep';
@@ -783,23 +781,9 @@ export class InvasionController {
       this.finish('won', 'El núcleo ha caído');
       return;
     }
-    // Saqueo: 25 % de los almacenes y 50 % de talleres/minas. El defensor
-    // conserva el resto: solo pierde lo que el atacante se lleva.
-    if (this.resources) {
-      const spec = specFor(def);
-      const takeFraction = (resource, current, rate) => {
-        const loot = Math.max(0, Math.floor((current || 0) * rate));
-        if (loot > 0) this.resources.add(resource, loot);
-        return Math.max(0, (current || 0) - loot);
-      };
-      if (def.kind === 'vault') {
-        def.stored = takeFraction(def.resource || 'coins', def.stored, this.vaultLootRate);
-      }
-      if (spec?.producer && def.pending) {
-        def.pending = takeFraction(spec.producer.resource, def.pending, this.producerLootRate);
-        def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
-      }
-    }
+    // Botín: un 25 % de los recursos totales del rival, una sola vez, al
+    // destruir un almacén o el núcleo. El resto no se toca.
+    if (def.kind === 'vault' || id === 'core') this.takeLoot();
     // Estructura caída: deja de defenderse y sus casillas son transitables.
     def.view?.setDestroyed?.(true);
     for (let j = 0; j < (def.h || def.size); j++) {
