@@ -9,7 +9,7 @@
  * ========================================================== */
 
 import { BALANCE, levelRow } from '../balance/index.js';
-import { CORE_HEIGHT, CORE_MIN, CORE_SIZE, SCALE } from '../config/world.js';
+import { CORE_HEIGHT, SCALE } from '../config/world.js';
 import { OVERLAY_DEPTH } from '../config/interaction.js';
 import { pickCell, pointInPolygon, structureAt, footprintPoly } from '../systems/picking.js';
 import { iso } from '../systems/iso.js';
@@ -221,19 +221,9 @@ export class InvasionController {
 
   structureById(id) { return this.structures.find(d => d.id === id) || null; }
 
-  /* En invasión el núcleo cuenta como si nunca se hubiera movido: su huella
-   * seleccionable es siempre la del centro del mapa, igual que rectOf(). */
-  pickStructure(wx, wy) {
-    const list = this.structures.map(d => d?.kind === 'core'
-      ? { ...d, x: CORE_MIN, y: CORE_MIN, w: CORE_SIZE, h: CORE_SIZE }
-      : d);
-    return structureAt(wx, wy, list);
-  }
-
+  // La huella de golpes sigue a la posición real de la estructura, incluido
+  // el núcleo: si se ha movido, su hurtbox se mueve con él.
   rectOf(def) {
-    if (def.kind === 'core') {
-      return { x0: CORE_MIN, y0: CORE_MIN, x1: CORE_MIN + CORE_SIZE, y1: CORE_MIN + CORE_SIZE };
-    }
     return { x0: def.x, y0: def.y, x1: def.x + (def.w || def.size), y1: def.y + (def.h || def.size) };
   }
 
@@ -931,7 +921,7 @@ export class InvasionController {
       this.orderPreview = null;
       return;
     }
-    const def = this.pickStructure(wx, wy);
+    const def = structureAt(wx, wy, this.structures);
     if (def && this.targetable(def)) {
       const r = this.rectOf(def);
       this.orderPreview = {
@@ -989,7 +979,7 @@ export class InvasionController {
   /** Toque simple en móvil: selecciona una tropa o, si ya hay seleccionadas,
    *  da la orden sobre el edificio/suelo tocado (equivale al clic derecho). */
   tapAtWorld(wx, wy, additive = false) {
-    const def = this.pickStructure(wx, wy);
+    const def = structureAt(wx, wy, this.structures);
     if (def && this.targetable(def) && this.commandSelected().length) {
       return this.orderAtWorld(wx, wy);
     }
@@ -1001,7 +991,7 @@ export class InvasionController {
   orderAtWorld(wx, wy) {
     const chosen = this.troops.filter(t => t.selected);
     if (!chosen.length) return false;
-    const def = this.pickStructure(wx, wy);
+    const def = structureAt(wx, wy, this.structures);
     if (def && this.targetable(def)) {
       let ordered = 0;
       for (const t of chosen) if (t.orderAttack(def)) ordered++;
