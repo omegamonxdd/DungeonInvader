@@ -1058,20 +1058,28 @@ export class InterfaceController {
         tag.textContent = 'Nuevo';
         card.appendChild(tag);
       }
-      const canvas = document.createElement('canvas');
-      canvas.className = 'miss-ic';
-      canvas.width = 80;
-      canvas.height = 80;
-      canvas.setAttribute('aria-hidden', 'true');
+      // Los edificios usan su icono del menú Construir; las tropas usan un
+      // recuadro de color (no tienen ranura de construcción).
+      const icon = c.slot
+        ? document.createElement('canvas')
+        : document.createElement('span');
+      icon.className = c.slot ? 'miss-ic' : 'miss-ic miss-dot';
+      if (c.slot) {
+        icon.width = 80;
+        icon.height = 80;
+      } else {
+        icon.style.background = c.color || 'var(--crystal)';
+      }
+      icon.setAttribute('aria-hidden', 'true');
       const name = document.createElement('span');
       name.className = 'miss-name';
       name.textContent = c.name;
       const count = document.createElement('span');
       count.className = 'miss-count';
       count.textContent = c.count;
-      card.append(canvas, name, count);
+      card.append(icon, name, count);
       frag.appendChild(card);
-      drawBuildIcon(canvas, c.slot.id);
+      if (c.slot) drawBuildIcon(icon, c.slot.id);
     }
     this.els.infoMissingList.replaceChildren(frag);
     this.els.infoMissingList.scrollLeft = 0;
@@ -1090,6 +1098,26 @@ export class InterfaceController {
       slot: u.slot, name: u.name, count: `x${u.add}`, isNew: u.first, unlock: true,
       title: u.first ? `${u.name}: nuevo edificio` : `${u.name}: ${u.add} más`,
     })));
+  }
+
+  /** Espejo del legacy: al mejorar la Grieta (o la Incubadora) se enumeran
+   *  las tropas cuyo `minNivel` es el nivel al que se va a subir. */
+  showTroopUnlockBox(nextLevel, source) {
+    const cards = Object.entries(BALANCE.tropas.tipos)
+      .filter(([, def]) => def.source === source && (def.minNivel || 1) === nextLevel)
+      .map(([id, def]) => {
+        const row = tropaAt(id, 1) || {};
+        const name = TROOP_NAME(id);
+        return {
+          name,
+          count: `Nv ${def.maxNivel || 1}`,
+          color: TROOP_ART[id]?.color || '#6fd36a',
+          isNew: true,
+          unlock: true,
+          title: `${name}: ${row.hp || 0} vida · ${row.dps || 0} DPS · espacio ${def.space || 1}`,
+        };
+      });
+    if (cards.length) this.showInfoBox('Desbloqueas al mejorar', cards);
   }
 
   openPanel(mode = 'info') {
@@ -1150,10 +1178,16 @@ export class InterfaceController {
       if (missing.length) this.showMissingBox(missing);
       else this.showUnlockBox(this.works?.unlockingBuildings() || []);
     }
+    if (upgrading && !levelBlocked
+      && (spec?.source === 'rift' || spec?.source === 'incubator')) {
+      this.showTroopUnlockBox(Math.min(lvl + 1, max), spec.source);
+    }
 
-    this.els.infoFooter.hidden = !upgrading;
-    this.els.infoWork.hidden = !upgrading;
-    if (upgrading) {
+    // Al nivel máximo no hay nada que mejorar: se oculta el pie completo.
+    const atMax = lvl >= max;
+    this.els.infoFooter.hidden = !upgrading || atMax;
+    this.els.infoWork.hidden = !upgrading || atMax;
+    if (upgrading && !atMax) {
       const cost = upgradeCost(kind, lvl + 1);
       const parts = costParts(cost);
       this.els.iwCost.innerHTML = parts.length

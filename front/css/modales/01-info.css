@@ -143,5 +143,8 @@
   box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--stone-hi), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--stone-lo);
 }
 .miss-ic { width: 44px; height: 44px; image-rendering: pixelated; }
+.miss-dot {
+  box-sizing: border-box; box-shadow: 0 0 0 3px var(--ink), inset 4px 4px 0 0 #ffffff40, inset -4px -4px 0 0 #00000055;
+}
 .miss-name { font: 500 var(--fs-sm)/1.1 var(--font); }
 .miss-count { color: var(--txt-gold); font: 700 var(--fs-sm)/1 var(--font); font-variant-numeric: tabular-nums; }
