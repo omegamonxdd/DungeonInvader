@@ -604,7 +604,8 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
   guarda sus recursos: al caer un **almacén** se roba el 25 % de lo guardado y
   al caer una **mina/taller** el 50 % de su burbuja (`botinAlmacenes` /
   `botinProductores`); el dueño conserva el resto. Al caer el **núcleo** se
-  lleva **todo** lo que aún quede y la mazmorra entera se destruye (colapso).
+  aplican esos mismos porcentajes al botín y la mazmorra entera se destruye
+  (colapso).
   El importe disponible se ve en «Recursos disponibles». La base real del
   invadido no se modifica: solo se ataca una copia.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.

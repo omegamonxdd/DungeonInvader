@@ -19,9 +19,9 @@ export const invasion = {
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
   ejercitoPrueba: { esqueleto: 0, slime: 0 },
 
-  // Botín por edificio: 25 % de lo guardado en un almacén y 50 % de lo
-  // producido en una mina/taller. Al caer el núcleo se lleva TODO lo que
-  // quede en la dungeon (colapso).
+  // Botín por edificio: 25 % de lo guardado en núcleo/almacenes y 50 % de lo
+  // producido en una mina/taller. El colapso al caer el núcleo aplica los
+  // mismos porcentajes; el dueño conserva el resto.
   botinAlmacenes: 0.25,
   botinProductores: 0.5,
 };

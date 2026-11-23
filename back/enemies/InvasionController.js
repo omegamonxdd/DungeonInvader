@@ -171,32 +171,23 @@ export class InvasionController {
   }
 
   /** Recursos guardados en el núcleo (monedas y cristales por separado). */
-  takeCoreLoot(def, all = false) {
-    const rate = all ? 1 : this.vaultLootRate;
+  takeCoreLoot(def) {
     for (const [key, resource] of [['stored', 'coins'], ['storedCrystals', 'crystals']]) {
-      const amount = Math.max(0, Math.floor((def[key] || 0) * rate));
+      const amount = Math.max(0, Math.floor((def[key] || 0) * this.vaultLootRate));
       if (!amount) continue;
       this.addLoot(resource, amount);
       def[key] = Math.max(0, (def[key] || 0) - amount);
     }
   }
 
-  /** Colapso de la mazmorra: al caer el núcleo se lleva TODO lo que quede
-   *  en núcleo, almacenes y productores, y se destruyen todos los edificios. */
+  /** Colapso de la mazmorra: al caer el núcleo se destruyen todos los
+   *  edificios, pero el botín aplica los mismos porcentajes de siempre
+   *  (25 % núcleo/almacenes, 50 % minas y talleres). */
   collapseBase() {
     for (const def of this.structures) {
-      const spec = specFor(def);
-      if (def.kind === 'vault') {
-        const amount = Math.max(0, Math.floor(def.stored || 0));
-        if (amount) this.addLoot(def.resource || 'coins', amount);
-        def.stored = 0;
-      } else if (spec?.producer) {
-        const amount = Math.max(0, Math.floor(def.pending || 0));
-        if (amount) this.addLoot(spec.producer.resource, amount);
-        def.pending = 0;
-      }
+      if (def.kind === 'core') this.takeCoreLoot(def);
+      else this.takeLootFrom(def);
       if (def.kind === 'core') {
-        this.takeCoreLoot(def, true);
         def.view?.setDestroyed?.(true);
         continue;
       }
