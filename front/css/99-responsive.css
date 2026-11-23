@@ -2,8 +2,16 @@
    pantalla táctil y poca altura (~500px). */
 @media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
   #summon-panel { bottom: 92px; }
-  /* Mismo alto, la mitad de ancho: deja ver el campo de juego. */
-  #invasion-panel { bottom: 8px; width: 50vw; max-width: 50vw; }
+  /* Ancho completo como antes, pero un 30 % más bajo. */
+  #invasion-panel {
+    bottom: 8px; width: calc(100vw - 16px); max-width: calc(100vw - 16px);
+    max-height: 120px; padding: 10px;
+  }
+  #invasion-head { margin-bottom: 4px; }
+  #invasion-items { min-height: 58px; max-height: 58px; padding: 6px 8px; }
+  #invasion-hint { display: none; }
+  .inv-troop { flex-basis: 72px; width: 72px; min-height: 56px; padding: 6px 4px 10px; gap: 3px; }
+  .inv-troop .troop-dot { width: 28px; height: 28px; }
   #action-bar, #move-hint { bottom: 92px; }
   #toast { bottom: 176px; }
   #action-title { display: none; }
