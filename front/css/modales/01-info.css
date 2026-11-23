@@ -81,7 +81,7 @@
 #info-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; }
 #info-stats .stat { margin-bottom: 0; min-width: 0; }
 #info-stats .stat-wide, #info-stats .army-section { grid-column: 1 / -1; }
-@media (max-width: 700px) { #info-stats { grid-template-columns: 1fr; } }
+@media (max-width: 700px), (max-height: 500px) and (pointer: coarse) { #info-stats { grid-template-columns: 1fr; } }
 
 /* Botón de confirmar al pie de la pantalla de Mejorar */
 #info-footer { display: flex; justify-content: center; margin: 22px 4px 4px; }

@@ -71,6 +71,6 @@ body.invading #upg-btn, body.invading #upg-panel { display: none; }
 .upg-sub { color: var(--txt-gold); font: 500 var(--fs-sm)/1.15 var(--font); }
 .upg-poor { color: var(--bad-text); }
 
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
   #upg-panel { bottom: 170px; }
 }

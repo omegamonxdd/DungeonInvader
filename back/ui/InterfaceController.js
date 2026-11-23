@@ -172,13 +172,24 @@ export class InterfaceController {
   }
 
   bind() {
-    // En móvil el HUD superior arranca plegado; el botón › lo despliega.
-    if (typeof window !== 'undefined'
-      && window.matchMedia?.('(max-width: 700px)').matches) {
-      document.body.classList.add('topbar-collapsed');
-      this.els.topbarToggle?.setAttribute('aria-expanded', 'false');
+    // Móvil en cualquier orientación: retrato estrecho o horizontal táctil
+    // y bajo. El HUD superior arranca plegado; el botón › lo despliega.
+    const mobileQuery = '(max-width: 700px), (max-height: 500px) and (pointer: coarse)';
+    const mq = typeof window !== 'undefined' ? window.matchMedia?.(mobileQuery) : null;
+    this.topbarManual = false;
+    const applyMobileTopbar = mobile => {
+      if (this.topbarManual) return;
+      document.body.classList.toggle('topbar-collapsed', mobile);
+      this.els.topbarToggle?.setAttribute('aria-expanded', String(!mobile));
+    };
+    if (mq) {
+      applyMobileTopbar(mq.matches);
+      const onChange = e => applyMobileTopbar(e.matches);
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else mq.addListener?.(onChange);
     }
     this.els.topbarToggle?.addEventListener('click', () => {
+      this.topbarManual = true;
       const collapsed = document.body.classList.toggle('topbar-collapsed');
       this.els.topbarToggle.setAttribute('aria-expanded', String(!collapsed));
     });

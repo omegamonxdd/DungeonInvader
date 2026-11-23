@@ -1,4 +1,6 @@
-@media (max-width: 700px) {
+/* Móvil en cualquier orientación: retrato (<700px) o horizontal con
+   pantalla táctil y poca altura (~500px). */
+@media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
   #summon-panel { bottom: 92px; }
   #invasion-panel { bottom: 8px; width: calc(100vw - 16px); }
   #action-bar, #move-hint { bottom: 92px; }
