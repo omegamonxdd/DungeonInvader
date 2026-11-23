@@ -7,7 +7,7 @@
  * balance/; aquí solo se validan las reglas del legacy.
  * ========================================================== */
 
-import { BALANCE, levelRow, tropaAt } from '../balance/index.js';
+import { BALANCE, levelRow, tropaAt, troopDamageAt } from '../balance/index.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 
 const T = BALANCE.tropas;
@@ -131,6 +131,5 @@ export function TROOP_NAME(id) {
 export function troopStatsText(id, level) {
   const row = tropaAt(id, level);
   if (!row) return '';
-  const dmg = row.damage ?? Math.round(row.dps * (T.tipos[id]?.interval || 1));
-  return `${row.hp} vida · ${dmg} daño`;
+  return `${row.hp} vida · ${troopDamageAt(id, level)} daño`;
 }

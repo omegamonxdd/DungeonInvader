@@ -100,6 +100,25 @@ export function defensaAt(kind, lvl) {
 export const tropaAt = (id, lvl) => levelRow(tropas.tipos[id]?.niveles, lvl);
 export const trampaAt = (kind, lvl) => levelRow(trampas[kind]?.niveles, lvl);
 
+/** Intervalo entre golpes de una tropa. Puede ser fijo o una tabla por nivel
+ *  (`interval: { 1: 1.3, 2: 1.1 }`), como el resto de estadísticas. */
+export function troopIntervalAt(id, lvl) {
+  const raw = tropas.tipos[id]?.interval;
+  if (raw && typeof raw === 'object') {
+    return levelRow(raw, lvl) ?? levelRow(raw, 1) ?? 1;
+  }
+  return raw ?? 1;
+}
+
+/** Daño por golpe: el declarado en la fila, o dps × intervalo (sin redondear
+ *  a entero, igual que `defDamage()`). Así `damage` nunca queda desfasado. */
+export function troopDamageAt(id, lvl) {
+  const row = tropaAt(id, lvl);
+  if (!row) return 0;
+  if (row.damage !== undefined) return row.damage;
+  return defDamage(row.dps || 0, troopIntervalAt(id, lvl));
+}
+
 /* Validación ----------------------------------------------------------- */
 /* Devuelve avisos en español; no lanza excepciones para poder llamarla
  * desde la consola en cualquier momento. */
@@ -141,5 +160,6 @@ export function balanceReport() {
 Object.assign(BALANCE, {
   levelRow, defDamage, buildCost, upgradeCost, formatCost, scaled,
   buildTime, upgradeTime, structureLimit, allowedMaxLevel, statAt,
-  defensaAt, tropaAt, trampaAt, report: balanceReport,
+  defensaAt, tropaAt, trampaAt, troopIntervalAt, troopDamageAt,
+  report: balanceReport,
 });

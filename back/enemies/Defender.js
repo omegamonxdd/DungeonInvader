@@ -6,7 +6,7 @@
  * a su puesto. No reaparecen hasta la siguiente invasión.
  * ========================================================== */
 
-import { tropaAt } from '../balance/index.js';
+import { tropaAt, troopDamageAt, troopIntervalAt } from '../balance/index.js';
 import { iso } from '../systems/iso.js';
 import { TROOP_ART, troopTextureKey } from './troopArt.js';
 
@@ -24,8 +24,8 @@ export class Defender {
     const row = tropaAt(typeId, level) || tropaAt(typeId, 1);
     this.maxHp = row.hp;
     this.hp = row.hp;
-    this.damage = row.damage ?? Math.round(row.dps * (def.interval || 1));
-    this.interval = def.interval || 1;
+    this.damage = troopDamageAt(typeId, level);
+    this.interval = troopIntervalAt(typeId, level);
     this.speed = def.speed || 2;
     this.range = def.range || 1;
     this.guardRange = invasion.guardRangeFor(typeId);

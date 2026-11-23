@@ -24,7 +24,7 @@ export const tropas = {
       niveles: {
         1: { hp: 35, dps: 10, damage: 10 },
         2: { hp: 43, dps: 14, damage: 14 },
-        3: { hp: 55, dps: 17, damage: 17 },
+        3: { hp: 57, dps: 17, damage: 17 },
       },
     },
     slime: {
@@ -33,7 +33,7 @@ export const tropas = {
       niveles: {
         1: { hp: 27, dps: 14 },
         2: { hp: 34, dps: 16 },
-        3: { hp: 40, dps: 20 },
+        3: { hp: 42, dps: 20 },
       },
     },
     golem: {
@@ -42,7 +42,7 @@ export const tropas = {
       niveles: {
         1: { hp: 180, dps: 15 },
         2: { hp: 210, dps: 17 },
-        3: { hp: 275, dps: 19 },
+        3: { hp: 280, dps: 19 },
       },
     },
     murcielago: {
@@ -50,8 +50,8 @@ export const tropas = {
       speed: 3.3, interval: 0.75, range: 1,
       flying: true, structMult: 2,
       niveles: {
-        1: { hp: 27, dps: 7 },
-        2: { hp: 32, dps: 9 },
+        1: { hp: 28, dps: 8 },
+        2: { hp: 34, dps: 10 },
       },
     },
     armadura: {
@@ -74,7 +74,8 @@ export const tropas = {
     'arana-bebe': {
       space: 0, maxNivel: 1, minNivel: 1, source: 'summoned',
       speed: 3.6, interval: 0.7, range: 0.8,
-      niveles: { 1: { hp: 14, dps: 5, damage: 4 } },
+      // Sin `damage`: se deriva de dps × intervalo (6 × 0.7 = 4.2).
+      niveles: { 1: { hp: 15, dps: 6 } },
     },
   },
 };

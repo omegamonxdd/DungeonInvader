@@ -6,7 +6,7 @@
  * movimiento por el camino, el ataque a estructuras y el dibujo.
  * ========================================================== */
 
-import { tropaAt } from '../balance/index.js';
+import { tropaAt, troopDamageAt, troopIntervalAt } from '../balance/index.js';
 import { ENTRANCE_X, ENTRANCE_X_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { iso } from '../systems/iso.js';
 import { distToRect } from './pathfinding.js';
@@ -27,9 +27,9 @@ export class Troop {
     this.art = TROOP_ART[typeId] || TROOP_ART.esqueleto;
     this.maxHp = row.hp;
     this.hp = row.hp;
-    this.damage = row.damage ?? Math.round(row.dps * def.interval);
+    this.damage = troopDamageAt(typeId, level);
     this.speed = def.speed;
-    this.interval = def.interval;
+    this.interval = troopIntervalAt(typeId, level);
     this.range = def.range;
     this.flying = Boolean(def.flying);
     this.structMult = def.structMult || 1;

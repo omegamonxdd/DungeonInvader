@@ -288,7 +288,9 @@ export class UpgradeMenu {
       const lab = d.labId && this.structures.find(x => x.id === d.labId);
       if (!t || !lab) { this.refresh(true); return; }
       this.goTo(lab);
-      this.ui?.openSummon?.('mutate');
+      // Como en el legacy: la fila de la tropa abre directamente su ventana
+      // de mutación (estadísticas actuales » siguientes) antes de aplicarla.
+      this.ui?.openTroopUpgrade?.(t.id);
       this.setOpen(false);
     }
   }

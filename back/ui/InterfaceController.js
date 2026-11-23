@@ -11,7 +11,8 @@
  * ========================================================== */
 
 import {
-  BALANCE, buildCost, levelRow, structureLimit, tropaAt, upgradeCost, upgradeTime,
+  BALANCE, buildCost, levelRow, structureLimit, troopDamageAt, troopIntervalAt,
+  tropaAt, upgradeCost, upgradeTime,
 } from '../balance/index.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 import { nameOf, pausedByWork, specFor } from '../systems/structureSpecs.js';
@@ -40,6 +41,7 @@ const SVG = {
   bomb: '<svg viewBox="0 0 24 24"><circle cx="11" cy="14" r="7"/><path d="M15.5 8.5L18 6"/></svg>',
   spikes: '<svg viewBox="0 0 24 24"><path d="M3 20l3-9 3 9"/><path d="M9 20l3-13 3 13"/><path d="M15 20l3-9 3 9"/></svg>',
   impact: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.5"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24"><path d="M13 2L5 13h6l-1 9 8-12h-6z"/></svg>',
   heart: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>',
   door: '<svg viewBox="0 0 24 24"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M3 21h18"/><path d="M9 21v-7a3 3 0 0 1 6 0v7"/></svg>',
@@ -242,7 +244,15 @@ export class InterfaceController {
     // Fase 9: confirmar cobra el coste, cierra la ventana y arranca la obra.
     this.els.infoUpgrade.addEventListener('click', () => {
       if (this.invasion?.active) return;
-      if (!this.infoUI.open || this.infoUI.mode !== 'upgrade' || this.els.infoUpgrade.disabled) return;
+      if (!this.infoUI.open || this.els.infoUpgrade.disabled) return;
+      if (this.infoUI.mode === 'troop-upgrade') {
+        const id = this.infoUI.troop;
+        if (!id) return;
+        this.closePanel();
+        if (this.army?.mutate(id) && this.summonUI.open) this.renderSummon();
+        return;
+      }
+      if (this.infoUI.mode !== 'upgrade') return;
       const sel = this.selection;
       if (!sel) return;
       const id = sel.id;
@@ -603,40 +613,69 @@ export class InterfaceController {
     return badge;
   }
 
-  // Datos de la tropa para la ventana de información. Mismas barras que en
-  // Información/Mejorar: el valor se compara con el del nivel máximo.
-  troopStatsFor(id, lvl, max) {
+  // Datos de la tropa para Información y Mutar. Mismas barras que en las
+  // mejoras de estructuras: cada valor se compara con el del nivel máximo y,
+  // si se pasa `nextLvl`, se añade el tramo que se ganará con la mutación.
+  troopStatsFor(id, lvl, max, nextLvl = null) {
     const def = BALANCE.tropas.tipos[id] || {};
-    const row = tropaAt(id, lvl) || {};
+    const rowAt = l => tropaAt(id, l) || {};
+    const row = rowAt(lvl);
     const top = tropaAt(id, max) || row;
     const pct = (v, t) => (Number.isFinite(t) && t > 0)
       ? Math.min(100, Math.max(0, Math.round((v / t) * 1000) / 10)) : undefined;
-    const damage = r => r.damage ?? Math.round((r.dps || 0) * (def.interval || 1));
-    const stats = [
-      {
-        icon: 'heart', label: 'Vida', value: `${row.hp || 0} / ${row.hp || 0}`,
-        color: 'var(--ok)', pct: pct(row.hp || 0, top.hp),
-      },
-      {
-        icon: 'impact', label: 'Daño', value: String(damage(row)),
-        color: 'var(--red)', pct: pct(damage(row), damage(top)),
-      },
-      {
-        icon: 'clock', label: 'Intervalo', value: `${def.interval ?? 1} s`, color: 'var(--txt)',
-      },
-      {
-        icon: 'target', label: 'Rango', value: `${def.range ?? 1} casillas`, color: 'var(--crystal)',
-      },
-      {
-        icon: 'door', label: 'Espacio', value: `${def.space ?? 1}`, color: 'var(--gold)',
-      },
-    ];
-    if (def.flying) stats.push({ icon: 'egg', label: 'Vuelo', value: 'Puede volar', color: 'var(--crystal)' });
-    if (row.babies !== undefined) {
-      stats.push({
-        icon: 'egg', label: 'Crías', value: String(row.babies),
-        color: 'var(--gold)', pct: pct(row.babies, top.babies),
-      });
+    const damageAt = l => troopDamageAt(id, l);
+    const intervalAt = l => troopIntervalAt(id, l);
+    const firstInterval = intervalAt(1);
+    const topInterval = intervalAt(max);
+    const fastest = Math.min(firstInterval, topInterval);
+
+    const forLevel = l => {
+      const r = rowAt(l);
+      const interval = intervalAt(l);
+      const stats = [
+        {
+          icon: 'heart', label: 'Vida', value: `${r.hp || 0} / ${r.hp || 0}`,
+          color: 'var(--ok)', pct: pct(r.hp || 0, top.hp),
+        },
+        {
+          icon: 'bolt', label: 'Daño por segundo (DPS)', value: String(r.dps || 0),
+          color: 'var(--gold)', pct: pct(r.dps || 0, top.dps),
+        },
+        {
+          icon: 'impact', label: 'Daño por golpe', value: String(damageAt(l)),
+          color: 'var(--red)', pct: pct(damageAt(l), damageAt(max)),
+        },
+        {
+          icon: 'clock', label: 'Velocidad de ataque', value: `cada ${interval} s`,
+          color: 'var(--txt)',
+          // Menos intervalo = más golpes/s; la barra crece con la velocidad.
+          pct: firstInterval === topInterval ? undefined : pct(1 / interval, 1 / fastest),
+        },
+        {
+          icon: 'target', label: 'Rango', value: `${def.range ?? 1} casillas`, color: 'var(--crystal)',
+        },
+        {
+          icon: 'bolt', label: 'Velocidad de movimiento',
+          value: `${def.speed ?? 1} casillas/s`, color: 'var(--crystal)',
+        },
+        {
+          icon: 'door', label: 'Espacio', value: `${def.space ?? 1}`, color: 'var(--gold)',
+        },
+      ];
+      if (def.flying) stats.push({ icon: 'egg', label: 'Vuelo', value: 'Puede volar', color: 'var(--crystal)' });
+      if (r.babies !== undefined) {
+        stats.push({
+          icon: 'egg', label: 'Crías', value: String(r.babies),
+          color: 'var(--gold)', pct: pct(r.babies, top.babies),
+        });
+      }
+      return stats;
+    };
+
+    const stats = forLevel(lvl);
+    if (nextLvl !== null) {
+      const next = forLevel(nextLvl);
+      stats.forEach((s, i) => { s.next = next[i]; });
     }
     return stats;
   }
@@ -668,6 +707,49 @@ export class InterfaceController {
       });
     }));
     this.els.infoClose.focus();
+  }
+
+  // Mutar una tropa abre primero la misma ventana de Mejorar de las
+  // estructuras: valor actual » valor del siguiente nivel con barras que se
+  // llenan. El botón del pie confirma la mutación (es gratis, como en el
+  // legacy). Si ya está al máximo solo se muestra su información.
+  openTroopUpgrade(id) {
+    const def = BALANCE.tropas.tipos[id];
+    if (!def || !this.army) return false;
+    const lvl = this.army.levelOf(id);
+    const max = def.maxNivel || 1;
+    if (lvl >= max) {
+      this.openTroopInfo(id);
+      return false;
+    }
+    const to = lvl + 1;
+    const why = this.army.canMutate(id);
+    this.infoUI.open = true;
+    this.infoUI.mode = 'troop-upgrade';
+    this.infoUI.troop = id;
+    document.body.classList.add('info-open');
+    this.els.infoOverlay.classList.add('open');
+    this.els.infoTitle.textContent = `Mutar ${TROOP_NAME(id)}`;
+    this.els.infoSub.textContent = `Nivel ${lvl} » Nivel ${to}${why ? ` · ${why}` : ''}`;
+    const art = TROOP_ART[id] || {};
+    this.els.infoBadge.innerHTML =
+      `<span class="troop-dot" style="--troop-hi:${art.hi || '#d9c7a0'};--troop-lo:${art.lo || '#7d7054'};background:${art.color || '#a964ff'}"></span>`;
+    this.els.infoStats.innerHTML = this.troopStatsFor(id, lvl, max, to)
+      .map(s => this.renderStat(s, s.next)).join('');
+    this.hideMissingBox();
+    this.els.infoFooter.hidden = false;
+    this.els.infoWork.hidden = true;       // las mutaciones no cuestan recursos ni obra
+    this.els.infoUpgrade.disabled = Boolean(why);
+    this.els.infoUpgrade.classList.toggle('locked', Boolean(why));
+    this.els.infoUpgrade.querySelector('span').textContent = why || 'Mutar';
+    this.els.infoUpgrade.title = why || `Mutar a nivel ${to}`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      this.els.infoStats.querySelectorAll('.stat-fill').forEach(f => {
+        f.style.width = `${f.dataset.fill}%`;
+      });
+    }));
+    this.els.infoClose.focus();
+    return true;
   }
 
   renderSummon() {
@@ -774,7 +856,9 @@ export class InterfaceController {
     }
     const mutate = e.target.closest?.('[data-mutate]');
     if (mutate) {
-      if (this.army.mutate(mutate.dataset.mutate)) this.renderSummon();
+      // Antes de subir de nivel se abre la ventana de mutación (como la de
+      // mejorar estructuras); el botón "Mutar" de esa ventana confirma.
+      this.openTroopUpgrade(mutate.dataset.mutate);
       return;
     }
     const troop = e.target.closest?.('[data-troop]');
