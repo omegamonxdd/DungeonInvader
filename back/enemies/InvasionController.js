@@ -258,13 +258,14 @@ export class InvasionController {
     this.baseSwap = null;
     this.opponent = null;
     document.body.classList.remove('invading', 'inv-end');
+    if (swap) restoreOwnBase(this.getContext(), swap.own);
+    this.reset();
     if (swap) {
-      restoreOwnBase(this.getContext(), swap.own);
       // finish() pudo dejar guardados/cargas pospuestos mientras la base
-      // prestada seguía montada: se aplican con la base propia de vuelta.
+      // prestada seguía montada. Se aplican ya con la base propia de vuelta
+      // y con `active` en falso, para que save() no se vuelva a diferir.
       (this.service || getService())?.flushPending?.();
     }
-    this.reset();
     this.onState(this);
   }
 
