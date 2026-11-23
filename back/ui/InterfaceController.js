@@ -827,20 +827,33 @@ export class InterfaceController {
 
   fmtNumber(n) { return new Intl.NumberFormat('es-ES').format(Math.round(n)); }
 
+  /** Recursos totales: sueltos en el núcleo + guardados en los almacenes. */
+  resourceTotal(res) {
+    const stored = (this.structures || []).reduce((n, def) => {
+      if (def?.kind !== 'vault' || !def.placed || def.shelved) return n;
+      return (def.resource || 'coins') === res ? n + (def.stored || 0) : n;
+    }, 0);
+    return (this.resources?.get(res) || 0) + stored;
+  }
+
   syncResources() {
     if (!this.resources) return;
     const caps = {
       coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
       crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
     };
-    const key = `${this.resources.coins}|${this.resources.crystals}|${caps.coins}|${caps.crystals}`;
+    const totals = {
+      coins: this.resourceTotal('coins'),
+      crystals: this.resourceTotal('crystals'),
+    };
+    const key = `${totals.coins}|${totals.crystals}|${caps.coins}|${caps.crystals}`;
     if (key === this.resKey) return;
     this.resKey = key;
     for (const [res, icon, fill, text] of [
       ['coins', this.els.resIconCoins, this.els.resFillCoins, this.els.resTextCoins],
       ['crystals', this.els.resIconCrystals, this.els.resFillCrystals, this.els.resTextCrystals],
     ]) {
-      const value = this.resources.get(res);
+      const value = totals[res];
       const cap = caps[res];
       fill.style.width = cap > 0 ? `${Math.min(100, (value / cap) * 100)}%` : '0%';
       text.textContent = `${this.fmtNumber(value)} / ${this.fmtNumber(cap)}`;
@@ -1025,12 +1038,14 @@ export class InterfaceController {
     }
 
     if (spec.storage) {
-      add({ icon: 'coin', label: 'Capacidad extra', value: spec.storage(lvl), color: 'var(--gold)', at: spec.storage });
+      const cap = spec.storage(lvl);
+      const stored = Math.floor(sel.stored || 0);
       add({
         icon: sel.resource === 'crystals' ? 'crystal' : 'coin',
-        label: 'Almacenado',
-        value: Math.floor(sel.stored || 0),
-        color: 'var(--txt-gold)',
+        label: 'Capacidad',
+        value: `${this.fmtNumber(stored)}/${this.fmtNumber(cap)}`,
+        color: 'var(--gold)',
+        pct: cap > 0 ? Math.min(100, (stored / cap) * 100) : 0,
       });
     }
     if (spec.producer) {

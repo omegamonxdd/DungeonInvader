@@ -7,6 +7,7 @@
  * los niveles nuevos se aprovechan automáticamente.
  * ========================================================== */
 
+import { devResources } from '../config/devResources.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import { ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
 import { DIRT } from '../systems/map.js';
@@ -150,6 +151,40 @@ function restoreStructures(snap, ctx) {
   }
 }
 
+/** Partidas anteriores al cambio guardaban TODO el dinero en `resources`
+ *  y los almacenes vacíos. Al cargar, se reparte ese excedente entre los
+ *  almacenes del mismo recurso hasta su capacidad. Se salta en desarrollo
+ *  con el override de recursos para no guardar cantidades de prueba. */
+function migrateLooseToVaults(ctx) {
+  if (!ctx?.resources || devResources() !== null) return;
+  const vaults = (ctx.structures || [])
+    .filter(d => d?.kind === 'vault' && d.placed && !d.shelved);
+  if (!vaults.length) return;
+
+  for (const res of ['coins', 'crystals']) {
+    const loose = Math.max(0, Math.floor(ctx.resources.get(res)));
+    if (!loose) continue;
+    const targets = vaults.filter(v => (v.resource || 'coins') === res);
+    const room = targets.reduce(
+      (n, v) => n + Math.max(0, (v.storage || 0) - (v.stored || 0)), 0,
+    );
+    if (room <= 0) continue;
+
+    const move = Math.min(loose, room);
+    let left = move;
+    for (const v of targets) {
+      if (left <= 0) break;
+      const space = Math.max(0, (v.storage || 0) - (v.stored || 0));
+      if (space <= 0) continue;
+      const put = Math.min(space, left);
+      v.stored = (v.stored || 0) + put;
+      v.view?.setBubble?.(v.stored >= 1 ? `+${Math.floor(v.stored)}` : '');
+      left -= put;
+    }
+    ctx.resources[res] = loose - move;
+  }
+}
+
 /**
  * Aplica un snapshot normalizado y refresca la interfaz. Devuelve el documento usado.
  * `withResources`/`withArmy` se desactivan al prestar la escena a una base
@@ -165,6 +200,7 @@ export function applySnapshot(snapshot, ctx, options = {}) {
   if (withResources && ctx.resources) {
     ctx.resources.coins = snap.resources.coins;
     ctx.resources.crystals = snap.resources.crystals;
+    migrateLooseToVaults(ctx);
   }
   if (withArmy && ctx.army) {
     ctx.army.counts = { ...snap.army.counts };
