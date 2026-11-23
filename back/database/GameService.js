@@ -321,7 +321,7 @@ export class GameService {
   /* ---------- APIs que usa la UI --------------------------------------- */
 
   signIn(email, password) { return this.auth.signIn(email, password); }
-  signUp(email, password) { return this.auth.signUp(email, password); }
+  signUp(email, password, displayName) { return this.auth.signUp(email, password, displayName); }
   signOut() { return this.auth.signOut(); }
   continueAsGuest() { return this.auth.continueAsGuest(); }
 

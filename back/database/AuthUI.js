@@ -25,6 +25,8 @@ export class AuthUI {
     this.els = {
       overlay: byId('auth-overlay'),
       form: byId('auth-form'),
+      username: byId('auth-username'),
+      nameField: byId('auth-name-field'),
       email: byId('auth-email'),
       password: byId('auth-password'),
       error: byId('auth-error'),
@@ -34,6 +36,7 @@ export class AuthUI {
       tabs: [...document.querySelectorAll('#auth-overlay [data-mode]')],
       profileBtn: byId('profile-btn'),
       popover: byId('profile-popover'),
+      nameLabel: byId('profile-name'),
       emailLabel: byId('profile-email'),
       statusLabel: byId('profile-status'),
       login: byId('profile-login'),
@@ -96,8 +99,14 @@ export class AuthUI {
       tab.classList.toggle('active', on);
       tab.setAttribute('aria-selected', String(on));
     }
-    if (this.els.submit) this.els.submit.textContent = this.mode === 'register' ? 'Crear cuenta' : 'Entrar';
-    if (this.els.password) this.els.password.autocomplete = this.mode === 'register' ? 'new-password' : 'current-password';
+    const registering = this.mode === 'register';
+    if (this.els.submit) this.els.submit.textContent = registering ? 'Crear cuenta' : 'Entrar';
+    if (this.els.password) this.els.password.autocomplete = registering ? 'new-password' : 'current-password';
+    if (this.els.nameField) this.els.nameField.hidden = !registering;
+    if (this.els.username) {
+      this.els.username.required = registering;
+      if (!registering) this.els.username.value = '';
+    }
     this.setError('');
   }
 
@@ -111,20 +120,29 @@ export class AuthUI {
     e.preventDefault();
     const email = this.els.email?.value.trim();
     const password = this.els.password?.value || '';
-    if (!email || !password) {
-      this.setError('Escribe tu correo y tu contraseña.');
+    const username = this.mode === 'register' ? (this.els.username?.value.trim() || '') : '';
+    if (!email || !password || (this.mode === 'register' && !username)) {
+      this.setError(this.mode === 'register'
+        ? 'Escribe tu nombre de usuario, correo y contraseña.'
+        : 'Escribe tu correo y tu contraseña.');
       return;
     }
     this.setError('');
     if (this.els.submit) this.els.submit.disabled = true;
-    const fn = this.mode === 'register' ? this.service.signUp : this.service.signIn;
-    const { error, needsConfirmation } = await fn.call(this.service, email, password);
-    if (this.els.submit) this.els.submit.disabled = false;
-    if (error) { this.setError(error); return; }
-    if (needsConfirmation) {
-      this.setError('Revisa tu correo para confirmar la cuenta y vuelve a entrar.');
+    if (this.mode === 'register') {
+      const { error, needsConfirmation } = await this.service.signUp(email, password, username);
+      if (this.els.submit) this.els.submit.disabled = false;
+      if (error) { this.setError(error); return; }
+      if (needsConfirmation) {
+        this.setError('Revisa tu correo para confirmar la cuenta y vuelve a entrar.');
+        return;
+      }
+      this.hide();
       return;
     }
+    const { error } = await this.service.signIn(email, password);
+    if (this.els.submit) this.els.submit.disabled = false;
+    if (error) { this.setError(error); return; }
     this.hide();
   }
 
@@ -156,15 +174,18 @@ export class AuthUI {
 
   renderStatus(state) {
     const { user, status } = state;
-    const label = user.guest
-      ? 'Invitado'
-      : (user.email || user.id.slice(0, 8));
-    if (this.els.emailLabel) this.els.emailLabel.textContent = label;
+    const name = user.displayName || (user.guest
+      ? 'Invitado' : (user.email || user.id.slice(0, 8)));
+    if (this.els.nameLabel) this.els.nameLabel.textContent = name;
+    if (this.els.emailLabel) {
+      this.els.emailLabel.textContent = user.guest ? '' : (user.email || '');
+      this.els.emailLabel.hidden = user.guest;
+    }
     if (this.els.statusLabel) this.els.statusLabel.textContent = STATUS_TEXT[status] || status;
     if (this.els.profileBtn) {
       this.els.profileBtn.title = user.guest
         ? 'Invitado · pulsa para iniciar sesión'
-        : `Sesión de ${user.email || user.id}`;
+        : `Sesión de ${name} (${user.email || user.id})`;
     }
     if (this.els.login) this.els.login.hidden = !user.guest;
     if (this.els.logout) this.els.logout.hidden = user.guest;

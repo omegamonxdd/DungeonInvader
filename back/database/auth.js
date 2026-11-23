@@ -13,6 +13,8 @@ import { getGuestId } from './storage.js';
 const asUser = raw => ({
   id: raw?.id || getGuestId(),
   email: raw?.email || null,
+  displayName: raw?.user_metadata?.display_name
+    || raw?.display_name || null,
   guest: Boolean(raw?.guest),
 });
 
@@ -35,6 +37,7 @@ export class AuthService {
   get isGuest() { return this.user.guest; }
   get id() { return this.user.id; }
   get email() { return this.user.email; }
+  get displayName() { return this.user.displayName; }
   get configured() { return Boolean(this.client); }
 
   /** Suscribe cambios de usuario. Devuelve función de baja. */
@@ -88,14 +91,19 @@ export class AuthService {
     return { user: this._set(data.user), error: null };
   }
 
-  async signUp(email, password) {
+  async signUp(email, password, displayName = '') {
     if (!this.client) return { user: null, error: 'Supabase no está configurado en este navegador.' };
+    const name = String(displayName || '').trim().slice(0, 24);
     const { data, error } = await this.client.auth.signUp({
       email,
       password,
       // Sin esto, Supabase usa su Site URL (http://localhost:3000 por
       // defecto) y la confirmación de email nunca vuelve a la página real.
-      options: { emailRedirectTo: appUrl() },
+      options: {
+        emailRedirectTo: appUrl(),
+        // El trigger de public.profiles guarda este nombre en display_name.
+        data: name ? { display_name: name } : undefined,
+      },
     });
     if (error) return { user: null, error: error.message };
     // Con confirmación de email, `session` viene null: no cambiamos de usuario

@@ -601,13 +601,15 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
 
 ### 11.1 Invasión contra otro jugador
 
-Trabajo en la rama `feat/invasion-multijugador` (aún no en `main`).
+Desarrollado en `feat/invasion-multijugador` y ya integrado en `main`.
 
 **Puesta en marcha:** además de `sql/001-saves.sql`, ejecutar en el SQL Editor de
-Supabase [`back/database/sql/002-invasion-targets.sql`](back/database/sql/002-invasion-targets.sql).
-Crea tres RPC de solo lectura (`security definer`, solo para `authenticated`)
-para listar rivales y leer su base sin relajar las políticas RLS de `saves`.
-Si no se ejecuta, el selector aparece vacío y queda la opción "Simular en mi base".
+Supabase [`back/database/sql/002-invasion-targets.sql`](back/database/sql/002-invasion-targets.sql)
+y [`back/database/sql/003-display-name.sql`](back/database/sql/003-display-name.sql).
+El primero crea tres RPC de solo lectura (`security definer`, solo para
+`authenticated`) para listar rivales y leer su base sin relajar las políticas
+RLS de `saves`; el segundo guarda el nombre elegido al registrarse. Si no se
+ejecutan, el selector aparece vacío y queda la opción "Simular en mi base".
 
 **Ciclo al invadir a un rival:**
 

@@ -27,6 +27,7 @@ ese modo.
 | `AuthUI.js` | Modal de acceso y perfil (correo/estado y cierre de sesión) junto a los ajustes de teclado |
 | `sql/001-saves.sql` | Tablas, índices, trigger de `updated_at` y políticas RLS |
 | `sql/002-invasion-targets.sql` | RPC de solo lectura para invadir bases ajenas |
+| `sql/003-display-name.sql` | Guarda el nombre elegido al registrarse en `profiles.display_name` |
 | `index.js` | API pública del módulo |
 
 ## Puesta en marcha con Supabase
@@ -35,7 +36,9 @@ ese modo.
 2. Ejecuta `sql/001-saves.sql` en el SQL Editor. Para habilitar la invasión
    contra otros jugadores ejecuta después `sql/002-invasion-targets.sql` (tres RPC
    `security definer` que solo leen la lista de rivales, su guardado `main` y su
-   checkpoint; no relajan las políticas RLS de `saves`).
+   checkpoint; no relajan las políticas RLS de `saves`). Ejecuta después
+   `sql/003-display-name.sql` para que el nombre elegido al registrarse se
+   guarde en `profiles.display_name`.
 3. Copia `.env.example` a `.env` y rellena:
 
    ```env
