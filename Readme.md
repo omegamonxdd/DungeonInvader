@@ -128,17 +128,12 @@ Los trabajos futuros son ajustes de balance y pruebas de regresión.
 
 ### 3.1 Verificación acumulada
 
-- `npm run build`: correcto. 94 módulos; único aviso esperado de chunk >500 kB
-  por el propio Phaser. Última salida tras la reorganización: `dist/index.html`
-  15.69 kB, CSS 58.32 kB, JS 1.398,93 kB (gzip 382,33 kB) y PNG 11.17 kB;
-  `built in 4.00s`. El HTML crece por el CSS crítico inline de la pantalla de
-  carga; el JS baja al unificar las 3 defensas y sus texturas.
-- Consola: 0 errores y 0 warnings tras construir, mover, invocar, simular
+- `npm run build`: correcto. El único aviso esperado es el tamaño del chunk de
+  Phaser; el HTML incluye el CSS crítico inline de la pantalla de carga.
+- Consola: sin errores ni warnings al construir, mover, invocar, simular
   invasiones, editar y reasignar atajos.
-- Escena: 1691 objetos y 78 texturas estables, sin fugas. `MainScene.update`
-  apenas 6,7 ms acumulados en el perfil CPU; hilo principal ~89 % idle.
-  Nota: esa medición es anterior al cierre de las crías de araña y al electrostal
-  repetible; el build posterior sigue correcto.
+- Escena: objetos y texturas estables, sin fugas; `MainScene.update` con coste
+  bajo y hilo principal mayormente libre.
 - Regresiones comprobadas: excavar/rellenar con cupo y BFS; mover ballesta con
   liberación de huella y redibujo de suelo/sombra; alta y cancelación sin
   objetos huérfanos; aim y disparo; cámara (rueda y doble clic); obras con
@@ -169,7 +164,7 @@ back/balance/
 import { BALANCE, defensaAt, buildCost } from '../balance/index.js';
 
 defensaAt('ballista', 1);  // { hp, dps, range, cooldown, damage, size, height }
-buildCost('ballista');     // { coins: 200 }
+buildCost('ballista');     // coste actual del slot, según 03-costes.js
 ```
 
 En consola (`npm run dev`):
@@ -371,7 +366,8 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
 
 - Excavar (`digCell`) y rellenar (`fillCell`); no se puede donde hay estructura.
   Cada excavación cuesta 1 de cupo; rellenar libera 1.
-- `DIG_LIMITS = { 1: 100, 2: 115, 3: 150 }` (totales, incluidas las 79 iniciales).
+- El cupo de excavación por nivel del núcleo está en `DIG_LIMITS`
+  (`back/balance/01-mundo-y-nucleo.js`); el mapa inicial ya trae parte abierta.
 - **Camino válido**: BFS en 4 direcciones desde la entrada hasta una casilla
   pegada al núcleo, solo sobre `EMPTY`. Si no hay camino: el botón Invasión se
   bloquea y el editor no deja guardar.
@@ -421,10 +417,10 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
 - `gainResource(res, n)` reparte parejo respetando capacidad;
   `spendResource(res, n)` quita parejo y devuelve `false` si no alcanza.
 - HUD arriba a la derecha: barra con total / capacidad total.
-- Inicio: **2000 monedas y 2000 cristales** (`BALANCE.recursos.inicio`). Para
-  pruebas locales se puede forzar otra cantidad con `VITE_DEV_RESOURCES` en
-  `.env.local` (ignorado por git): esa cantidad se mantiene incluso al cargar
-  guardados y no se persiste en la partida. Ver `back/config/devResources.js`.
+- Inicio: los valores de `BALANCE.recursos.inicio`. Para pruebas locales se
+  puede forzar otra cantidad con `VITE_DEV_RESOURCES` en `.env.local` (ignorado
+  por git): esa cantidad se mantiene incluso al cargar guardados y no se
+  persiste en la partida. Ver `back/config/devResources.js`.
 - Producción pasiva (mina/taller) va aparte de los almacenes y se recoge con clic.
 
 ### 7b. Obras (construcción y mejora con tiempo)
@@ -447,72 +443,25 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
 
 ---
 
-## 8. Tablas clave (valores actuales)
+## 8. Reglas y fuente de los valores
 
-### 8.1 Núcleo (`CORE_LEVELS`, `core.maxLevel = 3`)
-
-| Nivel | Vida | Capacidad (c/u) | Límite de excavación |
-|---|---|---|---|
-| 1 | 1000 | 2500 | 100 |
-| 2 | 1250 | 4000 | 115 |
-| 3 | 1500 | 10000 | 150 |
-| 4 (definido, inalcanzable) | 2000 | 25000 | usa el del nivel 3 |
+Los valores numéricos —niveles del núcleo, límites y costes de edificios, vida,
+daño, rangos, tiempos de obra y estadísticas de tropas— viven en
+`back/balance/01…09` y se consultan dentro del juego, en la ventana
+**Información/Mejorar**. Este README no mantiene copias: al cambiar el balance,
+la interfaz lo refleja sin que haya que editar documentación.
 
 Para mejorar el núcleo hay que tener **colocados** todos los edificios que
-permite su límite actual (`missingBuildings()`). Los edificios **en obras
-(construcción o mejora) cuentan como colocados**; solo se excluyen los guardados
-en el editor. Al abrir su pantalla de Mejorar se enumera lo que falta (con el
-botón bloqueado) o, si ya está todo colocado, una tarjeta por edificio que se
-desbloquea con el siguiente nivel (`unlockingBuildings()`).
+permite su límite actual. Los edificios **en obras (construcción o mejora)
+cuentan como colocados**; solo se excluyen los guardados en el editor. Al abrir
+su pantalla de Mejorar se enumera lo que falta (con el botón bloqueado) o, si ya
+está todo colocado, una tarjeta por edificio que se desbloquea con el siguiente
+nivel (`missingBuildings()` / `unlockingBuildings()`).
 
-### 8.2 Entrada
-
-Espacio de tropas: nivel 1 → 20 · 2 → 30 · 3 → 50. Sin vida, no atacable ni movible.
-
-### 8.3 `BUILD_LIMITS`
-
-| Edificio | Núcleo 1 | Núcleo 2 | Núcleo 3 |
-|---|---|---|---|
-| ballista | 2 | 2 | 4 |
-| turret | 0 | 1 | 2 |
-| catapult | 0 | 0 | 1 |
-| rift | 1 | 1 | 1 |
-| vault (por tipo) | 1 | 1 | 1 |
-| mine / workshop | 1 | 2 | 2 |
-| banner | 1 | 2 | 2 |
-| bannerslime | 0 | 1 | 2 |
-| bomb | 2 | 3 | 4 |
-| electro | 0 | 0 | 1 |
-| incubator | 0 | 0 | 1 |
-| rocktrap | 0 | 1 | 1 |
-| lab | 0 | 1 | 1 |
-
-Un límite 0 = "aún no se puede construir" (se muestra "Núcleo N").
-
-### 8.4 `CORE_LEVEL_CAPS`
-
-```
-Núcleo 1: ballista 2, turret 1, entrance 1, rift 1, vault 2, banner 3, bomb 3, rocktrap 1, mine 2, workshop 2
-Núcleo 2: entrance 2, ballista 3, turret 2, rift 3, banner 4, bomb 4, rocktrap 2, bannerslime 2, lab 1, mine 3, workshop 3, vault 2
-Núcleo 3: incubator 2, rift 4, electro 2, entrance 3, mine 4, workshop 4, vault 3, lab 2, turret 4, catapult 2, banner 5, bannerslime 3, rocktrap 3
-```
-
-`allowedMaxLevel(id) = min(state.maxLevel, cap ?? state.maxLevel)`.
-
-### 8.5 `BUILD_COSTS`
-
-| Edificio | Costo | Edificio | Costo |
-|---|---|---|---|
-| ballista | 200 monedas | vault-crystals | 750 monedas |
-| turret | 2500 monedas | prod-coins (taller) | 250 cristales |
-| catapult | 7500 monedas | prod-crystals (mina) | 250 monedas |
-| rift | gratis | banner | 500 cristales |
-| lab | 2000 cristales | bannerslime | 2500 cristales |
-| incubator | 10000 cristales | bomb | 100 monedas |
-| vault-coins | 750 cristales | rocktrap | 500 monedas |
-| electro | 7500 monedas | | |
-
-La clave del coste = id de la ranura sin `build-`.
+Un límite 0 significa "aún no se puede construir" y se muestra como "Núcleo N".
+El nivel máximo permitido para un edificio es el menor entre su propio tope y
+el que fija el núcleo (`allowedMaxLevel()`). La entrada no tiene vida, no es
+atacable ni se puede mover; su espacio de tropas crece con su nivel.
 
 ---
 
@@ -522,31 +471,17 @@ Categorías del menú Construir: **recursos, militar, defensas, estandartes, tra
 
 ### 9.1 Defensas
 
-Todas 2×2, con vida (bloquean) y suelo de roca.
+Todas 2×2, con vida (bloquean) y suelo de roca. Ballesta, torreta y catapulta
+comparten el contrato `attack = { range, minRange?, cooldown, damage(nivel),
+boltHeight, projectile?, speed?, arc?, splash? }`. Sus valores por nivel están
+en `back/balance/06-defensas.js` y se ven en Información/Mejorar.
 
-| | Ballesta | Torreta | Catapulta |
-|---|---|---|---|
-| kind / icono | `ballista` / bow | `turret` / dart | `catapult` / catapult |
-| maxLevel | 3 | 4 | 2 |
-| Vida | 500 / 550 / 580 | 420 / 470 / 520 / 580 | 750 / 800 |
-| DPS | 6 / 8 / 9 | 8 / 10 / 12 / 16 | 8 / 10 |
-| Recarga | 1.5 s | 0.25 s | 3 s |
-| Rango | 4 / 4 / 4.2 | 6.7 / 6.75 / 6.8 / 6.85 | 4–10 (zona muerta <4) |
-| Daño | único | único | área (radio 0.6) |
-| Proyectil | saeta | dardo (19 cas./s) | piedra con arco (9 cas./s) |
-
-`attack = { range, minRange?, cooldown, damage(nivel), boltHeight, projectile?,
-speed?, arc?, splash? }`. Objetivo pegajoso; prioridad a tropas que golpean la
-defensa. La catapulta dispara donde estaba la tropa (puede fallar).
-
-**Zona muerta visible:** al seleccionar o mover la catapulta se resalta solo el
-anillo entre 4 y 10 casillas (mismo color que el alcance); el disco interior
-queda sin teñir, así se aprecia dónde *no* puede disparar. El contorno discontinuo
-se cierra en la unión (antes dejaba una abertura en las 5 horas de la vista
-isométrica). En Información/Mejorar
-sus dos radios se muestran juntos como una única estadística **Rango: 4-10
-casillas** y ya no se muestra la stat de **Explosión**. El resto de defensas y
-trampas también usan la etiqueta **Rango** en lugar de "Alcance".
+Objetivo pegajoso; prioridad a las tropas que golpean la defensa. La catapulta
+dispara donde estaba la tropa (puede fallar) y tiene una **zona muerta** interior:
+al seleccionarla o moverla se resalta solo el anillo alcanzable y el disco
+interior queda sin teñir. En Información/Mejorar sus dos radios se muestran como
+una única estadística **Rango**. El resto de defensas y trampas también usan la
+etiqueta **Rango** en lugar de "Alcance".
 
 **Arte de la ballesta:** horneado desde un modelo 3D estilizado con cámara
 ortográfica isométrica (30°) mediante `npm run art:ballista`. Se exportan un
@@ -574,96 +509,62 @@ huella del núcleo y a la de todos los edificios (`systems/textures.js`,
 
 ### 9.2 Grieta de invocación
 
-2×2, `kind 'rift'`, maxLevel 4, vida 400/450/500/550. Botón **Invocar**.
+Botón **Invocar**: genera las tropas básicas del ejército.
 
 ### 9.3 Incubadora de bestias
 
-2×2, `kind 'incubator'`, maxLevel 2, vida 400/450. Botón **Criar**. Nivel 2
-desbloquea la Araña madre.
+Botón **Criar**: desbloquea las bestias, incluida la araña madre.
 
 ### 9.4 Laboratorio de mutación
 
-2×2, `kind 'lab'`, maxLevel 2, vida 350/400. Botón **Mutar tropa**: sube el
-nivel de **todas** las unidades de ese tipo.
+Botón **Mutar tropa**: sube el nivel de **todas** las unidades de ese tipo.
 
 ### 9.5 Almacenes
 
-3×3, `kind 'vault'` (coins/crystals), maxLevel 3, vida 650/700/850, capacidad
-2500/5000/10000.
+Guardan monedas o cristales y suman capacidad a los recursos del núcleo.
 
 ### 9.6 Mina y Taller
 
-2×2 (`mine` produce cristales, `workshop` monedas), maxLevel 4.
-
-| Nivel | Vida | Por hora | Capacidad |
-|---|---|---|---|
-| 1 | 300 | 250 | 1250 |
-| 2 | 330 | 300 | 1500 |
-| 3 | 350 | 360 | 1960 |
-| 4 | 380 | 450 | 2700 |
+Producción pasiva de cristales (`mine`) y monedas (`workshop`): acumulan en una
+burbuja hasta que se recogen con un clic.
 
 ### 9.7 Estandartes
 
-1×1, **sin vida** (atravesables). `guard = { troop, count(nivel), level(nivel) }`.
-Defensores dentro de 3 casillas, vuelven a su puesto y no reaparecen hasta la
-siguiente invasión.
-
-- Esqueletos (`banner`, maxLevel 5): 1 · 2 · 3 · 3 nv2 · 3 nv3.
-- Slimes (`bannerslime`, maxLevel 3): 1 slime de nivel 1 / 2 / 3.
+**Sin vida** (atravesables). `guard = { troop, count(nivel), level(nivel) }`:
+generan defensores dentro de un radio, que vuelven a su puesto y no reaparecen
+hasta la siguiente invasión.
 
 ### 9.8 Trampas
 
-- **Bomba** (1×1, maxLevel 4, sin vida): enterrada, invisible en invasión,
-  explota una vez. Daño 8 / 10 / 12 / 13 en rango 1 / 1.2 / 1.3 / 1.35.
-- **Electrostal** (1×1, maxLevel 2, invisible): descarga en cadena (`targets` golpes,
-  salto de `chain` 1.5 casillas), daño 10 / 12, rango 2. `cooldown: 0` = una descarga
-  por invasión; si se pone `> 0` en el balance, se recarga y vuelve a disparar.
-- **Trampa de rocas** (2×2, maxLevel 3, siempre visible): daño instantáneo al
-  entrar y cada 1.5 s; 3 / 4 / 5. Voladoras inmunes.
+- **Bomba**: enterrada e invisible en invasión; explota una vez.
+- **Electrostal**: descarga en cadena e invisible. `cooldown: 0` = una descarga
+  por invasión; con `cooldown > 0` se recarga y vuelve a disparar.
+- **Trampa de rocas**: siempre visible; daño al entrar y de forma periódica.
+  Las tropas voladoras son inmunes.
 - Esqueletos/defensores no reciben daño de trampas.
+
+Tamaños, vida, daños, rangos y niveles de todo lo anterior están en
+`back/balance/05-edificios.js`, `06-defensas.js` y `07-trampas.js`.
 
 ---
 
 ## 10. Tropas
 
-`defineTroop(c)` genera la lista `stats` de las ventanas de Info/Mutar. Coste 0.
+`defineTroop(c)` genera la lista `stats` de las ventanas de Info/Mutar; el coste
+de invocar, criar y mutar es 0. Las tropas salen de la Grieta o de la Incubadora,
+y las crías aparecen al caer la araña madre.
 
-| Tropa | id | Origen | Req. | Espacio | maxLvl | Velocidad | Ataque | Alcance |
-|---|---|---|---|---|---|---|---|---|
-| Esqueleto | esqueleto | Grieta | 1 | 1 | 3 | 2.6 | 1 s | 1 |
-| Slime | slime | Grieta | 2 | 1 | 3 | 2.4 | 1.2 s | 2.5 |
-| Golem de madera | golem | Grieta | 3 | 3 | 3 | 1.9 | 2 s | 1 |
-| Armadura de ceniza | armadura | Grieta | 4 | 6 | 2 | 2.0 | 1.1 s | 0.9 |
-| Murciélago | murcielago | Incubadora | 1 | 1 | 2 | 3.3 | 0.75 s | 1 |
-| Araña madre | arana | Incubadora | 2 | 10 | 2 | 2.6 | 1.3 s | 0.9 |
-| Araña bebé | arana-bebe | Summoned | — | 0 | 1 | 3.6 | 0.7 s | 0.8 |
+Los tipos, su origen, requisitos, niveles máximos, vida, daño, velocidad,
+alcance y espacio ocupado están en `back/balance/08-tropas.js` y se consultan en
+el juego, en la ventana **Información** y en el panel de invocación. Las crías
+no se invocan ni se controlan: van solas a la estructura alcanzable más cercana
+y no cuentan como baja del ejército.
 
-**Vida / daño por nivel**
-
-- Esqueleto: 35/10 · 43/14 · 55/17.
-- Slime (hp/dps): 27/14 · 34/16 · 40/20.
-- Golem: 180/15 · 210/17 · 275/19.
-- Murciélago: 27/7 · 32/9. Voladora, `structMult 2` contra recursos.
-- Armadura: 750/16 · 875/20.
-- Araña madre: 900/12/10 · 1000/15/14 crías; suelta 1 cría por cada 50 de vida perdida
-  (`danoPorCria`) hasta su límite por nivel; las que falten salen al morir.
-- Araña bebé: 14 hp / 5 dps. No se invoca ni se controla: va sola a la estructura
-  alcanzable más cercana y no cuenta como baja del ejército.
-
-**`TROOP_LAB_REQ`**: esqueleto `{2:1,3:2}`, slime `{2:1,3:2}`, golem `{2:1,3:2}`,
-murciélago `{2:2}`, armadura `{2:2}`, araña `{2:2}`.
-
-Helpers: `troopStatsAt`, `troopType`, `maxRiftLevel`, `incubatorLevel`,
-`troopUnlocked`, `availableTroops`, `army`, `armySpace`, `armyCapacity`.
 Invocar/Criar es instantáneo y ocupa espacio de la entrada; clic derecho en la
-tarjeta retira una unidad.
-
-Las tarjetas de tropa llevan un botón **"i"** que abre una ventana de
-información con los datos del tipo y su nivel actual (misma ventana y barras
-que Información/Mejorar, como en el legacy). Durante la invasión la "i" no se
-muestra. Todas las tarjetas (Invocar/Criar/Mutar e invasión) muestran un
-recuadrito con el **nivel** de la tropa; al llegar al máximo el recuadro enciende
-un **fuego azul** y el número se aclara para seguir siendo legible.
+tarjeta retira una unidad. Las tarjetas llevan un botón **"i"** que abre la misma
+ventana de información y barras que Información/Mejorar; durante la invasión no
+se muestra. Todas las tarjetas muestran un recuadrito con el **nivel** de la
+tropa y, al llegar al máximo, enciende un **fuego azul**.
 
 ---
 
@@ -674,25 +575,26 @@ un **fuego azul** y el número se aclara para seguir siendo legible.
   una copia de la base del jugador elegido, no la propia. Sin sesión (invitado)
   o sin nube se conserva la simulación de siempre sobre la base propia.
   Ver [§11.1](#111-invasión-contra-otro-jugador).
-- **Cronómetro**: 30 s de preparación; al desplegar la primera tropa (o al
-  acabarse) empiezan 300 s de combate. Derrota por tiempo o por quedarse sin
-  tropas. **Victoria** al destruir el núcleo.
-- Al empezar: `invasion = {...invFresh()}`, cada目标 estructuro toma su vida en
+- **Cronómetro**: fases de preparación y batalla con los tiempos definidos en
+  `BALANCE.invasion`; al desplegar la primera tropa (o acabarse la preparación)
+  empieza el combate. Derrota por tiempo o por quedarse sin tropas. **Victoria**
+  al destruir el núcleo.
+- Al empezar: `invasion = {...invFresh()}`, cada estructura toma su vida en
   `invasion.siege`, se generan defensores y se oculta el HUD de estado.
 - Las estructuras y el núcleo muestran una **barra de vida sobre su sprite**
   (`InvasionController.drawStructureBars`) en cuanto reciben daño; usa `siege`,
   así que la base real queda intacta. El panel de despliegue ya no repite la
   vida del núcleo.
-- **Despliegue**: panel derecho con las tropas del ejército; clic despliega una
-  (cola de 0.45 s) por la entrada hasta `INV_RALLY`.
+- **Despliegue**: barra inferior con fichas compactas de las tropas del ejército;
+  clic despliega una por la entrada hasta `INV_RALLY`, con la cola definida en
+  `BALANCE.invasion`.
 - **Controles RTS**: clic+arrastrar = cuadro (Shift suma) · clic der. en suelo =
   mover con formación · clic der. en estructura = atacar · Ctrl+A = todas ·
   Esc = deseleccionar. Las crías no se seleccionan.
 - **Pathfinding**: Dijkstra en 8 direcciones sin cortar esquinas;
   `walkable()` respeta estructuras, atravesables y escombros.
-- **Estructura destruida** → escombros, casillas transitables y saqueo del **25 %
-  de los almacenes** y del **50 % de talleres/minas**
-  (`BALANCE.invasion.botinAlmacenes` / `botinProductores`), sumado a tus
+- **Estructura destruida** → escombros, casillas transitables y saqueo de una
+  fracción de lo almacenado y producido según `BALANCE.invasion`, sumado a tus
   almacenes reales. El invadido solo pierde lo robado y conserva el resto.
   El importe robable de la base queda indicado en el panel de invasión.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
@@ -802,7 +704,7 @@ su última base válida.
 
 ## 14. Observaciones
 
-- Los recursos arrancan en 2000 de cada tipo (override de pruebas en `.env.local`) y `CORE_LEVELS` define nivel 4
+- Los recursos iniciales se definen en `BALANCE.recursos.inicio` (override de pruebas en `.env.local`) y los niveles del núcleo en `back/balance/01`
   aunque `core.maxLevel = 3`.
 - Costes de tropas y mutaciones en 0.
 - Modelos provisionales en el legacy: torreta, catapulta e incubadora.
