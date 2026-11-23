@@ -2,10 +2,24 @@
    pantalla táctil y poca altura (~500px). */
 @media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
   #summon-panel { bottom: 92px; }
-  #invasion-panel { bottom: 8px; width: calc(100vw - 16px); }
+  /* Mismo alto, la mitad de ancho: deja ver el campo de juego. */
+  #invasion-panel { bottom: 8px; width: 50vw; max-width: 50vw; }
   #action-bar, #move-hint { bottom: 92px; }
   #toast { bottom: 176px; }
   #action-title { display: none; }
+
+  /* Botón rojo "Cancelar", un 20 % más pequeño durante la invasión. */
+  body.invading #invasion-btn { padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8); }
+  body.invading #invasion-btn .btn-label { display: none; }
+  body.invading #invasion-btn .btn-short { display: inline; }
+
+  /* Cronómetro un 35 % más pequeño. */
+  #invasion-timer {
+    top: 10px; min-width: calc(150px * 0.65);
+    padding: 5px 14px 7px; gap: 3px;
+  }
+  #invasion-timer .it-label { font-size: calc(var(--fs-sm) * 0.65); }
+  #invasion-timer .it-time { font-size: calc(var(--fs-xl) * 0.65); }
 
   /* Sin atajos de teclado en pantallas táctiles. */
   .key-hint { display: none !important; }

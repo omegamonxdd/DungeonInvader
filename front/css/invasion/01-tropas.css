@@ -57,11 +57,15 @@
 #invasion-hint { margin: 6px 4px 0; color: var(--txt-dim); font: 400 var(--fs-xs)/1.35 var(--font); }
 #invasion-hint b { color: var(--txt-gold); font-weight: 600; }
 
-/* Botín disponible en la base invadida (25 % de almacenes y producción). */
+/* Botín disponible: arriba a la derecha, en el hueco de los recursos. */
 #invasion-loot {
-  display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 3px;
-  margin-left: 6px; text-align: right;
+  position: fixed; top: 16px; right: 18px; z-index: 4;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+  box-sizing: border-box; padding: 8px 10px;
+  background-color: var(--well); box-shadow: var(--well-edge-outline);
+  text-align: right; pointer-events: none;
 }
+body:not(.invading) #invasion-loot { display: none; }
 #invasion-loot .il-target {
   max-width: 240px; overflow: hidden; color: var(--txt-gold);
   font: 700 var(--fs-sm)/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap;

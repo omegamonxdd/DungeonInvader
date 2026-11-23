@@ -226,6 +226,16 @@
     </button>
   </div>
 
+  <!-- Botín de la invasión: arriba a la derecha, donde antes estaban los recursos. -->
+  <div id="invasion-loot" aria-live="polite">
+    <span id="invasion-target" class="il-target" hidden></span>
+    <span class="il-label">Recursos disponibles</span>
+    <span class="il-values">
+      <span class="il-row il-coins"><i aria-hidden="true"></i><b id="loot-coins">0</b></span>
+      <span class="il-row il-crystals"><i aria-hidden="true"></i><b id="loot-crystals">0</b></span>
+    </span>
+  </div>
+
   <aside id="upg-panel" role="dialog" aria-label="Mejoras pendientes">
     <div id="upg-head">
       <div><div id="upg-title">Mejoras pendientes</div><div id="upg-sub"></div></div>
@@ -244,20 +254,11 @@
   <button id="editor-btn" class="action-btn" type="button" aria-pressed="false" title="Editor de mazmorra">Editor</button>
 
   <!-- Fase 8: simulación de invasión (botón, panel de despliegue y reloj) -->
-  <button id="invasion-btn" type="button" aria-pressed="false" aria-label="Iniciar invasión"><span class="btn-label" id="invasion-btn-label">Invasión</span></button>
+  <button id="invasion-btn" type="button" aria-pressed="false" aria-label="Iniciar invasión"><span class="btn-label" id="invasion-btn-label">Invasión</span><span class="btn-short" id="invasion-btn-short">Cancelar</span></button>
   <div id="invasion-panel" role="dialog" aria-label="Panel de invasión">
     <div id="invasion-head">
-      <span>Invasión · Simulación</span>
       <span class="grow"></span>
       <span id="invasion-status">Seleccionadas 0 · En campo 0</span>
-      <div id="invasion-loot" aria-live="polite">
-        <span id="invasion-target" class="il-target" hidden></span>
-        <span class="il-label">Recursos disponibles</span>
-        <span class="il-values">
-          <span class="il-row il-coins"><i aria-hidden="true"></i><b id="loot-coins">0</b></span>
-          <span class="il-row il-crystals"><i aria-hidden="true"></i><b id="loot-crystals">0</b></span>
-        </span>
-      </div>
     </div>
     <div id="invasion-items" role="list"></div>
     <div id="invasion-hint"><b>Clic izq.</b>: seleccionar · <b>Clic der.</b>: mover o atacar · <b>Ctrl+A</b>: todas · <b>Esc</b>: deseleccionar</div>

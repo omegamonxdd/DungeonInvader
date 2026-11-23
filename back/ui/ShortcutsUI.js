@@ -146,6 +146,9 @@ export class ShortcutsUI {
     this.keysReset = this._ensureChild(footer, 'keys-reset', 'button', 'action-btn',
       'Restablecer predeterminados');
     this.keysReset.type = 'button';
+    this.keysFullscreen = this._ensureChild(footer, 'keys-fullscreen', 'button', 'action-btn',
+      'Pantalla completa');
+    this.keysFullscreen.type = 'button';
   }
 
   _ensureConfirmDom() {
@@ -191,6 +194,20 @@ export class ShortcutsUI {
     }
   }
 
+  /** Pantalla completa desde el modal de ajustes (todos los dispositivos). */
+  async toggleFullscreen() {
+    try {
+      const el = document.documentElement;
+      const active = document.fullscreenElement || document.webkitFullscreenElement;
+      const request = el.requestFullscreen || el.webkitRequestFullscreen;
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (!active) await request?.call(el);
+      else await exit?.call(document);
+    } catch (err) {
+      console.warn('[shortcuts] No se pudo cambiar a pantalla completa:', err);
+    }
+  }
+
   _bindButtons() {
     if (this._buttonsBound) return;
     this._buttonsBound = true;
@@ -200,6 +217,16 @@ export class ShortcutsUI {
       if (btn) this.startCapture(btn.dataset.action);
     });
     this.keysReset.addEventListener('click', () => this.shortcuts?.resetKeys?.());
+    this.keysFullscreen?.addEventListener('click', () => this.toggleFullscreen());
+    const syncFullscreenLabel = () => {
+      if (this.keysFullscreen) {
+        this.keysFullscreen.textContent = (document.fullscreenElement
+          || document.webkitFullscreenElement)
+          ? 'Salir de pantalla completa' : 'Pantalla completa';
+      }
+    };
+    document.addEventListener?.('fullscreenchange', syncFullscreenLabel);
+    document.addEventListener?.('webkitfullscreenchange', syncFullscreenLabel);
     this.keysClose.addEventListener('click', () => this.closeKeys());
     this.keysOverlay.addEventListener('pointerdown', e => {
       if (e.target === this.keysOverlay) this.closeKeys();
