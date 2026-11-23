@@ -430,7 +430,8 @@ export class MainScene extends Phaser.Scene {
     const delta = this.game.loop.delta;
     this.coreView.update(time);
     this.works.step();
-    this.production.step(delta / 1000);
+    // Las minas/talleres de la base prestada no producen durante una invasión.
+    if (!this.invasion?.active) this.production.step(delta / 1000);
     this.topoController.step(delta / 1000, time);
 
     // El paso de invasión va antes del dibujo de las defensas para que el

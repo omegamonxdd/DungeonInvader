@@ -126,11 +126,18 @@ export class InvasionController {
     return { resource: null, amount: 0 };
   }
 
-  /** Botín total que se ve en el panel; solo de estructuras aún vivas. */
+  /** Botín total que se ve en el panel; solo de estructuras aún vivas.
+   *  El núcleo también guarda recursos (stored / storedCrystals). */
   availableLoot() {
     const out = { coins: 0, crystals: 0 };
     if (!this.active) return out;
     for (const def of this.structures) {
+      if (def?.kind === 'core') {
+        if ((this.siege[def.id] ?? this.maxHpOf(def)) <= 0) continue;
+        out.coins += Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate));
+        out.crystals += Math.max(0, Math.floor((def.storedCrystals || 0) * this.vaultLootRate));
+        continue;
+      }
       const { resource, amount } = this.lootOf(def);
       if (resource && amount) out[resource] = (out[resource] || 0) + amount;
     }
@@ -163,8 +170,19 @@ export class InvasionController {
     else def.pending = Math.max(0, current - amount);
   }
 
+  /** Recursos guardados en el núcleo (monedas y cristales por separado). */
+  takeCoreLoot(def, all = false) {
+    const rate = all ? 1 : this.vaultLootRate;
+    for (const [key, resource] of [['stored', 'coins'], ['storedCrystals', 'crystals']]) {
+      const amount = Math.max(0, Math.floor((def[key] || 0) * rate));
+      if (!amount) continue;
+      this.addLoot(resource, amount);
+      def[key] = Math.max(0, (def[key] || 0) - amount);
+    }
+  }
+
   /** Colapso de la mazmorra: al caer el núcleo se lleva TODO lo que quede
-   *  en almacenes y productores, y se destruyen todos los edificios. */
+   *  en núcleo, almacenes y productores, y se destruyen todos los edificios. */
   collapseBase() {
     for (const def of this.structures) {
       const spec = specFor(def);
@@ -178,6 +196,7 @@ export class InvasionController {
         def.pending = 0;
       }
       if (def.kind === 'core') {
+        this.takeCoreLoot(def, true);
         def.view?.setDestroyed?.(true);
         continue;
       }
