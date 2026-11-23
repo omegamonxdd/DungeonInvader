@@ -8,6 +8,7 @@
   font: 600 var(--fs-lg)/1 var(--font);
 }
 #invasion-btn { right: auto; left: 24px; }
+#btn-info .label-short { display: none; }
 /* Con la barra de invasión pegada abajo, el botón "Terminar invasión" se
    levanta para no quedar cubierto ni pegado a la tropa. */
 body.invading #invasion-btn { bottom: 196px; }

@@ -33,3 +33,22 @@
   background: var(--bad);
   box-shadow: 0 0 0 2px var(--ink), inset 3px 3px 0 var(--bad-hi), inset -3px -3px 0 var(--bad-lo);
 }
+
+/* Colapsador del HUD superior (solo se muestra en móvil, ver 99-responsive). */
+#topbar-toggle {
+  display: none;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  pointer-events: auto;
+  font: 700 var(--fs-lg)/1 var(--font);
+}
+#topbar-toggle::before {
+  content: '›';
+  display: inline-block;
+  transform: rotate(90deg);
+  transition: transform .2s ease;
+}
+body.topbar-collapsed #topbar-toggle::before { transform: none; }

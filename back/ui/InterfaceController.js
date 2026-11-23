@@ -113,6 +113,7 @@ export class InterfaceController {
       summonTitle: byId('summon-title'), summonSpace: byId('summon-space'),
       summonClose: byId('summon-close'),
       selectBox: byId('select-box'),
+      topbarToggle: byId('topbar-toggle'),
       canvas: document.querySelector('#game canvas'),
     };
 
@@ -171,6 +172,17 @@ export class InterfaceController {
   }
 
   bind() {
+    // En móvil el HUD superior arranca plegado; el botón › lo despliega.
+    if (typeof window !== 'undefined'
+      && window.matchMedia?.('(max-width: 700px)').matches) {
+      document.body.classList.add('topbar-collapsed');
+      this.els.topbarToggle?.setAttribute('aria-expanded', 'false');
+    }
+    this.els.topbarToggle?.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('topbar-collapsed');
+      this.els.topbarToggle.setAttribute('aria-expanded', String(!collapsed));
+    });
+
     this.els.buildBtn.addEventListener('click', () => this.setBuildOpen(!this.buildUI.open));
     this.els.buildClose.addEventListener('click', () => this.setBuildOpen(false));
 

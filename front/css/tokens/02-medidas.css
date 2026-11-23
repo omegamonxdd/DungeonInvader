@@ -27,7 +27,7 @@
   --w-summon: 760px;
   --w-kb: 560px;
   --w-confirm: 440px;
-  --w-upg: 300px;
+  --w-upg: 240px; /* un 20 % más estrecho */
   --w-builders: 250px;
   --w-recursos: 230px;
   --w-editor: 230px;

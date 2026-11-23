@@ -4,6 +4,18 @@
   #action-bar, #move-hint { bottom: 92px; }
   #toast { bottom: 176px; }
   #action-title { display: none; }
+
+  /* Sin atajos de teclado en pantallas táctiles. */
+  .key-hint { display: none !important; }
+
+  /* El HUD superior se pliega con el botón › para no tapar el juego. */
+  #topbar-toggle { display: grid; }
+  body.topbar-collapsed #status,
+  body.topbar-collapsed #builders-status { display: none; }
+
+  /* Etiqueta corta de Información. */
+  #btn-info .label-full { display: none; }
+  #btn-info .label-short { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stat-next, #invasion-timer.low .it-time { animation: none; }

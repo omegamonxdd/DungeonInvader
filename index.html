@@ -185,6 +185,7 @@
 
   <!-- HUD de excavación (Fase 7) y de constructores (Fase 9) -->
   <div id="topbar">
+    <button id="topbar-toggle" class="action-btn" type="button" aria-expanded="true" aria-controls="status builders-status" aria-label="Mostrar u ocultar el panel superior"></button>
     <div id="status">
       <div id="status-tools">
         <button id="profile-btn" class="action-btn" type="button" aria-label="Perfil de usuario" aria-expanded="false" aria-controls="profile-popover" title="Perfil">
@@ -293,9 +294,9 @@
   <!-- Barra de acciones de la estructura seleccionada (Fase 7) -->
   <div id="action-bar" role="toolbar" aria-label="Acciones de la estructura seleccionada">
     <span id="action-title"></span>
-    <button id="btn-info" class="action-btn" type="button">
+    <button id="btn-info" class="action-btn" type="button" aria-label="Información">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></svg>
-      <span>Información</span>
+      <span class="label-full">Información</span><span class="label-short">Inf</span>
     </button>
     <button id="btn-upgrade" class="action-btn" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
