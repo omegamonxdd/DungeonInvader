@@ -595,11 +595,13 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
   Esc = deseleccionar. Las crías no se seleccionan.
 - **Pathfinding**: Dijkstra en 8 direcciones sin cortar esquinas;
   `walkable()` respeta estructuras, atravesables y escombros.
-- **Estructura destruida** → escombros y casillas transitables. Al caer un
-  almacén o el núcleo se roba, **una sola vez**, el porcentaje
-  `BALANCE.invasion.botinRecursos` de los recursos totales del rival; el resto
-  se conserva. El importe disponible se ve en «Recursos disponibles». La base
-  real del invadido no se modifica: solo se ataca una copia.
+- **Estructura destruida** → escombros y casillas transitables. Cada edificio
+  guarda sus recursos: al caer un **almacén** se roba el 25 % de lo guardado y
+  al caer una **mina/taller** el 50 % de su burbuja (`botinAlmacenes` /
+  `botinProductores`); el dueño conserva el resto. Al caer el **núcleo** se
+  lleva **todo** lo que aún quede y la mazmorra entera se destruye (colapso).
+  El importe disponible se ve en «Recursos disponibles». La base real del
+  invadido no se modifica: solo se ataca una copia.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
 
 ### 11.1 Invasión contra otro jugador

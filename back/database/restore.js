@@ -51,7 +51,10 @@ function syncView(def) {
   if (typeof v.setWorking === 'function') v.setWorking(Boolean(def.work));
   if (typeof v.setResource === 'function') v.setResource(def.resource);
   if (typeof v.setBubble === 'function') {
-    v.setBubble(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
+    const bubble = def.kind === 'vault'
+      ? (def.stored >= 1 ? `+${Math.floor(def.stored)}` : '')
+      : (def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
+    v.setBubble(bubble);
   }
   if (typeof v.baseDepth === 'number' && typeof def.depth === 'number') {
     v.baseDepth = def.depth + 0.03;
@@ -126,6 +129,7 @@ function restoreStructures(snap, ctx) {
     def.work = rec.work ? { ...rec.work } : null;
     def.frozenUpgrade = rec.frozenUpgrade ? { ...rec.frozenUpgrade } : null;
     def.pending = rec.pending || 0;
+    def.stored = rec.stored || 0;
     derive(def);
     syncView(def);
   }

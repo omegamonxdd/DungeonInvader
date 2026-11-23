@@ -19,7 +19,9 @@ export const invasion = {
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
   ejercitoPrueba: { esqueleto: 0, slime: 0 },
 
-  // Botín: fracción de los recursos TOTALES del rival. Se aplica una sola vez
-  // al caer un almacén o el núcleo; el dueño conserva el resto.
-  botinRecursos: 0.25,
+  // Botín por edificio: 25 % de lo guardado en un almacén y 50 % de lo
+  // producido en una mina/taller. Al caer el núcleo se lleva TODO lo que
+  // quede en la dungeon (colapso).
+  botinAlmacenes: 0.25,
+  botinProductores: 0.5,
 };

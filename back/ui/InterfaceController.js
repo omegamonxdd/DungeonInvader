@@ -1015,6 +1015,12 @@ export class InterfaceController {
 
     if (spec.storage) {
       add({ icon: 'coin', label: 'Capacidad extra', value: spec.storage(lvl), color: 'var(--gold)', at: spec.storage });
+      add({
+        icon: sel.resource === 'crystals' ? 'crystal' : 'coin',
+        label: 'Almacenado',
+        value: Math.floor(sel.stored || 0),
+        color: 'var(--txt-gold)',
+      });
     }
     if (spec.producer) {
       add({ icon: spec.producer.resource === 'coins' ? 'coin' : 'crystal', label: 'Producción por hora', value: spec.producer.rate(lvl), color: 'var(--gold)', at: spec.producer.rate });

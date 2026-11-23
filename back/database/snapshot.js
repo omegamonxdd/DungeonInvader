@@ -60,6 +60,7 @@ function structureRecord(def) {
       }
       : null,
     pending: num(def.pending, 0),
+    stored: num(def.stored, 0),
   };
 }
 
@@ -181,6 +182,7 @@ function normalizeStructure(rec) {
       }
       : null,
     pending: Math.max(0, num(rec.pending, 0)),
+    stored: Math.max(0, num(rec.stored, 0)),
   };
 }
 

@@ -87,8 +87,6 @@ export class InvasionController {
     this.traps = {};
     this.open = new Set();
     this.coreHitAt = -Infinity;
-    this.lootBase = null;       // recursos totales de la base invadida
-    this.lootTaken = false;
     this.lootGained = { coins: 0, crystals: 0 };
     this.orderPreview = null;   // { kind: 'move'|'attack', x, y, defId? }
     this.fxG?.clear();
@@ -96,31 +94,89 @@ export class InvasionController {
 
   get over() { return this.phase === 'won' || this.phase === 'lost'; }
 
-  get lootResourceRate() { return BALANCE.invasion.botinRecursos ?? 0.25; }
+  get vaultLootRate() { return BALANCE.invasion.botinAlmacenes ?? 0.25; }
+  get producerLootRate() { return BALANCE.invasion.botinProductores ?? 0.5; }
 
   troopDef(id) { return BALANCE.tropas.tipos[id]; }
 
-  /** Botín aún disponible: un porcentaje de los recursos totales del rival. */
+  addLoot(resource, amount) {
+    if (!this.resources || !resource || amount <= 0) return;
+    this.resources.add(resource, amount);
+    this.lootGained[resource] = (this.lootGained[resource] || 0) + amount;
+  }
+
+  /** Botín que aún guarda una estructura viva. */
+  lootOf(def) {
+    if (!def?.placed || (this.siege[def.id] ?? this.maxHpOf(def)) <= 0) {
+      return { resource: null, amount: 0 };
+    }
+    const spec = specFor(def);
+    if (def.kind === 'vault') {
+      return {
+        resource: def.resource || 'coins',
+        amount: Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate)),
+      };
+    }
+    if (spec?.producer) {
+      return {
+        resource: spec.producer.resource,
+        amount: Math.max(0, Math.floor((def.pending || 0) * this.producerLootRate)),
+      };
+    }
+    return { resource: null, amount: 0 };
+  }
+
+  /** Botín total que se ve en el panel; solo de estructuras aún vivas. */
   availableLoot() {
     const out = { coins: 0, crystals: 0 };
-    if (!this.lootBase || this.lootTaken || !this.active) return out;
-    for (const res of ['coins', 'crystals']) {
-      out[res] = Math.max(0, Math.floor((this.lootBase[res] || 0) * this.lootResourceRate));
+    if (!this.active) return out;
+    for (const def of this.structures) {
+      const { resource, amount } = this.lootOf(def);
+      if (resource && amount) out[resource] = (out[resource] || 0) + amount;
     }
     return out;
   }
 
-  /** Se lleva el botín de una vez al caer un almacén o el núcleo. */
-  takeLoot() {
-    if (!this.lootBase || this.lootTaken || !this.resources) return;
-    for (const res of ['coins', 'crystals']) {
-      const amount = Math.max(0, Math.floor((this.lootBase[res] || 0) * this.lootResourceRate));
-      if (amount) {
-        this.resources.add(res, amount);
-        this.lootGained[res] = (this.lootGained[res] || 0) + amount;
+  /** Se lleva el porcentaje de una estructura al destruirla. */
+  takeLootFrom(def) {
+    const { resource, amount } = this.lootOf(def);
+    if (!resource || amount <= 0) return;
+    this.addLoot(resource, amount);
+    if (def.kind === 'vault') {
+      def.stored = Math.max(0, (def.stored || 0) - amount);
+      def.view?.setBubble?.(def.stored >= 1 ? `+${Math.floor(def.stored)}` : '');
+    } else {
+      def.pending = Math.max(0, (def.pending || 0) - amount);
+      def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
+    }
+  }
+
+  /** Colapso de la mazmorra: al caer el núcleo se lleva TODO lo que quede
+   *  en almacenes y productores, y se destruyen todos los edificios. */
+  collapseBase() {
+    for (const def of this.structures) {
+      const spec = specFor(def);
+      if (def.kind === 'vault') {
+        const amount = Math.max(0, Math.floor(def.stored || 0));
+        if (amount) this.addLoot(def.resource || 'coins', amount);
+        def.stored = 0;
+      } else if (spec?.producer) {
+        const amount = Math.max(0, Math.floor(def.pending || 0));
+        if (amount) this.addLoot(spec.producer.resource, amount);
+        def.pending = 0;
+      }
+      if (def.kind === 'core') {
+        def.view?.setDestroyed?.(true);
+        continue;
+      }
+      this.siege[def.id] = 0;
+      this.hitAt[def.id] = this.scene.time.now;
+      def.view?.setDestroyed?.(true);
+      const r = this.rectOf(def);
+      for (let j = r.y0; j < r.y1; j++) {
+        for (let i = r.x0; i < r.x1; i++) this.open.add(this.terrain.key(i, j));
       }
     }
-    this.lootTaken = true;
   }
 
   guardRangeFor(typeId) {
@@ -211,7 +267,6 @@ export class InvasionController {
     const ctx = this.getContext();
     const service = this.service || getService();
     let own = null;
-    let lootBase = null;
 
     // Sin rival (invitado / sin nube) se mantiene la simulación de siempre
     // sobre la propia base. Con rival se monta su copia en la escena.
@@ -226,7 +281,6 @@ export class InvasionController {
           return false;
         }
         own = captureOwnBase(ctx);
-        lootBase = { ...(loaded.snapshot.resources || {}) };
         applyInvasionBase(ctx, loaded.snapshot);
         this.baseSwap = { own };
         this.opponent = {
@@ -258,12 +312,6 @@ export class InvasionController {
       return false;
     }
     this.reset();
-    if (!lootBase) {
-      const ownSnap = captureOwnBase(ctx);
-      lootBase = { ...(ownSnap.resources || {}) };
-    }
-    this.lootBase = lootBase;
-    this.lootTaken = false;
     this.clearSelection();
     this.active = true;
     this.phase = 'prep';
@@ -795,9 +843,10 @@ export class InvasionController {
       this.finish('won', 'El núcleo ha caído');
       return;
     }
-    // Botín: un 25 % de los recursos totales del rival, una sola vez, al
-    // destruir un almacén o el núcleo. El resto no se toca.
-    if (def.kind === 'vault' || id === 'core') this.takeLoot();
+    // Botín por edificio: 25 % del almacén, 50 % de la burbuja del productor.
+    // Al caer el núcleo se lleva TODO y la mazmorra entera se destruye.
+    this.takeLootFrom(def);
+    if (id === 'core') this.collapseBase();
     // Estructura caída: deja de defenderse y sus casillas son transitables.
     def.view?.setDestroyed?.(true);
     for (let j = 0; j < (def.h || def.size); j++) {
