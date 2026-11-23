@@ -18,6 +18,9 @@
   /* Etiqueta corta de Información. */
   #btn-info .label-full { display: none; }
   #btn-info .label-short { display: inline; }
+
+  /* Barras de recursos un 20 % más cortas en móvil. */
+  #resources { width: calc(var(--w-recursos) * 0.8); }
 }
 @media (prefers-reduced-motion: reduce) {
   .stat-next, #invasion-timer.low .it-time { animation: none; }
