@@ -166,6 +166,8 @@ export class MainScene extends Phaser.Scene {
       structures: this.structures,
       army: this.army,
       resources: this.resources,
+      service: this.saveService,
+      getContext: () => this.getSaveContext(),
       clearSelection: () => this.select(null),
       onToast: msg => this.ui?.showToast(msg),
       onState: inv => {
@@ -324,7 +326,16 @@ export class MainScene extends Phaser.Scene {
 
     // La escena ya está lista: conectamos la persistencia y retiramos la
     // pantalla de carga. `start()` es idempotente (main.js también la llama).
-    this.saveService?.attach({
+    this.saveService?.attach(this.getSaveContext());
+    this.saveService?.start();
+
+    finishLoading();
+  }
+
+  /** Contexto vivo que comparten guardados e invasiones. Se calcula en el
+   *  momento de usarlo porque los controladores se crean por etapas. */
+  getSaveContext() {
+    return {
       scene: this,
       terrain: this.terrain,
       structures: this.structures,
@@ -337,10 +348,7 @@ export class MainScene extends Phaser.Scene {
       ui: this.ui,
       upgrades: this.upgrades,
       stats: this.stats,
-    });
-    this.saveService?.start();
-
-    finishLoading();
+    };
   }
 
   select(def) {

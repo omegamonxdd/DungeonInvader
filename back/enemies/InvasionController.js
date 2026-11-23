@@ -24,6 +24,10 @@ import { shotOrigin } from '../systems/muzzle.js';
 import { Projectile } from './Projectile.js';
 import { Troop } from './Troop.js';
 import { Defender } from './Defender.js';
+import { getService } from '../database/GameService.js';
+import {
+  applyInvasionBase, captureOwnBase, loadInvasionBase, restoreOwnBase,
+} from './invasionBase.js';
 
 export class InvasionController {
   constructor(scene, deps) {
@@ -36,6 +40,20 @@ export class InvasionController {
     this.onToast = deps.onToast || (() => {});
     this.onState = deps.onState || (() => {});
     this.onEnd = deps.onEnd || (() => {});
+    this.service = deps.service || getService();
+    this.getContext = deps.getContext || (() => ({
+      scene: this.scene,
+      terrain: this.terrain,
+      structures: this.structures,
+      resources: this.resources,
+      army: this.armyRef,
+      invasion: this,
+      stats: deps.stats,
+    }));
+    // Fuera de reset(): la base prestada tiene que sobrevivir a los reset()
+    // internos de start()/end()/applySnapshot().
+    this.baseSwap = null;
+    this.opponent = null;
 
     this.path = new PathFinder(this.terrain);
     // Estandartes, trampas y cualquier estructura sin vida son atravesables
@@ -144,10 +162,54 @@ export class InvasionController {
 
   /* ---------- Ciclo de vida --------------------------------------------- */
 
-  start() {
+  async start({ opponentId = null, opponentName = '' } = {}) {
     if (this.active) return false;
+
+    const ctx = this.getContext();
+    const service = this.service || getService();
+    let own = null;
+
+    // Sin rival (invitado / sin nube) se mantiene la simulación de siempre
+    // sobre la propia base. Con rival se monta su copia en la escena.
+    if (opponentId && service?.repository?.remoteEnabled) {
+      service.invasionPreparing = true;
+      try {
+        const loaded = await loadInvasionBase(service, opponentId);
+        if (!loaded.ok) {
+          this.onToast(loaded.reason === 'blocked'
+            ? 'Ese jugador dejó el camino bloqueado y no tiene copia válida'
+            : 'No se pudo cargar la base del rival');
+          return false;
+        }
+        own = captureOwnBase(ctx);
+        applyInvasionBase(ctx, loaded.snapshot);
+        this.baseSwap = { own };
+        this.opponent = {
+          id: opponentId,
+          name: opponentName || 'Rival',
+          usedCheckpoint: loaded.usedCheckpoint,
+        };
+      } catch (err) {
+        console.warn('[invasion] No se pudo preparar la base del rival:', err);
+        this.onToast('No se pudo cargar la base del rival');
+        if (own) restoreOwnBase(ctx, own);
+        this.baseSwap = null;
+        this.opponent = null;
+        return false;
+      } finally {
+        if (service) service.invasionPreparing = false;
+      }
+    }
+
+    // La comprobación se hace ya sobre la base que se va a invadir: el
+    // terreno prestado recalcula pathValid al aplicar el snapshot.
     if (!this.terrain.pathValid) {
       this.onToast('El núcleo está bloqueado: abre un camino desde la entrada');
+      if (own) {
+        restoreOwnBase(ctx, own);
+        this.baseSwap = null;
+        this.opponent = null;
+      }
       return false;
     }
     this.reset();
@@ -173,6 +235,12 @@ export class InvasionController {
     this.terrain.setTool(null);
     document.body.classList.add('invading');
     document.body.classList.remove('inv-end');
+    if (this.opponent) {
+      this.onToast(`Invadiendo la base de ${this.opponent.name}`);
+      if (this.opponent.usedCheckpoint) {
+        this.onToast('El camino del rival estaba bloqueado: se usó su última base válida');
+      }
+    }
     this.onState(this);
     return true;
   }
@@ -186,8 +254,17 @@ export class InvasionController {
       def.view?.setDestroyed?.(false);
       def.view?.setHidden?.(false);
     }
-    this.reset();
+    const swap = this.baseSwap;
+    this.baseSwap = null;
+    this.opponent = null;
     document.body.classList.remove('invading', 'inv-end');
+    if (swap) {
+      restoreOwnBase(this.getContext(), swap.own);
+      // finish() pudo dejar guardados/cargas pospuestos mientras la base
+      // prestada seguía montada: se aplican con la base propia de vuelta.
+      (this.service || getService())?.flushPending?.();
+    }
+    this.reset();
     this.onState(this);
   }
 

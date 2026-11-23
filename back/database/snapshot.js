@@ -50,6 +50,14 @@ function structureRecord(def) {
         end: num(def.work.end, Date.now()),
       }
       : null,
+    // Obra "tomada" al copiar una base para invadirla: se conserva el
+    // tratamiento de estructura en obras, pero sin fechas que la terminen.
+    frozenUpgrade: def.frozenUpgrade
+      ? {
+        kind: def.frozenUpgrade.kind === 'build' ? 'build' : 'upgrade',
+        to: int(def.frozenUpgrade.to, 1),
+      }
+      : null,
     pending: num(def.pending, 0),
   };
 }
@@ -127,6 +135,12 @@ function normalizeStructure(rec) {
     costKey: rec.costKey || null,
     limitKind: rec.limitKind || null,
     work,
+    frozenUpgrade: rec.frozenUpgrade && typeof rec.frozenUpgrade === 'object'
+      ? {
+        kind: rec.frozenUpgrade.kind === 'build' ? 'build' : 'upgrade',
+        to: clamp(int(rec.frozenUpgrade.to, level + 1), 1, Math.max(1, maxLevel)),
+      }
+      : null,
     pending: Math.max(0, num(rec.pending, 0)),
   };
 }

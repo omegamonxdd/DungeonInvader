@@ -245,11 +245,14 @@ export function attackOf(def) {
  * y solo cambia cuando la obra termina. Las únicas excepciones son:
  *   · construcciones nuevas (todavía no hay edificio operativo);
  *   · defensas en mejora (no atacan), minas/talleres en mejora (no producen)
- *     y trampas en mejora (no se activan en la invasión).
+ *     y trampas en mejora (no se activan en la invasión);
+ *   · mejoras "tomadas" al copiar una base ajena (`frozenUpgrade`): se
+ *     conserva el efecto de obra en curso, pero ya no hay reloj que la acabe.
  * El movimiento NUNCA se bloquea por estar en obras: ni la barra de acciones
  * ni el editor (Recoger/Retirar) pueden quitar esa opción al jugador.
  */
 export function pausedByWork(def) {
+  if (def?.frozenUpgrade) return true;
   if (!def?.work) return false;
   if (def.work.kind === 'build') return true;
   const spec = specFor(def);

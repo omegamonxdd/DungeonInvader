@@ -247,6 +247,7 @@ export class GameService {
 
   invasionActive() {
     return Boolean(this.invasionPreparing
+      || this.ctx?.invasion?.baseSwap
       || (this.ctx?.invasion?.active && !this.ctx?.invasion?.over));
   }
 

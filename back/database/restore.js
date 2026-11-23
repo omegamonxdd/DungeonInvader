@@ -124,6 +124,7 @@ function restoreStructures(snap, ctx) {
     def.costKey = rec.costKey || def.costKey;
     def.limitKind = rec.limitKind || def.limitKind;
     def.work = rec.work ? { ...rec.work } : null;
+    def.frozenUpgrade = rec.frozenUpgrade ? { ...rec.frozenUpgrade } : null;
     def.pending = rec.pending || 0;
     derive(def);
     syncView(def);
@@ -145,24 +146,29 @@ function restoreStructures(snap, ctx) {
   }
 }
 
-/** Aplica un snapshot normalizado y refresca la interfaz. Devuelve el documento usado. */
-export function applySnapshot(snapshot, ctx) {
+/**
+ * Aplica un snapshot normalizado y refresca la interfaz. Devuelve el documento usado.
+ * `withResources`/`withArmy` se desactivan al prestar la escena a una base
+ * rival: el atacante conserva los suyos y solo se cambian terreno y edificios.
+ */
+export function applySnapshot(snapshot, ctx, options = {}) {
+  const { withResources = true, withArmy = true, resetInvasion = true } = options;
   const snap = normalizeSnapshot(snapshot);
 
   restoreTerrain(snap, ctx);
   restoreStructures(snap, ctx);
 
-  if (ctx.resources) {
+  if (withResources && ctx.resources) {
     ctx.resources.coins = snap.resources.coins;
     ctx.resources.crystals = snap.resources.crystals;
   }
-  if (ctx.army) {
+  if (withArmy && ctx.army) {
     ctx.army.counts = { ...snap.army.counts };
     ctx.army.levels = { ...snap.army.levels };
     ctx.army.onChange?.();
   }
   // La simulación copia el ejército al arrancar: hay que resincronizarla.
-  ctx.invasion?.reset?.();
+  if (resetInvasion) ctx.invasion?.reset?.();
 
   if (ctx.scene?.terrainView) {
     const n = ctx.terrain?.n || 0;
