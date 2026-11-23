@@ -75,6 +75,9 @@ export class AuthUI {
       if (error) this.setError(error);
       this.els.logout.disabled = false;
       this.closeProfile();
+      // Tras cerrar sesión se vuelve al login; la escena queda en partida
+      // limpia detrás del modal (GameService ya borró el caché local).
+      if (!error) this.show();
     });
   }
 

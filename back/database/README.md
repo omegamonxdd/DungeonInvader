@@ -110,6 +110,12 @@ anterior con el id anterior, descarta `lastSaved`/pendientes y, si la cuenta
 nueva no tiene guardado propio ni remoto, aplica `freshSnapshot()`. Así una
 cuenta nueva nunca hereda la base, recursos ni sesión de la anterior.
 
+Al **cerrar sesión** no se guarda ni se sube nada: se borran las claves locales
+del usuario (y las genéricas), se aplica una partida limpia y se vuelve al
+modal de acceso. El guardado de Supabase **no se toca**, así que al iniciar
+sesión de nuevo se recupera desde la nube. Es la forma de evitar que una base
+quede visible en un equipo compartido sin destruir el progreso.
+
 ## Resolución de conflictos
 
 Se compara `savedAt` (o `updated_at` en Supabase): gana el más reciente. Si el

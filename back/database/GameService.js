@@ -133,11 +133,13 @@ export class GameService {
     const previousId = this.lastUserId;
     this.lastUserId = user.id;
 
-    // Guarda lo del usuario anterior CON SU id: al dispararse el evento,
-    // `auth.id` ya es la cuenta nueva.
-    if (this.dirty && previousId) {
+    // Cerrar sesión NO debe re-guardar ni re-subir la base del usuario: era
+    // justo lo que recreaba el guardado aunque se borrara en Supabase.
+    const signingOut = Boolean(user.guest && previousId && !isGuestId(previousId));
+    if (this.dirty && previousId && !signingOut) {
       await this.save({ force: true, userId: previousId });
     }
+    if (signingOut) this.repository.clearLocal(previousId);
 
     // Nada del estado anterior puede filtrarse a la nueva identidad.
     this.pendingApply = null;
@@ -147,13 +149,17 @@ export class GameService {
     this.savedAt = null;
 
     if (user.guest) {
-      const local = this.repository.loadLocal(user.id);
-      if (local) {
-        this.apply(local);
-        this.lastSaved = local;
-        this.savedAt = local.savedAt;
-      } else {
+      if (signingOut) {
         this.applyFresh();
+      } else {
+        const local = this.repository.loadLocal(user.id);
+        if (local) {
+          this.apply(local);
+          this.lastSaved = local;
+          this.savedAt = local.savedAt;
+        } else {
+          this.applyFresh();
+        }
       }
       this._setStatus('offline');
       return;
