@@ -41,12 +41,17 @@ export const SUPABASE_ENABLED = Boolean(
 /** Nombre de la tabla de partidas. Un jugador puede tener varias "ranuras". */
 export const SAVES_TABLE = 'saves';
 export const DEFAULT_SLOT = 'main';
+/** Ranura auxiliar: última partida en la que el núcleo seguía alcanzable.
+ *  Se usa para invadir bases cuyo dueño se fue con el camino bloqueado. */
+export const CHECKPOINT_SLOT = 'checkpoint:main';
 
 /** Claves localStorage. Prefijo único para no chocar con otros prototipos. */
 export const STORAGE_KEYS = Object.freeze({
   guest: 'dungeon-build:guest',
   current: 'dungeon-build:save:current',
   byUser: userId => `dungeon-build:save:${userId}`,
+  checkpoint: 'dungeon-build:checkpoint:current',
+  checkpointByUser: userId => `dungeon-build:checkpoint:${userId}`,
   legacy: [
     'dungeon-build:save',
     'dungeon-build:save:v1',

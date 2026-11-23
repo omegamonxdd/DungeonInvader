@@ -13,7 +13,7 @@
 import { AUTOSAVE_MS, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
 import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
-import { buildSnapshot, sameProgress } from './snapshot.js';
+import { buildSnapshot, sameProgress, snapshotHasPath } from './snapshot.js';
 import { applySnapshot } from './restore.js';
 
 export class GameService {
@@ -26,6 +26,9 @@ export class GameService {
     this.saving = false;
     this.pendingApply = null;
     this.pendingSave = false;
+    // Mientras se carga la base del rival la escena todavía no está en
+    // invasión, pero no debe autoguardarse con el snapshot prestado.
+    this.invasionPreparing = false;
     this.lastSaved = null;
     this.lastUserId = null;
     this.status = 'idle';       // idle | loading | saving | saved | offline | error
@@ -175,6 +178,7 @@ export class GameService {
     this._setStatus('saving');
     const userId = this.auth.id;
     this.repository.saveLocal(snapshot, userId);
+    this._rememberCheckpoint(snapshot);
 
     if (sync && !this.auth.isGuest && this.repository.remoteEnabled) {
       await this.upload(snapshot, userId);
@@ -189,6 +193,26 @@ export class GameService {
     this.saving = false;
     this._emit();
     return true;
+  }
+
+  /** Guarda el checkpoint solo cuando el núcleo era alcanzable. Es
+   *  best-effort: un fallo de red nunca debe romper el autoguardado. */
+  _rememberCheckpoint(snapshot) {
+    if (!snapshot || this.ctx?.terrain?.pathValid === false || !snapshotHasPath(snapshot)) return;
+    try {
+      Promise.resolve(this.repository.saveCheckpoint(snapshot, this.auth.id))
+        .catch(err => console.warn('[database] No se pudo guardar el checkpoint:', err));
+    } catch (err) {
+      console.warn('[database] No se pudo guardar el checkpoint:', err);
+    }
+  }
+
+  async loadCheckpointFor(userId = this.auth.id) {
+    if (userId && !String(userId).startsWith('guest:') && this.repository.remoteEnabled) {
+      const remote = await this.repository.loadCheckpointRemote(userId);
+      if (remote) return remote;
+    }
+    return this.repository.loadCheckpoint(userId);
   }
 
   async upload(snapshot, userId) {
@@ -215,7 +239,10 @@ export class GameService {
     if (this.pendingSave || this.dirty) await this.save({ force: true });
   }
 
-  invasionActive() { return Boolean(this.ctx?.invasion?.active && !this.ctx?.invasion?.over); }
+  invasionActive() {
+    return Boolean(this.invasionPreparing
+      || (this.ctx?.invasion?.active && !this.ctx?.invasion?.over));
+  }
 
   /* ---------- Carga en caliente ---------------------------------------- */
 
@@ -229,6 +256,7 @@ export class GameService {
     this.lastSaved = applied;
     this.savedAt = applied.savedAt;
     this.dirty = false;
+    this._rememberCheckpoint(applied);
   }
 
   /* ---------- APIs que usa la UI --------------------------------------- */

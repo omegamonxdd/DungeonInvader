@@ -64,9 +64,34 @@ export function saveLocal(snapshot, userId = null) {
   return ok;
 }
 
+/** Último guardado con camino al núcleo libre (para invades imposibles). */
+export function loadCheckpoint(userId = null) {
+  const candidates = [
+    userId ? STORAGE_KEYS.checkpointByUser(userId) : null,
+    STORAGE_KEYS.checkpoint,
+  ].filter(Boolean);
+  let best = null;
+  for (const key of candidates) {
+    const snap = parse(safeGet(key));
+    if (snap && (!best || savedAtMs(snap) > savedAtMs(best))) best = snap;
+  }
+  return best;
+}
+
+export function saveCheckpoint(snapshot, userId = null) {
+  const json = JSON.stringify(snapshot);
+  let ok = safeSet(STORAGE_KEYS.checkpoint, json);
+  if (userId) ok = safeSet(STORAGE_KEYS.checkpointByUser(userId), json) || ok;
+  return ok;
+}
+
 export function clearLocal(userId = null) {
   safeRemove(STORAGE_KEYS.current);
-  if (userId) safeRemove(STORAGE_KEYS.byUser(userId));
+  safeRemove(STORAGE_KEYS.checkpoint);
+  if (userId) {
+    safeRemove(STORAGE_KEYS.byUser(userId));
+    safeRemove(STORAGE_KEYS.checkpointByUser(userId));
+  }
 }
 
 /** Tamaño aproximado del guardado (para el panel de depuración). */

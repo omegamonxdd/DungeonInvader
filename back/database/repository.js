@@ -7,9 +7,12 @@
  * Si Supabase no está disponible, todo se resuelve en localStorage.
  * ========================================================== */
 
-import { DEFAULT_SLOT, SAVES_TABLE } from './config.js';
+import { CHECKPOINT_SLOT, DEFAULT_SLOT, SAVES_TABLE } from './config.js';
 import { getSupabase } from './client.js';
-import { loadLocal, saveLocal } from './storage.js';
+import {
+  loadCheckpoint as loadCheckpointLocal,
+  loadLocal, saveCheckpoint as saveCheckpointLocal, saveLocal,
+} from './storage.js';
 import { normalizeSnapshot, savedAtMs } from './snapshot.js';
 
 export class SaveRepository {
@@ -28,6 +31,15 @@ export class SaveRepository {
 
   loadLocal(userId) { return loadLocal(userId); }
   saveLocal(snapshot, userId) { return saveLocal(snapshot, userId); }
+
+  loadCheckpoint(userId) { return loadCheckpointLocal(userId); }
+
+  /** Escribe el checkpoint en local y, si hay nube, en su propia ranura. */
+  async saveCheckpoint(snapshot, userId) {
+    const snap = { ...snapshot, slot: CHECKPOINT_SLOT };
+    saveCheckpointLocal(snap, userId);
+    return this.saveRemote(userId, snap);
+  }
 
   /* ---------- Supabase -------------------------------------------------- */
 
@@ -75,6 +87,11 @@ export class SaveRepository {
       console.warn('[database] No se pudo subir el guardado:', err);
       return { ok: false, error: err?.message || String(err) };
     }
+  }
+
+  /** Última partida válida del usuario en la nube (ranura aparte). */
+  async loadCheckpointRemote(userId) {
+    return this.loadRemote(userId, CHECKPOINT_SLOT);
   }
 
   async deleteRemote(userId, slot = DEFAULT_SLOT) {

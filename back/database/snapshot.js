@@ -10,6 +10,10 @@
 
 import { BALANCE } from '../balance/index.js';
 import { DIG_LIMITS } from '../config/interaction.js';
+import {
+  ENTRANCE_X, ENTRANCE_Y_MAX, ENTRANCE_Y_MIN,
+} from '../config/world.js';
+import { CORE, EMPTY } from '../systems/map.js';
 import { specFor } from '../systems/structureSpecs.js';
 import { BALANCE_VERSION, DEFAULT_SLOT, SNAPSHOT_VERSION } from './config.js';
 import { emptySnapshot, migrate } from './migrations.js';
@@ -208,4 +212,45 @@ export function sameProgress(a, b) {
 export function savedAtMs(snapshot) {
   const t = Date.parse(snapshot?.savedAt || '');
   return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * ¿Llega el ejército desde la entrada hasta el núcleo en este guardado?
+ * Es el equivalente en frío de `TerrainState.isCoreReachable()`: se decide
+ * solo con el terreno del snapshot, sin construir la escena. Sirve para
+ * descartar una base bloqueada antes de copiarla en una invasión.
+ */
+export function snapshotHasPath(raw) {
+  const snap = normalizeSnapshot(raw);
+  const rows = snap.terrain.rows;
+  const n = rows.length;
+  if (!n || n !== snap.terrain.size || rows.some(r => r.length !== n)) return false;
+
+  const at = (x, y) => Number(rows[y][x]);
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const queue = [];
+  const seen = new Set();
+  const key = (x, y) => y * n + x;
+
+  for (let y = ENTRANCE_Y_MIN; y <= ENTRANCE_Y_MAX; y++) {
+    if (y < 0 || y >= n || at(ENTRANCE_X, y) !== EMPTY) continue;
+    queue.push({ x: ENTRANCE_X, y });
+    seen.add(key(ENTRANCE_X, y));
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const { x, y } = queue[i];
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+      const cell = at(nx, ny);
+      if (cell === CORE) return true;
+      if (cell !== EMPTY) continue;
+      const k = key(nx, ny);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return false;
 }
