@@ -138,6 +138,19 @@ export class MainScene extends Phaser.Scene {
     });
     this.cameraController.start();
 
+    // Tras rotar, entrar en pantalla completa o hacer zoom con dos dedos,
+    // Phaser debe recalcular el lienzo: si no, el mapa queda en un recuadro
+    // y el HUD aparece fuera de él.
+    const fitCanvas = () => {
+      this.game.scale.resize(window.innerWidth, window.innerHeight);
+      this.cameraController?.apply();
+    };
+    window.addEventListener('resize', fitCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
+    document.addEventListener?.('fullscreenchange', () => setTimeout(fitCanvas, 120));
+    document.addEventListener?.('webkitfullscreenchange', () => setTimeout(fitCanvas, 120));
+    setTimeout(fitCanvas, 120);
+
     this.interactionView = new InteractionView(this);
     this.moveController = new MoveController(
       this, this.structures, this.terrain, this.cameraController,

@@ -937,6 +937,18 @@ export class InvasionController {
     return list.length;
   }
 
+  /** Toque simple en móvil: selecciona una tropa o, si ya hay seleccionadas,
+   *  da la orden sobre el edificio/suelo tocado (equivale al clic derecho). */
+  tapAtWorld(wx, wy, additive = false) {
+    const def = structureAt(wx, wy, this.structures);
+    if (def && this.targetable(def) && this.commandSelected().length) {
+      return this.orderAtWorld(wx, wy);
+    }
+    if (this.selectAtWorld(wx, wy, additive)) return true;
+    if (this.commandSelected().length) return this.orderAtWorld(wx, wy);
+    return false;
+  }
+
   orderAtWorld(wx, wy) {
     const chosen = this.troops.filter(t => t.selected);
     if (!chosen.length) return false;

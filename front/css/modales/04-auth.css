@@ -105,8 +105,13 @@ body.auth-open #game canvas { pointer-events: none; }
   gap: 8px;
   pointer-events: auto;
 }
-#settings-btn, #profile-btn { margin: 0; padding: 9px; align-self: auto; }
-#profile-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+#settings-btn, #profile-btn, #fullscreen-btn { margin: 0; padding: 9px; align-self: auto; }
+#profile-btn svg, #fullscreen-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
+#fullscreen-btn.active {
+  --bg: var(--gold); --hi: var(--gold-hi); --lo: var(--gold-lo);
+  --bg-h: var(--gold-h); --hi-h: var(--gold-hi-h);
+  text-shadow: 2px 2px 0 var(--shadow-gold);
+}
 
 .profile-popover {
   position: absolute;

@@ -146,9 +146,6 @@ export class ShortcutsUI {
     this.keysReset = this._ensureChild(footer, 'keys-reset', 'button', 'action-btn',
       'Restablecer predeterminados');
     this.keysReset.type = 'button';
-    this.keysFullscreen = this._ensureChild(footer, 'keys-fullscreen', 'button', 'action-btn',
-      'Pantalla completa');
-    this.keysFullscreen.type = 'button';
   }
 
   _ensureConfirmDom() {
@@ -217,16 +214,18 @@ export class ShortcutsUI {
       if (btn) this.startCapture(btn.dataset.action);
     });
     this.keysReset.addEventListener('click', () => this.shortcuts?.resetKeys?.());
-    this.keysFullscreen?.addEventListener('click', () => this.toggleFullscreen());
+    const fsBtn = document.getElementById('fullscreen-btn');
+    fsBtn?.addEventListener('click', () => this.toggleFullscreen());
     const syncFullscreenLabel = () => {
-      if (this.keysFullscreen) {
-        this.keysFullscreen.textContent = (document.fullscreenElement
-          || document.webkitFullscreenElement)
-          ? 'Salir de pantalla completa' : 'Pantalla completa';
-      }
+      if (!fsBtn) return;
+      const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      fsBtn.classList.toggle('active', active);
+      fsBtn.title = active ? 'Salir de pantalla completa' : 'Pantalla completa';
+      fsBtn.setAttribute('aria-label', fsBtn.title);
     };
     document.addEventListener?.('fullscreenchange', syncFullscreenLabel);
     document.addEventListener?.('webkitfullscreenchange', syncFullscreenLabel);
+    syncFullscreenLabel();
     this.keysClose.addEventListener('click', () => this.closeKeys());
     this.keysOverlay.addEventListener('pointerdown', e => {
       if (e.target === this.keysOverlay) this.closeKeys();

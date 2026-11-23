@@ -32,6 +32,7 @@ export class InteractionController {
     this.mode = null;               // 'click' | 'pan' | 'tool'
     this.touchSelect = false;       // móvil: arrastrar = seleccionar tropas
     this.moved = false;
+    this.lastTap = null;            // para el doble tap (seleccionar ejército)
     this.downX = 0; this.downY = 0;
     this.lastX = 0; this.lastY = 0;
     this.lastCell = null;
@@ -231,16 +232,28 @@ export class InteractionController {
       this.pointerDown = false;
       this.mode = null;
       if (this.invasion?.active && !this.invasion.over) {
+        const now = Date.now();
+        const isTap = allowClick && !this.moved
+          && mode !== 'inv-box' && mode !== 'inv-order';
+        const prev = this.lastTap;
+        // Doble tap en el mismo sitio: selecciona todo el ejército.
+        if (isTap && prev && now - prev.t < 320
+          && Math.hypot(p.x - prev.x, p.y - prev.y) < 30) {
+          this.invasion.selectAll();
+          this.lastTap = null;
+          return;
+        }
+        if (isTap) this.lastTap = { x: p.x, y: p.y, t: now };
+
         if (mode === 'inv-box') {
           this.ui?.setSelectBox(0, 0, 0, 0, false);
           if (allowClick) {
             this.invasion.selectBox({ x0: this.downX, y0: this.downY, x1: p.x, y1: p.y }, p.shiftKey);
           }
-        } else if ((mode === 'inv-select' || (mode === 'pan' && !this.moved)) && allowClick) {
-          // Toque sin arrastre: selecciona una tropa aunque estemos en modo
-          // arrastre (el dedo que se mueve panea la cámara).
+        } else if (isTap) {
+          // Toque: tropa → seleccionar; edificio → atacar; suelo → mover.
           const w = this.camera.screenToWorld(p.x, p.y);
-          this.invasion.selectAtWorld(w.x, w.y, p.shiftKey);
+          this.invasion.tapAtWorld(w.x, w.y, p.shiftKey);
         }
         if (allowClick) {
           const w = this.camera.screenToWorld(p.x, p.y);
