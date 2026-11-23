@@ -47,7 +47,13 @@ ese modo.
    dan las políticas RLS de `sql/001-saves.sql`. **Nunca** pongas la *service role
    key* en el front.
 
-4. `npm run dev`. En el arranque aparece el modal de acceso (también se puede
+4. En **Authentication → URL Configuration** añade a *Redirect URLs* la URL de
+   Pages (`https://omegamonxdd.github.io/DungeonInvader/**`) y la de desarrollo
+   (`http://localhost:5173/**`, `http://127.0.0.1:5173/**`). Pon como *Site URL*
+   la de Pages. El front envía `emailRedirectTo` con su propia URL al registrar
+   (`AuthService.signUp()`), así que el correo de confirmación vuelve siempre
+   al sitio correcto en vez de al `localhost:3000` por defecto.
+5. `npm run dev`. En el arranque aparece el modal de acceso (también se puede
    continuar como invitado).
 
 Sin esas variables: modo local, sin errores y sin dependencia de red.

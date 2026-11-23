@@ -16,6 +16,14 @@ const asUser = raw => ({
   guest: Boolean(raw?.guest),
 });
 
+/** URL base absoluta de la app, tanto en local como bajo /DungeonInvader/.
+ *  Se usa como destino del enlace de confirmación de Supabase Auth. */
+function appUrl() {
+  if (typeof window === 'undefined' || !window.location?.href) return undefined;
+  try { return new URL('.', window.location.href).href; }
+  catch { return undefined; }
+}
+
 export class AuthService {
   constructor() {
     this.client = null;
@@ -82,7 +90,13 @@ export class AuthService {
 
   async signUp(email, password) {
     if (!this.client) return { user: null, error: 'Supabase no está configurado en este navegador.' };
-    const { data, error } = await this.client.auth.signUp({ email, password });
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      // Sin esto, Supabase usa su Site URL (http://localhost:3000 por
+      // defecto) y la confirmación de email nunca vuelve a la página real.
+      options: { emailRedirectTo: appUrl() },
+    });
     if (error) return { user: null, error: error.message };
     // Con confirmación de email, `session` viene null: no cambiamos de usuario
     // hasta que Supabase emita el evento SIGNED_IN.
