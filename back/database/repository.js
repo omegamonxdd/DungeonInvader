@@ -94,6 +94,45 @@ export class SaveRepository {
     return this.loadRemote(userId, CHECKPOINT_SLOT);
   }
 
+  /* ---------- Rivales de invasión (RPC de solo lectura) ------------------ */
+
+  async listOpponents() {
+    if (!this.client) return [];
+    try {
+      const { data, error } = await this.client.rpc('list_invasion_targets');
+      if (error) throw error;
+      return (data || []).map(row => ({
+        id: row.user_id,
+        name: row.display_name || 'Jugador',
+        updatedAt: row.updated_at || null,
+      }));
+    } catch (err) {
+      console.warn('[database] No se pudo listar rivales:', err);
+      return [];
+    }
+  }
+
+  _rpcSnapshot(rpc, userId) {
+    if (!this.client || !userId) return Promise.resolve(null);
+    return this.client.rpc(rpc, { p_user_id: userId })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (!data) return null;
+        const raw = typeof data === 'string' ? JSON.parse(data) : data;
+        return normalizeSnapshot(raw);
+      })
+      .catch(err => {
+        console.warn(`[database] No se pudo leer ${rpc}:`, err);
+        return null;
+      });
+  }
+
+  loadOpponentBase(userId) { return this._rpcSnapshot('get_invasion_target_state', userId); }
+
+  loadOpponentCheckpoint(userId) {
+    return this._rpcSnapshot('get_invasion_target_checkpoint', userId);
+  }
+
   async deleteRemote(userId, slot = DEFAULT_SLOT) {
     if (!this.client || !userId || String(userId).startsWith('guest:')) return false;
     const { error } = await this.client

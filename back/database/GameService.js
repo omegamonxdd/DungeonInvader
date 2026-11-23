@@ -215,6 +215,12 @@ export class GameService {
     return this.repository.loadCheckpoint(userId);
   }
 
+  /* ---------- Rivales de invasión --------------------------------------- */
+
+  listOpponents() { return this.repository.listOpponents(); }
+  loadOpponentBase(userId) { return this.repository.loadOpponentBase(userId); }
+  loadOpponentCheckpoint(userId) { return this.repository.loadOpponentCheckpoint(userId); }
+
   async upload(snapshot, userId) {
     const result = await this.repository.saveRemote(userId, snapshot);
     if (result.ok) {
