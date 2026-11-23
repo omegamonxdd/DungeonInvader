@@ -687,9 +687,11 @@ un **fuego azul** y el número se aclara para seguir siendo legible.
   Esc = deseleccionar. Las crías no se seleccionan.
 - **Pathfinding**: Dijkstra en 8 direcciones sin cortar esquinas;
   `walkable()` respeta estructuras, atravesables y escombros.
-- **Estructura destruida** → escombros, casillas transitables y saqueo del 25 %
-  (`BALANCE.invasion.botinFraccion`) de lo almacenado/producido, sumado a tus
-  almacenes reales. El importe robable de la base queda indicado en el panel.
+- **Estructura destruida** → escombros, casillas transitables y saqueo del **25 %
+  de los almacenes** y del **50 % de talleres/minas**
+  (`BALANCE.invasion.botinAlmacenes` / `botinProductores`), sumado a tus
+  almacenes reales. El invadido solo pierde lo robado y conserva el resto.
+  El importe robable de la base queda indicado en el panel de invasión.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
 
 ### 11.1 Invasión contra otro jugador

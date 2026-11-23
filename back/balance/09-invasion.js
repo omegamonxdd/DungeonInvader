@@ -19,7 +19,9 @@ export const invasion = {
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
   ejercitoPrueba: { esqueleto: 1, slime: 0 },
 
-  // Botín al destruir un almacén o un productor: solo una cuarta parte de
-  // lo guardado/producido pasa al atacante; el resto se pierde con el edificio.
-  botinFraccion: 0.25,
+  // Botín al destruir una estructura: el atacante se lleva el 25 % de los
+  // almacenes y el 50 % de lo producido por talleres/minas. El dueño conserva
+  // el resto: solo pierde lo que efectivamente se roban.
+  botinAlmacenes: 0.25,
+  botinProductores: 0.5,
 };

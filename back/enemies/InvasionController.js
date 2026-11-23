@@ -93,7 +93,8 @@ export class InvasionController {
 
   get over() { return this.phase === 'won' || this.phase === 'lost'; }
 
-  get lootRate() { return BALANCE.invasion.botinFraccion ?? 1; }
+  get vaultLootRate() { return BALANCE.invasion.botinAlmacenes ?? 0.25; }
+  get producerLootRate() { return BALANCE.invasion.botinProductores ?? 0.5; }
 
   troopDef(id) { return BALANCE.tropas.tipos[id]; }
 
@@ -106,13 +107,13 @@ export class InvasionController {
     if (def.kind === 'vault') {
       return {
         resource: def.resource || 'coins',
-        amount: Math.max(0, Math.floor((def.stored || 0) * this.lootRate)),
+        amount: Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate)),
       };
     }
     if (spec?.producer) {
       return {
         resource: spec.producer.resource,
-        amount: Math.max(0, Math.floor((def.pending || 0) * this.lootRate)),
+        amount: Math.max(0, Math.floor((def.pending || 0) * this.producerLootRate)),
       };
     }
     return { resource: null, amount: 0 };
@@ -767,20 +768,20 @@ export class InvasionController {
       this.finish('won', 'El núcleo ha caído');
       return;
     }
-    // Saqueo: solo se roba `botinFraccion` (25 %) de lo guardado/producido.
-    // La simulación no toca la base real salvo este botín.
+    // Saqueo: 25 % de los almacenes y 50 % de talleres/minas. El defensor
+    // conserva el resto: solo pierde lo que el atacante se lleva.
     if (this.resources) {
       const spec = specFor(def);
-      const takeFraction = (resource, current) => {
-        const loot = Math.max(0, Math.floor((current || 0) * this.lootRate));
+      const takeFraction = (resource, current, rate) => {
+        const loot = Math.max(0, Math.floor((current || 0) * rate));
         if (loot > 0) this.resources.add(resource, loot);
         return Math.max(0, (current || 0) - loot);
       };
       if (def.kind === 'vault') {
-        def.stored = takeFraction(def.resource || 'coins', def.stored);
+        def.stored = takeFraction(def.resource || 'coins', def.stored, this.vaultLootRate);
       }
       if (spec?.producer && def.pending) {
-        def.pending = takeFraction(spec.producer.resource, def.pending);
+        def.pending = takeFraction(spec.producer.resource, def.pending, this.producerLootRate);
         def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
       }
     }
