@@ -975,8 +975,21 @@ export class InterfaceController {
       const storageAt = l => levelRow(BALANCE.nucleo.niveles, l)?.storage ?? 0;
       const digAt = l => BALANCE.nucleo.limiteExcavacion[l] || BALANCE.nucleo.limiteExcavacion[1];
       add(this.statHp(hpAt, lvl, maxLvl));
-      add({ icon: 'coin', label: 'Capacidad de monedas', value: storageAt(lvl), color: 'var(--gold)', at: storageAt });
-      add({ icon: 'crystal', label: 'Capacidad de cristales', value: storageAt(lvl), color: 'var(--crystal)', at: storageAt });
+      const cap = storageAt(lvl);
+      const storedCoins = Math.floor(sel.stored || 0);
+      const storedCrystals = Math.floor(sel.storedCrystals || 0);
+      add({
+        icon: 'coin', label: 'Capacidad de monedas',
+        value: `${this.fmtNumber(storedCoins)}/${this.fmtNumber(cap)}`,
+        color: 'var(--gold)',
+        pct: cap > 0 ? Math.min(100, (storedCoins / cap) * 100) : 0,
+      });
+      add({
+        icon: 'crystal', label: 'Capacidad de cristales',
+        value: `${this.fmtNumber(storedCrystals)}/${this.fmtNumber(cap)}`,
+        color: 'var(--crystal)',
+        pct: cap > 0 ? Math.min(100, (storedCrystals / cap) * 100) : 0,
+      });
       add({ icon: 'pick', label: 'Límite de excavación', value: digAt(lvl), color: 'var(--stone-hi)', at: digAt });
       return stats;
     }
