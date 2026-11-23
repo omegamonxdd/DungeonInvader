@@ -26,12 +26,16 @@ ese modo.
 | `GameService.js` | Orquestador: arranque, autoguardado, cambios de usuario |
 | `AuthUI.js` | Modal de acceso y chip de estado del guardado |
 | `schema.sql` | Tablas, índices, trigger de `updated_at` y políticas RLS |
+| `sql/002-invasion-targets.sql` | RPC de solo lectura para invadir bases ajenas |
 | `index.js` | API pública del módulo |
 
 ## Puesta en marcha con Supabase
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ejecuta `schema.sql` en el SQL Editor.
+2. Ejecuta `schema.sql` en el SQL Editor. Para habilitar la invasión contra
+   otros jugadores ejecuta también `sql/002-invasion-targets.sql` (tres RPC
+   `security definer` que solo leen la lista de rivales, su guardado `main` y su
+   checkpoint; no relajan las políticas RLS de `saves`).
 3. Copia `.env.example` a `.env` y rellena:
 
    ```env
@@ -76,6 +80,17 @@ alterar la simulación.
 - `schema_version` viaja en la fila y `migrations.js` aplica los pasos en
   orden. Para cambiar el formato: sube `SNAPSHOT_VERSION` y añade una entrada
   en `MIGRATIONS`.
+
+## Checkpoint de camino válido e invasiones
+
+Cada autoguardado con el núcleo alcanzable (`terrain.pathValid` y
+`snapshotHasPath()`) se duplica en la ranura auxiliar `checkpoint:main`:
+`localStorage` (`dungeon-build:checkpoint:*`) y tabla `saves` del usuario.
+Cuando se va a invadir una base cuyo guardado tiene el camino bloqueado, se
+carga ese checkpoint en su lugar; si no hay ninguno válido, la invasión se
+cancela. `GameService` mantiene `invasionPreparing` en `true` mientras se
+descarga la base prestada para que ningún autoguardado escriba el snapshot del
+rival como progreso propio. Ver `../enemies/invasionBase.js`.
 
 ## Resolución de conflictos
 

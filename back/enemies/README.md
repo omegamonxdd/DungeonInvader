@@ -8,6 +8,7 @@
 | `Projectile.js` | Saeta con seguimiento y arco `sin(πk)`; también tiro balístico sin seguimiento para la catapulta |
 | `Defender.js` | Guardias de estandarte, trampas y defensores por niveles |
 | `InvasionController.js` | Reloj `prep → batalla`, cola y oleadas, bajas, `siege`, victoria/derrota, selección RTS y disparo de ballestas |
+| `invasionBase.js` | Copia de la base de un rival: congela obras, aplica su snapshot sin tocar recursos/ejército propios y restaura la base del atacante al terminar |
 
 La catapulta dispara como un mortero: fija un punto de suelo al lanzar (con
 dispersión y `missChance` del balance), no persigue a la tropa y solo hace daño
@@ -17,3 +18,11 @@ origen del proyectil es la boca del modelo vía `systems/muzzle.js`.
 Todo el daño se escribe en `invasion.siege`, nunca en `state.hp`: al terminar la
 simulación la base vuelve intacta. La UI del panel de invasión está en `../ui/`
 y los estilos en `front/css/invasion/`.
+
+Al invadir a otro jugador se monta su base en la escena durante la simulación.
+Las estructuras en obras se toman sin cronómetro (`work: null` +
+`frozenUpgrade`), así que `pausedByWork()` sigue manteniéndolas inactivas pero
+`WorkController.step()` no puede completar la mejora. Si el guardado del rival
+tiene el camino al núcleo bloqueado se usa su checkpoint; sin copia válida la
+invasión se cancela. Al terminar se reaplica el snapshot propio. Más detalle en
+`Readme.md` (§11.1) y en `../database/README.md`.

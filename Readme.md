@@ -666,7 +666,11 @@ un **fuego azul** y el número se aclara para seguir siendo legible.
 
 ## 11. Modo invasión
 
-- Botón "Invasión" (abajo izquierda, atajo Q). Bloqueado si no hay camino válido.
+- Botón "Invasión" (abajo izquierda, atajo Q). Bloqueado si no hay camino válido en la base que se va a invadir.
+- Con sesión iniciada y Supabase configurado se abre **Elegir rival**: se ataca
+  una copia de la base del jugador elegido, no la propia. Sin sesión (invitado)
+  o sin nube se conserva la simulación de siempre sobre la base propia.
+  Ver [§11.1](#111-invasión-contra-otro-jugador).
 - **Cronómetro**: 30 s de preparación; al desplegar la primera tropa (o al
   acabarse) empiezan 300 s de combate. Derrota por tiempo o por quedarse sin
   tropas. **Victoria** al destruir el núcleo.
@@ -686,6 +690,37 @@ un **fuego azul** y el número se aclara para seguir siendo legible.
 - **Estructura destruida** → escombros, casillas transitables y saqueo del 100 %
   de lo almacenado/producido, sumado a tus almacenes reales.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
+
+### 11.1 Invasión contra otro jugador
+
+Trabajo en la rama `feat/invasion-multijugador` (aún no en `main`).
+
+**Puesta en marcha:** además de `schema.sql`, ejecutar en el SQL Editor de
+Supabase [`back/database/sql/002-invasion-targets.sql`](back/database/sql/002-invasion-targets.sql).
+Crea tres RPC de solo lectura (`security definer`, solo para `authenticated`)
+para listar rivales y leer su base sin relajar las políticas RLS de `saves`.
+Si no se ejecuta, el selector aparece vacío y queda la opción "Simular en mi base".
+
+**Ciclo al invadir a un rival:**
+
+1. Se captura un snapshot de tu base real (con sus obras y temporizadores).
+2. Se lee el guardado `main` del rival. Si su camino al núcleo está bloqueado,
+   se usa automáticamente su ranura `checkpoint:main` (último guardado con el
+   camino libre). Si no existe ninguna copia válida, la invasión se cancela con
+   un aviso: nunca se monta un ataque imposible.
+3. La copia se aplica a la escena **sin tocar tus recursos ni tu ejército**.
+   Toda estructura en obras se "toma": se le elimina el cronómetro (`work`) y
+   se marca `frozenUpgrade`, de modo que conserva su nivel actual y sigue
+   inactiva como una obra en curso, pero la mejora jamás termina durante la
+   invasión (`WorkController.step()` no ve trabajo que completar).
+4. Al terminar (victoria, derrota o cancelación) se vuelve a aplicar tu
+   snapshot: tus edificios, niveles, obras y tiempos reales regresan y los
+   guardados pospuestos se escriben ya con tu base de vuelta.
+
+El checkpoint se actualiza en cada autoguardado en que el núcleo es alcanzable,
+tanto en `localStorage` como en la ranura `checkpoint:main` de Supabase. Así, un
+jugador que cierra el juego con el camino bloqueado sigue siendo invadible usando
+su última base válida.
 
 ---
 
