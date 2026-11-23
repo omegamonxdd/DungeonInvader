@@ -17,7 +17,7 @@ export const invasion = {
   rally: { x: 38.5, y: 20.5 },
 
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
-  ejercitoPrueba: { esqueleto: 1, slime: 0 },
+  ejercitoPrueba: { esqueleto: 0, slime: 0 },
 
   // Botín al destruir una estructura: el atacante se lleva el 25 % de los
   // almacenes y el 50 % de lo producido por talleres/minas. El dueño conserva
