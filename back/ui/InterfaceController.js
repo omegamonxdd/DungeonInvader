@@ -100,6 +100,7 @@ export class InterfaceController {
       invasionBtn: byId('invasion-btn'), invasionBtnLabel: byId('invasion-btn-label'),
       invasionPanel: byId('invasion-panel'),
       invasionItems: byId('invasion-items'), invasionStatus: byId('invasion-status'),
+      lootCoins: byId('loot-coins'), lootCrystals: byId('loot-crystals'),
       timer: byId('invasion-timer'), timerLabel: document.querySelector('#invasion-timer .it-label'),
       timerTime: document.querySelector('#invasion-timer .it-time'),
       victory: byId('victory-banner'), victoryBack: byId('victory-back'),
@@ -126,6 +127,7 @@ export class InterfaceController {
     this.syncResources();
     this.syncBuilders();
     this.invasionClockKey = '';
+    this.lootKey = '';
     this.rivalPickerOpen = false;
     this.rivals = [];
     this.renderInvasionItems();
@@ -1212,6 +1214,17 @@ export class InterfaceController {
     this.els.invasionItems.replaceChildren(frag);
   }
 
+  /** Botín aún robable en la base invadida (25 % de almacenes/producción). */
+  syncLoot(loot) {
+    const coins = Math.max(0, Math.floor(loot?.coins || 0));
+    const crystals = Math.max(0, Math.floor(loot?.crystals || 0));
+    const key = `${coins}|${crystals}`;
+    if (key === this.lootKey) return;
+    this.lootKey = key;
+    if (this.els.lootCoins) this.els.lootCoins.textContent = coins.toLocaleString('es-ES');
+    if (this.els.lootCrystals) this.els.lootCrystals.textContent = crystals.toLocaleString('es-ES');
+  }
+
   syncInvasion(inv) {
     document.body.classList.toggle('invading', inv.active);
     // Se actualiza solo la etiqueta: así el recuadro del atajo (key-hint)
@@ -1234,6 +1247,7 @@ export class InterfaceController {
       }
       this.els.victory.classList.remove('show', 'defeat');
       this.invClockKey = '';
+      this.syncLoot(null);
       this.renderInvasionItems();
       return;
     }
@@ -1267,6 +1281,7 @@ export class InterfaceController {
       ? `Invadiendo a ${inv.opponent.name} · ` : '';
     this.els.invasionStatus.textContent =
       `${rival}Seleccionadas ${selected} · En campo ${inv.inField()} · Bajas ${dead}`;
+    this.syncLoot(inv.availableLoot?.());
   }
 
   showEnd({ kind, sub }) {

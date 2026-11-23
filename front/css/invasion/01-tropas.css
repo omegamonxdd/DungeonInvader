@@ -21,22 +21,28 @@
 #summon-head, #invasion-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 0 4px; color: var(--txt-gold); font: 600 var(--fs-md)/1.2 var(--font); }
 #summon-head .grow, #invasion-head .grow { flex: 1; }
 #summon-space, #invasion-status { color: var(--txt); }
-/* Panel de invasión: columna vertical pegada al borde derecho y centrada en altura */
+/* Panel de invasión: barra inferior ancha y baja; las tropas van en fila. */
 #invasion-panel {
-  left: auto; right: 22px; top: 50%; bottom: auto;
-  width: var(--w-invasion); max-height: calc(100vh - 40px);
+  left: 50%; right: auto; top: auto; bottom: 12px;
+  width: calc(100vw - 24px); max-width: none; max-height: 172px;
   display: flex; flex-direction: column;
-  transform: translate(calc(100% + 50px), -50%);
+  transform: translate(-50%, calc(100% + 50px));
 }
-#invasion-panel.open { transform: translate(0, -50%); }
-#invasion-head { flex-wrap: wrap; gap: 8px 8px; }
-#invasion-head > span:first-child { flex: 1; min-width: 0; }
-#invasion-head .grow { display: none; }
-#invasion-status { order: 3; flex: 1 0 100%; font-size: var(--fs-xs); }
-#invasion-items { flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+#invasion-panel.open { transform: translate(-50%, 0); }
+#invasion-head { flex-wrap: nowrap; gap: 10px; margin-bottom: 8px; }
+#invasion-head > span:first-child { flex: 0 0 auto; }
+#invasion-head .grow { display: block; }
+#invasion-status {
+  order: 0; flex: 0 1 auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs);
+}
 #summon-close { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; }
 #summon-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 3; }
 #summon-items, #invasion-items { display: flex; align-items: center; gap: 14px; min-height: 92px; padding: 10px; overflow-x: auto; }
+#invasion-items {
+  align-items: stretch; gap: 10px; min-height: 72px; max-height: 96px;
+  padding: 8px 10px; overflow-x: auto; overflow-y: hidden;
+}
 #invasion-select-all {
   --bg: var(--stone); --hi: var(--stone-hi); --lo: var(--stone-lo); --bg-h: var(--stone-h); --hi-h: var(--stone-hi-h);
   flex: 0 0 auto; box-sizing: border-box; width: 100%; margin-top: 10px; padding: 10px 8px;
@@ -48,8 +54,29 @@
 #invasion-select-all:hover { background: var(--bg-h); box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--hi-h), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--lo); }
 #invasion-select-all:active { box-shadow: var(--outline), inset var(--px) var(--px) 0 0 var(--lo), inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 var(--hi); }
 #invasion-select-all:focus-visible { outline: var(--focus-w) solid var(--white); outline-offset: var(--focus-offset); }
-#invasion-hint { margin: 10px 4px 0; color: var(--txt-dim); font: 400 var(--fs-xs)/1.35 var(--font); }
+#invasion-hint { margin: 6px 4px 0; color: var(--txt-dim); font: 400 var(--fs-xs)/1.35 var(--font); }
 #invasion-hint b { color: var(--txt-gold); font-weight: 600; }
+
+/* Botín disponible en la base invadida (25 % de almacenes y producción). */
+#invasion-loot {
+  display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 3px;
+  margin-left: 6px; text-align: right;
+}
+#invasion-loot .il-label {
+  color: var(--txt-dim); font: 500 var(--fs-xs)/1 var(--font); white-space: nowrap;
+}
+#invasion-loot .il-values { display: flex; gap: 12px; }
+#invasion-loot .il-row {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--txt-gold); font: 700 var(--fs-sm)/1 var(--font);
+  font-variant-numeric: tabular-nums;
+}
+#invasion-loot .il-row i {
+  display: inline-block; width: 9px; height: 9px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+#invasion-loot .il-coins i { background: var(--gold); }
+#invasion-loot .il-crystals i { background: var(--crystal); }
 #select-box {
   position: fixed; z-index: 2; display: none; pointer-events: none; box-sizing: border-box;
   border: 2px solid var(--txt-gold); border-radius: 0; background: var(--select-bg);

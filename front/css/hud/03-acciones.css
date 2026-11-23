@@ -8,6 +8,9 @@
   font: 600 var(--fs-lg)/1 var(--font);
 }
 #invasion-btn { right: auto; left: 24px; }
+/* Con la barra de invasión pegada abajo, el botón "Terminar invasión" se
+   levanta para no quedar cubierto ni pegado a la tropa. */
+body.invading #invasion-btn { bottom: 196px; }
 body.invading #build-btn { display: none; }
 
 /* Disposición en tres columnas: herramientas (izq.) · edificios (centro) · etiquetas (der.) */
