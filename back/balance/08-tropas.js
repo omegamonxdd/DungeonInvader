@@ -67,8 +67,8 @@ export const tropas = {
       speed: 2.6, interval: 1.3, range: 0.9,
       danoPorCria: 50,
       niveles: {
-        1: { hp: 900,  dps: 12, babies: 10 },
-        2: { hp: 1000, dps: 15, babies: 14 },
+        1: { hp: 800,  dps: 12, babies: 11 },
+        2: { hp: 900, dps: 15, babies: 14 },
       },
     },
     'arana-bebe': {

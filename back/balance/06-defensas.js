@@ -12,11 +12,11 @@ export const defensas = {
   muerteMs: 550,
 
   ballista: {
-    size: 2, height: 28, boltHeight: 26, maxNivel: 3,
+    size: 2, height: 28, boltHeight: 26, maxNivel: 4,
     cooldown: 1.5,
-    ranges: { 1: 4, 2: 4, 3: 4.2 },
-    hp:  { 1: 500, 2: 550, 3: 580 },
-    dps: { 1: 6,   2: 8,   3: 9 },
+    ranges: { 1: 4, 2: 4, 3: 4.2, 4: 4.2 },
+    hp:  { 1: 500, 2: 550, 3: 580, 4: 600 },
+    dps: { 1: 6,   2: 8,   3: 9,   4: 10 },
   },
   turret: {
     size: 2, height: 34, boltHeight: 28, maxNivel: 4,
@@ -24,11 +24,11 @@ export const defensas = {
     dartSpeed: 19,
     ranges: { 1: 6.7, 2: 6.75, 3: 6.8, 4: 6.85 },
     hp:  { 1: 420, 2: 470, 3: 520, 4: 580 },
-    dps: { 1: 8,   2: 10,  3: 12,  4: 16 },
+    dps: { 1: 8,   2: 10,  3: 12,  4: 14 },
   },
   catapult: {
     size: 2, height: 34, boltHeight: 30, maxNivel: 2,
-    cooldown: 3,
+    cooldown: 4,
     range: { min: 4, max: 10 },
     splash: 0.6,
     stoneSpeed: 9,
@@ -38,6 +38,6 @@ export const defensas = {
     accuracy: 0.55,     // radio máximo de dispersión (casillas)
     missChance: 0.18,   // probabilidad de un lanzamiento desviado
     hp:  { 1: 750, 2: 800 },
-    dps: { 1: 8,   2: 10 },
+    dps: { 1: 7,   2: 8 },
   },
 };
