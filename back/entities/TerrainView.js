@@ -11,6 +11,13 @@ import {
  * Las caras laterales solo se dibujan si el vecino es más bajo, igual que
  * en el render legacy.
  */
+
+// Los bloques elevados (tierra/núcleo) se adelantan dentro de su diagonal para
+// que tapen el suelo de un edificio situado justo detrás. Debe ser mayor que
+// cualquier capa interna del edificio (+0.05 como máximo) y menor que su
+// etiqueta de recursos (+0.2).
+const BLOCK_DEPTH_BIAS = 0.1;
+
 export class TerrainView {
   constructor(scene, map) {
     this.scene = scene;
@@ -26,7 +33,7 @@ export class TerrainView {
       const p = iso(x, y);
       return this.scene.add.image(p.x, p.y, key)
         .setOrigin(originX, originY)
-        .setDepth(x + y);
+        .setDepth(this.depthFor(x, y));
     };
 
     for (let y = 0; y < size; y++) {
@@ -56,11 +63,19 @@ export class TerrainView {
       this.tiles[cy * size + cx]
         .setTexture(this.textureFor(cx, cy))
         .setPosition(p.x, p.y)
-        .setOrigin(originX, originY);
+        .setOrigin(originX, originY)
+        .setDepth(this.depthFor(cx, cy));
     };
     update(x, y);
     update(x, y - 1);
     update(x - 1, y);
+  }
+
+  depthFor(x, y) {
+    const size = this.map.length;
+    if (x < 0 || y < 0 || x >= size || y >= size) return x + y;
+    const raised = HEIGHTS[this.map[y][x]] > 0;
+    return x + y + (raised ? BLOCK_DEPTH_BIAS : 0);
   }
 
   faceMask(x, y, height) {
