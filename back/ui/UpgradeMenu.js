@@ -133,8 +133,9 @@ export class UpgradeMenu {
     const lab = this.structures.find(d => d.kind === 'lab' && d.placed) || null;
     const troops = [];
     if (lab && this.army?.labLevel?.()) {
-      for (const [id, def] of Object.entries(BALANCE.tropas.tipos)) {
-        if (def.source === 'summoned' || !this.army.unlocked(id) || !this.army.counts[id]) continue;
+      for (const id of this.army.mutableTypes()) {
+        const def = BALANCE.tropas.tipos[id];
+        if (!this.army.unlocked(id) || !this.army.counts[id]) continue;
         const from = this.army.levelOf(id);
         if (from >= (def.maxNivel || 1)) continue;
         const req = this.army.labRequired(id, from + 1);

@@ -11,6 +11,24 @@ import { BALANCE, levelRow, tropaAt, troopDamageAt } from '../balance/index.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 
 const T = BALANCE.tropas;
+const TROOP_IDS = Object.keys(T.tipos || {});
+
+// Orden fijo para las listas de mutación: primero las tropas de la grieta y
+// después las de la incubadora, y dentro de cada grupo por nivel de desbloqueo.
+// No depende del orden de la tabla de balance ni del orden en que se añadieron
+// las tropas al ejército, así que sigue valiendo si entran más tropas de grieta.
+const SOURCE_RANK = { rift: 0, incubator: 1 };
+
+export function sortTroopIds(ids) {
+  return [...ids].sort((a, b) => {
+    const da = T.tipos[a] || {};
+    const db = T.tipos[b] || {};
+    const bySource = (SOURCE_RANK[da.source] ?? 2) - (SOURCE_RANK[db.source] ?? 2);
+    if (bySource) return bySource;
+    const byUnlock = (da.minNivel || 1) - (db.minNivel || 1);
+    return byUnlock || TROOP_IDS.indexOf(a) - TROOP_IDS.indexOf(b);
+  });
+}
 
 export class Army {
   constructor(deps = {}) {
@@ -59,6 +77,12 @@ export class Army {
       if (source && def.source !== source) return false;
       return this.unlocked(id);
     });
+  }
+
+  // Ids mutables (nunca invocaciones como las arañas bebé) en el orden que
+  // deben mostrar el laboratorio y el panel de mejoras.
+  mutableTypes() {
+    return sortTroopIds(TROOP_IDS.filter(id => T.tipos[id]?.source !== 'summoned'));
   }
 
   canAdd(id) {

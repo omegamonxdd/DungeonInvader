@@ -759,7 +759,7 @@ export class InterfaceController {
 
     if (mode === 'mutate') {
       this.els.summonSpace.textContent = `Laboratorio nivel ${this.army.labLevel()}`;
-      const ids = Object.keys(this.army.counts).filter(id => BALANCE.tropas.tipos[id]);
+      const ids = this.army.mutableTypes().filter(id => id in this.army.counts);
       if (!ids.length) {
         const empty = document.createElement('div');
         empty.className = 'summon-empty';
