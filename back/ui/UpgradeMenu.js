@@ -135,7 +135,7 @@ export class UpgradeMenu {
     if (lab && this.army?.labLevel?.()) {
       for (const id of this.army.mutableTypes()) {
         const def = BALANCE.tropas.tipos[id];
-        if (!this.army.unlocked(id) || !this.army.counts[id]) continue;
+        if (!this.army.unlocked(id)) continue;
         const from = this.army.levelOf(id);
         if (from >= (def.maxNivel || 1)) continue;
         const req = this.army.labRequired(id, from + 1);

@@ -123,7 +123,12 @@ export class Army {
   canMutate(id) {
     const def = T.tipos[id];
     if (!def) return 'Tropa desconocida';
-    if (!this.counts[id]) return 'No tienes esa tropa';
+    if (!this.unlocked(id)) {
+      const building = def.source === 'incubator' ? 'incubadora' : 'grieta';
+      return `Necesitas ${building} nivel ${def.minNivel}`;
+    }
+    // No hace falta tener una copia: en el legacy la mutación sube el nivel de
+    // todo el tipo en cuanto se desbloquea, antes de invocar/criar la primera.
     const to = this.levelOf(id) + 1;
     if (to > (def.maxNivel || 1)) return 'Nivel máximo';
     const need = this.labRequired(id, to);
