@@ -932,6 +932,8 @@ export class InterfaceController {
 
   syncResources() {
     if (!this.resources) return;
+    const borrowed = Boolean(this.invasion?.active || this.invasion?.baseSwap);
+    if (!borrowed) this.resources.clampToCapacity(this.coreLevel, this.structures);
     const liveCaps = {
       coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
       crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
@@ -940,7 +942,6 @@ export class InterfaceController {
       coins: this.resourceTotal('coins'),
       crystals: this.resourceTotal('crystals'),
     };
-    const borrowed = Boolean(this.invasion?.active || this.invasion?.baseSwap);
     if (!borrowed) {
       this.ownResourceTotals = { ...liveTotals };
       this.ownResourceCaps = { ...liveCaps };

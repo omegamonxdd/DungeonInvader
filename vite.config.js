@@ -1,6 +1,21 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
 
+const appVersion = Date.now().toString();
+
+function versionFilePlugin(version) {
+  return {
+    name: 'version-file',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ version }),
+      });
+    },
+  };
+}
+
 // Estructura del proyecto (todo arranca desde la raíz):
 //   index.html  entrada de Vite (raíz)
 //   front/      todo lo visual: HTML de apoyo, CSS, fuentes y sprites
@@ -13,6 +28,10 @@ export default defineConfig({
   // el mismo build funciona en la raíz local, en `vite preview` y en Pages.
   base: './',
   publicDir: 'public',
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
+  plugins: [versionFilePlugin(appVersion)],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./back', import.meta.url)),

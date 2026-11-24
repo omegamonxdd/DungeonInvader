@@ -41,6 +41,9 @@ export class GameService {
     this.savedAt = null;
     this.listeners = new Set();
     this.sessionLocked = false;
+    this.appVersion = typeof __APP_VERSION__ !== 'undefined' ? String(__APP_VERSION__) : 'dev';
+    this.updateRequired = false;
+    this._versionTimer = null;
     this.sessionLock = new SessionLock({
       onLock: () => {
         this.sessionLocked = true;
@@ -95,6 +98,35 @@ export class GameService {
     this._emit();
   }
 
+  /* ---------- Control de versión -------------------------------------- */
+
+  isOutdated(serverVersion) {
+    return Boolean(serverVersion) && String(serverVersion) !== this.appVersion;
+  }
+
+  async checkVersion({ forceReload = false, notify = false } = {}) {
+    if (import.meta.env.DEV || this.updateRequired) return false;
+    try {
+      const base = import.meta.env.BASE_URL || './';
+      const url = new URL('version.json', window.location.href);
+      // Respeta BASE_URL en despliegues bajo subruta.
+      const baseUrl = new URL(base, window.location.href);
+      const versionUrl = new URL('version.json', baseUrl);
+      const res = await fetch(versionUrl.href || url.href, { cache: 'no-store' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const serverVersion = String(data?.version || '');
+      if (!this.isOutdated(serverVersion)) return false;
+      this.updateRequired = true;
+      this.ctx?.ui?.showToast?.('Nueva versión disponible. Recargando...');
+      if (forceReload) setTimeout(() => window.location.reload(), 250);
+      else if (notify) this.ctx?.ui?.showToast?.('Hay una nueva versión. Recarga la página.');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /* ---------- Arranque -------------------------------------------------- */
 
   attach(ctx) {
@@ -134,10 +166,15 @@ export class GameService {
 
     this._onAuthUnsub = this.auth.onChange(user => this.handleAuthChange(user));
     this._timer = setInterval(() => this.tick(), AUTOSAVE_MS);
+    this._versionTimer = setInterval(() => this.checkVersion({ forceReload: true }), 60000);
     window.addEventListener('pagehide', this._boundPageHide);
     window.addEventListener('beforeunload', this._boundPageHide);
     document.addEventListener('visibilitychange', this._boundVisibility);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.checkVersion({ forceReload: true });
+    });
 
+    this.checkVersion({ forceReload: true });
     this._setStatus(this.repository.remoteEnabled ? 'saved' : 'offline');
   }
 
@@ -231,6 +268,7 @@ export class GameService {
 
   async save({ force = false, sync = true, ownerId = null } = {}) {
     if (!this.ctx || !this.started || this.sessionLocked) return false;
+    if (await this.checkVersion({ forceReload: true })) return false;
     if (this.invasionActive()) {
       this.pendingSave = true;
       return false;
@@ -364,6 +402,7 @@ export class GameService {
   dispose() {
     this.sessionLock.dispose();
     clearInterval(this._timer);
+    clearInterval(this._versionTimer);
     clearTimeout(this._debounce);
     this._onAuthUnsub?.();
     this.auth.dispose();

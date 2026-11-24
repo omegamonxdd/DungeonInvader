@@ -254,6 +254,7 @@ export class MainScene extends Phaser.Scene {
         if (this.editor?.active) this.upgrades?.setOpen(false);
         this.ui.refreshTerrainUI();
         this.ui.refreshBuildItems();
+        this.ui.syncResources();
         this.ui.syncScene();
         this.saveService?.markDirty();
       },

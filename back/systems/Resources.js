@@ -72,6 +72,21 @@ export class Resources {
     return core + vaults;
   }
 
+  /** Elimina el excedente cuando el total supera la capacidad de almacenes. */
+  clampToCapacity(coreLevel = this.getCoreLevel(), structures = this.structures) {
+    if (devResources() !== null || !this.structures.length) return false;
+    let changed = false;
+    for (const kind of RESOURCES) {
+      const cap = this.capacity(coreLevel, structures, kind);
+      const total = this.get(kind);
+      if (total > cap) {
+        this._withdraw(kind, total - cap);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   canAfford(cost) {
     if (devResources() !== null) return true;
     return (cost?.coins || 0) <= this.get('coins')
