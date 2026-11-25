@@ -71,6 +71,7 @@ export class AuthService {
   /** Restaura la sesión persistida. Llamar una sola vez al arrancar. */
   async restore() {
     this.client = await getSupabase();
+    this.recoveryPending = false;
     if (this.client) {
       try {
         const { data } = await this.client.auth.getSession();
@@ -83,6 +84,7 @@ export class AuthService {
           if (session?.user) this._set(session.user);
           else this._set({ guest: true });
           if (event === 'PASSWORD_RECOVERY') {
+            this.recoveryPending = true;
             for (const cb of this.recoveryListeners) {
               try { cb(session?.user); } catch (err) { console.warn('[auth] recovery listener falló:', err); }
             }
@@ -90,6 +92,26 @@ export class AuthService {
         });
         this._authUnsub = data?.subscription || null;
       } catch { /* la suscripción es opcional */ }
+
+      // Detecta flujo de recuperación por URL (hash/query) aunque el evento ya haya disparado.
+      try {
+        const href = typeof window !== 'undefined' ? window.location.href : '';
+        const hash = typeof window !== 'undefined' ? window.location.hash || '' : '';
+        const search = typeof window !== 'undefined' ? window.location.search || '' : '';
+        const isRecovery = /type=recovery/.test(href) || /type=recovery/.test(hash) || /type=recovery/.test(search);
+        if (isRecovery) {
+          this.recoveryPending = true;
+          if (!this.user || this.user.guest) {
+            const { data } = await this.client.auth.getSession();
+            if (data?.session?.user) this._set(data.session.user);
+          }
+          for (const cb of this.recoveryListeners) {
+            try { cb(this.user); } catch (err) { console.warn('[auth] recovery listener falló:', err); }
+          }
+        }
+      } catch (err) {
+        console.warn('[auth] No se pudo detectar recuperación por URL:', err);
+      }
     } else {
       this._set({ guest: true }, true);
     }
@@ -142,6 +164,14 @@ export class AuthService {
     const { data, error } = await this.client.auth.updateUser({ password });
     if (error) return { error: error.message };
     if (data?.user) this._set(data.user);
+    this.recoveryPending = false;
+    // Limpia hash/query de recovery para evitar reabrir el modal al recargar.
+    try {
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        const clean = `${window.location.pathname}${window.location.search}`;
+        window.history.replaceState({}, document.title, clean);
+      }
+    } catch { /* no crítico */ }
     return { error: null };
   }
 

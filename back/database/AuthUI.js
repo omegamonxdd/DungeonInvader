@@ -34,6 +34,8 @@ export class AuthUI {
       password: byId('auth-password'),
       newPasswordField: byId('auth-new-password-field'),
       newPassword: byId('auth-new-password'),
+      confirmPasswordField: byId('auth-confirm-password-field'),
+      confirmPassword: byId('auth-confirm-password'),
       error: byId('auth-error'),
       submit: byId('auth-submit'),
       guest: byId('auth-guest'),
@@ -154,6 +156,8 @@ export class AuthUI {
 
     if (this.els.newPasswordField) this.els.newPasswordField.hidden = !reset;
     if (this.els.newPassword) { this.els.newPassword.required = reset; if (!reset) this.els.newPassword.value = ''; }
+    if (this.els.confirmPasswordField) this.els.confirmPasswordField.hidden = !reset;
+    if (this.els.confirmPassword) { this.els.confirmPassword.required = reset; if (!reset) this.els.confirmPassword.value = ''; }
 
     if (this.els.forgotRow) this.els.forgotRow.hidden = !loginLike;
     if (this.els.guest) this.els.guest.hidden = !loginLike;
@@ -173,6 +177,7 @@ export class AuthUI {
     const password = this.els.password?.value || '';
     const username = this.mode === 'register' ? (this.els.username?.value.trim() || '') : '';
     const newPassword = this.els.newPassword?.value || '';
+    const confirmPassword = this.els.confirmPassword?.value || '';
 
     if (this.mode === 'register' && (!email || !password || !username)) {
       this.setError('Escribe tu nombre de usuario, correo y contraseña.'); return;
@@ -183,8 +188,11 @@ export class AuthUI {
     if (this.mode === 'forgot' && !email) {
       this.setError('Escribe tu correo electrónico.'); return;
     }
-    if (this.mode === 'reset' && !newPassword) {
-      this.setError('Escribe tu nueva contraseña.'); return;
+    if (this.mode === 'reset' && (!newPassword || !confirmPassword)) {
+      this.setError('Escribe y confirma tu nueva contraseña.'); return;
+    }
+    if (this.mode === 'reset' && newPassword !== confirmPassword) {
+      this.setError('Las contraseñas no coinciden.'); return;
     }
 
     this.setError('');
@@ -222,12 +230,15 @@ export class AuthUI {
     this.hide();
   }
 
-  show() {
+  show(mode = 'login') {
     if (!this.els.overlay) return;
     this.els.overlay.hidden = false;
     document.body.classList.add('auth-open');
-    this.setMode('login');
-    requestAnimationFrame(() => this.els.email?.focus());
+    this.setMode(mode);
+    requestAnimationFrame(() => {
+      if (mode === 'reset') this.els.newPassword?.focus();
+      else this.els.email?.focus();
+    });
   }
 
   hide() {
@@ -240,8 +251,14 @@ export class AuthUI {
 
   /** Llamar después de service.start(): oculta el modal si ya hay sesión. */
   ready() {
-    if (!this.service.auth.isGuest) this.hide();
-    else this.show();
+    if (this.service.auth?.recoveryPending) {
+      this.show('reset');
+      this.setError('Enlace verificado. Escribe tu nueva contraseña.');
+    } else if (!this.service.auth.isGuest) {
+      this.hide();
+    } else {
+      this.show();
+    }
     const note = this.service.repository.remoteEnabled
       ? 'Tu progreso se sincronizará con Supabase en este dispositivo.'
       : 'Sin Supabase: el progreso se guarda en este navegador. Añade VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para sincronizar.';
@@ -266,6 +283,7 @@ export class AuthUI {
     if (this.els.login) this.els.login.hidden = !user.guest;
     if (this.els.logout) this.els.logout.hidden = user.guest;
     // Si la sesión se restauró al arrancar, cerramos el modal automáticamente.
-    if (!user.guest && this.els.overlay && !this.els.overlay.hidden) this.hide();
+    // Excepto durante recuperación de contraseña, donde el usuario debe poner nueva clave.
+    if (!user.guest && this.els.overlay && !this.els.overlay.hidden && this.mode !== 'reset' && !this.service.auth?.recoveryPending) this.hide();
   }
 }
