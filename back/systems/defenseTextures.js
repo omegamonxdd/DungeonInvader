@@ -27,7 +27,7 @@ const makeCanvas = (w, h) => {
 const ROCK_T = 64;
 const ROCK_SS = 2;
 
-const rockSmoothingFor = (zoom, size) => zoom * size * HALF_W / ROCK_T < 1;
+export const rockSmoothingFor = (zoom, size) => zoom * size * HALF_W / ROCK_T < 1;
 
 function buildRockPattern() {
   const T = ROCK_T;

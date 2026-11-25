@@ -2,11 +2,12 @@
 
 | Archivo | Contenido |
 |---|---|
-| `index.js` | Exporta `ASSETS.ballista`, `ASSETS.turret` y `ASSETS.catapult` (pedestal + 4 atlas de cabeza cada uno) y `ASSETS.core` (imagen + resplandor), importados desde `front/assets/estructuras/` |
+| `index.js` | Exporta `ASSETS.ballista`, `ASSETS.turret` y `ASSETS.catapult` (pedestal + 4 atlas de cabeza cada uno), `ASSETS.core` (imagen + resplandor) y `ASSETS.vaultCoins` / `ASSETS.vaultCrystals`, importados desde `front/assets/estructuras/` |
 
 `BootScene` registra `ballista-base`, `turret-base`, `catapult-base`, los
 spritesheets `ballista-head-0..3`, `turret-head-0..3` y `catapult-head-0..3`
-(24 ángulos × 3 estados por defensa) y las texturas `core` / `core-glow`. Es la
+(24 ángulos × 3 estados por defensa), las texturas `core` / `core-glow` y las
+imágenes estáticas `vault-coins` / `vault-crystals`. Es la
 única dependencia de archivos binarios del código: el resto de las texturas se
 hornean en memoria (`systems/textures.js`, `systems/ballistaTextures.js`,
 `systems/turretTextures.js`, `systems/catapultTextures.js`,

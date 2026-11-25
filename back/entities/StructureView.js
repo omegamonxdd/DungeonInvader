@@ -10,11 +10,12 @@
  * de mover el edificio; así no queda un parche debajo de la casilla antigua.
  * ========================================================== */
 
+import Phaser from 'phaser';
 import { iso } from '../systems/iso.js';
 import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W } from '../config/world.js';
 import { OVERLAY_DEPTH } from '../config/interaction.js';
 import { VAULT_ART, vaultArtFor } from '../config/vaultArt.js';
-import { makeDungeonRockTexture } from '../systems/defenseTextures.js';
+import { makeDungeonRockTexture, rockSmoothingFor } from '../systems/defenseTextures.js';
 import { specFor } from '../systems/structureSpecs.js';
 
 const C = {
@@ -30,8 +31,11 @@ const C = {
   slime: 0x7dc94a, slimeHi: 0xb6f5a4,
 };
 
-// Cimientos de mazmorra: la misma piedra fría para todos, con un matiz
-// ligero por edificio para conservar su identidad sin romper el conjunto.
+// Solo las trampas conservan su cimiento dibujado a mano: el resto de
+// edificios comparte el suelo de roca de mazmorra con defensas y almacenes.
+const TRAP_KINDS = new Set(['bomb', 'electro', 'rocktrap']);
+
+// Matiz ligero por trampa para conservar su identidad sin romper el conjunto.
 const GROUND = {
   turret: [0x3d3d44, 0x7b7b86],
   catapult: [0x3d3a35, 0x7b756a],
@@ -368,6 +372,7 @@ export class StructureView {
     this.baseDepth = this.x + this.y + this.size;
     this.ground = scene.add.graphics().setDepth(this.baseDepth + 0.01);
     this.groundRock = null;
+    this.rockFilter = -1;
     this.shadow = scene.add.graphics().setDepth(this.baseDepth + 0.02);
     this.body = scene.add.graphics().setDepth(this.baseDepth + 0.05);
     this.image = null;
@@ -393,17 +398,22 @@ export class StructureView {
   drawGround() {
     const g = this.ground;
     g.clear();
-    const vaultArt = vaultArtFor(this.kind);
-    if (vaultArt) {
+    // Un suelo para todos: el mismo parche de roca que usan ballesta,
+    // catapulta, lanzadardos y almacenes. Núcleo y entrada tienen el suyo.
+    if (!TRAP_KINDS.has(this.kind)) {
       const key = `structure-rock-${this.size}`;
       makeDungeonRockTexture(this.scene, key, this.size);
       const top = iso(this.x, this.y, 0);
+      const w = this.size * TILE_W;
+      const h = this.size * TILE_H;
       if (!this.groundRock) {
         this.groundRock = this.scene.add.image(top.x, top.y, key)
-          .setOrigin(0, 0)
+          .setOrigin(0.5, 0)           // vértice superior del rombo, como DefenseTower
+          .setDisplaySize(w, h)        // la textura se hornea a 2×: reducir a tamaño de mundo
           .setDepth(this.baseDepth + 0.01);
       } else {
-        this.groundRock.setTexture(key).setPosition(top.x, top.y).setDepth(this.baseDepth + 0.01);
+        this.groundRock.setTexture(key).setPosition(top.x, top.y)
+          .setDisplaySize(w, h).setDepth(this.baseDepth + 0.01);
       }
       this.groundRock.setVisible(!this.hidden).setAlpha(this.destroyed ? 0.6 : 0.95);
       return;
@@ -420,6 +430,18 @@ export class StructureView {
       (top.x + bottom.x) / 2, (top.y + bottom.y) / 2,
       (right.x - left.x) / 2, (bottom.y - top.y) / 2,
       colors[0], colors[1], this.destroyed ? 0.6 : 0.95);
+  }
+
+  // Mismo filtro por zoom que las defensas: nítido al ampliar, suave al alejar.
+  syncRockFilter() {
+    if (TRAP_KINDS.has(this.kind)) return;
+    const zoom = this.scene.cameras.main.zoom || 1;
+    const mode = rockSmoothingFor(zoom, this.size)
+      ? Phaser.Textures.FilterMode.LINEAR
+      : Phaser.Textures.FilterMode.NEAREST;
+    if (mode === this.rockFilter) return;
+    this.rockFilter = mode;
+    this.scene.textures.get(`structure-rock-${this.size}`).setFilter(mode);
   }
 
   drawShadow() {
@@ -601,6 +623,7 @@ export class StructureView {
   }
 
   update(time) {
+    this.syncRockFilter();
     const animated = ['rift', 'electro', 'bomb', 'lab', 'workshop', 'incubator', 'mine', 'catapult', 'banner', 'bannerslime'];
     if (this.floating) return;
     if (!animated.includes(this.kind)) return;

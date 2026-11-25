@@ -55,7 +55,7 @@ function mmat(seed=0,kind='stone'){return {kind,seed};}
 function materialFactor(m,p){if(!m) return 1; let f=1; if(m.kind==='stone'||m.kind==='metal'){const a=hash2(Math.floor(p[0]*27)+m.seed,Math.floor(p[1]*27)+Math.floor(p[2]*27)); f+=(a-0.5)*0.08;} else if(m.kind==='wood'){const grain=Math.sin(p[2]*16+p[0]*2.4+m.seed*0.2); const n=hash2(Math.floor(p[0]*12)+m.seed,Math.floor(p[2]*18)); f+=grain*0.05+(n-0.5)*0.05;} else if(m.kind==='rope'){const twist=Math.sin((p[0]+p[1]+p[2])*35+m.seed); f+=twist*0.06;} else if(m.kind==='crystal'){const band=Math.sin(p[2]*24+p[0]*7+m.seed*0.31); f+=band*0.07;} return f;}
 
 function quad(mesh,pts,color,opts={}){let n=norm(cross(sub(pts[1],pts[0]),sub(pts[2],pts[0]))); if(!isFinite(n[0])) return; if(opts.outward){const c=centroid(pts); if(dot(n,sub(c,opts.outward))<0){pts=pts.slice().reverse(); n=mul(n,-1);}} for(let i=1;i<pts.length-1;i++) mesh.push({p:[pts[0],pts[i],pts[i+1]],color,ao:opts.ao??1,tint:opts.tint??1,mat:opts.mat??null,outline:opts.outline!==false});}
-function bevelBox(mesh,p0,p1,w,d,bevel,color,opts={}){const zAxis=norm(sub(p1,p0)); const upHint=opts.up??[0,0,1]; let xAxis=cross(upHint,zAxis); if(len(xAxis)<1e-4) xAxis=cross([1,0,0],zAxis); xAxis=norm(xAxis); const yAxis=norm(cross(zAxis,xAxis)); const mid=mul(add(p0,p1),0.5); const half=len(sub(p1,p0))/2; const hw=w/2,hd=d/2; const b=Math.min(bevel,hw*0.34,hd*0.34,half*0.34); const ex=hw-b,ey=hd-b,ez=half-b; const T=(x,y,z)=>add(mid,add(add(mul(xAxis,x),mul(yAxis,y)),mul(zAxis,z))); const m=opts.mat??mmat(opts.seed??0,opts.matKind??'stone'); const oo={outward:mid,ao:opts.ao??1,mat:m,outline:opts.outline!==false}; const bt=opts.bevelTint??1.03;
+function bevelBox(mesh,p0,p1,w,d,bevel,color,opts={}){const zAxis=norm(sub(p1,p0)); const upHint=opts.up??[0,1,0]; let xAxis=cross(upHint,zAxis); if(len(xAxis)<1e-4) xAxis=cross([1,0,0],zAxis); xAxis=norm(xAxis); const yAxis=norm(cross(zAxis,xAxis)); const mid=mul(add(p0,p1),0.5); const half=len(sub(p1,p0))/2; const hw=w/2,hd=d/2; const b=Math.min(bevel,hw*0.34,hd*0.34,half*0.34); const ex=hw-b,ey=hd-b,ez=half-b; const T=(x,y,z)=>add(mid,add(add(mul(xAxis,x),mul(yAxis,y)),mul(zAxis,z))); const m=opts.mat??mmat(opts.seed??0,opts.matKind??'stone'); const oo={outward:mid,ao:opts.ao??1,mat:m,outline:opts.outline!==false}; const bt=opts.bevelTint??1.03;
   for(const sx of [-1,1]) quad(mesh,[T(sx*hw,-ey,-ez),T(sx*hw,ey,-ez),T(sx*hw,ey,ez),T(sx*hw,-ey,ez)],color,oo);
   for(const sy of [-1,1]) quad(mesh,[T(-ex,sy*hd,-ez),T(ex,sy*hd,-ez),T(ex,sy*hd,ez),T(-ex,sy*hd,ez)],color,oo);
   for(const sz of [-1,1]) quad(mesh,[T(-ex,-ey,sz*half),T(ex,-ey,sz*half),T(ex,ey,sz*half),T(-ex,ey,sz*half)],color,oo);
@@ -160,9 +160,9 @@ function crystalShard(m, cx, cy, zMid, radius, height, seed = 0, color=C.cyan, d
 function buildCrystalVault() {
   const m = [];
   bevelBox(m,[0,0,0.02],[0,0,0.10],1.12,1.06,0.04,C.stoneDark,{seed:100,matKind:'stone',ao:0.94});
-  const W = 0.98, D = 0.94, H = 0.66, T = 0.11;
-  // Cubeta de madera ABIERTA: fondo + cuatro paredes gruesas.
-  bevelBox(m,[0,0,0.10],[0,0,0.20],W,D,0.035,C.woodDark,{seed:110,matKind:'wood'});
+  const W = 0.96, D = 0.92, H = 0.84, T = 0.10;
+  // Cubeta de madera ABIERTA: fondo oscuro + cuatro paredes gruesas.
+  bevelBox(m,[0,0,0.10],[0,0,0.20],W,D,0.035,C.woodDeep,{seed:110,matKind:'wood',ao:0.78});
   bevelBox(m,[0, D/2-T/2,0.20],[0, D/2-T/2,0.20+H],W,T,0.035,C.wood,{seed:111,matKind:'wood'});
   bevelBox(m,[0,-D/2+T/2,0.20],[0,-D/2+T/2,0.20+H],W,T,0.035,C.woodDark,{seed:112,matKind:'wood',ao:0.94});
   bevelBox(m,[-W/2+T/2,0,0.20],[-W/2+T/2,0,0.20+H],T,D-2*T,0.035,C.wood,{seed:113,matKind:'wood'});
@@ -174,29 +174,30 @@ function buildCrystalVault() {
   bevelBox(m,[-W/2+T/2,0,RIM],[-W/2+T/2,0,RIM+0.05],T+0.04,D-2*T,0.02,C.woodDark,{seed:117,matKind:'wood'});
   bevelBox(m,[ W/2-T/2,0,RIM],[ W/2-T/2,0,RIM+0.05],T+0.04,D-2*T,0.02,C.woodDark,{seed:118,matKind:'wood'});
   // Juntas de tabla en la cara frontal.
-  for (const sx of [-0.28,0,0.28]) bevelBox(m,[sx,D/2+0.004,0.24],[sx,D/2+0.02,0.80],0.06,0.018,0.008,C.woodLight,{seed:120+Math.round(sx*100),matKind:'wood',ao:1.02});
+  for (const sx of [-0.28,0,0.28]) bevelBox(m,[sx,D/2+0.004,0.24],[sx,D/2+0.02,0.98],0.06,0.018,0.008,C.woodLight,{seed:120+Math.round(sx*100),matKind:'wood',ao:1.02});
   // Uniones de cuerda en las cuatro esquinas + vuelta alrededor.
   for (const sx of [-1,1]) for (const sy of [-1,1]) {
     ropeWrap(m,[sx*(W/2-T/2),sy*(D/2-T/2),0.34],[0,0,1],0.10,2.2,0.16,0.03,C.rope,{seed:130+sx*3+sy});
-    ropeWrap(m,[sx*(W/2-T/2),sy*(D/2-T/2),0.76],[0,0,1],0.10,2.2,0.16,0.03,C.ropeDark,{seed:140+sx*3+sy});
+    ropeWrap(m,[sx*(W/2-T/2),sy*(D/2-T/2),0.92],[0,0,1],0.10,2.2,0.16,0.03,C.ropeDark,{seed:140+sx*3+sy});
   }
   ropeBand(m,[0,0],W/2+0.025,D/2+0.025,0.34,0.03,C.rope,150);
-  ropeBand(m,[0,0],W/2+0.025,D/2+0.025,0.74,0.03,C.ropeDark,160);
+  ropeBand(m,[0,0],W/2+0.025,D/2+0.025,0.94,0.03,C.ropeDark,160);
   ropeKnot(m,[W/2+0.03,0,0.34],0.028,C.ropeDark,170);
-  ropeKnot(m,[-W/2-0.03,0.1,0.74],0.026,C.rope,171);
+  ropeKnot(m,[-W/2-0.03,0.1,0.94],0.026,C.rope,171);
   // Minerales DENTRO de la cubeta: la base queda entre paredes y las puntas asoman.
-  crystalShard(m,-0.16,-0.10,0.66,0.155,0.56,200);
-  crystalShard(m, 0.15, 0.02,0.64,0.14, 0.52,210);
-  crystalShard(m,-0.02, 0.20,0.63,0.11, 0.50,220);
-  crystalShard(m,-0.25, 0.18,0.62,0.09, 0.48,230);
-  crystalShard(m, 0.26,-0.16,0.63,0.085,0.48,240);
+  crystalShard(m,-0.17,-0.10,0.80,0.17, 0.72,200);
+  crystalShard(m, 0.16, 0.03,0.78,0.15, 0.68,210);
+  crystalShard(m,-0.02, 0.21,0.76,0.12, 0.62,220);
+  crystalShard(m,-0.26, 0.17,0.75,0.10, 0.58,230);
+  crystalShard(m, 0.27,-0.16,0.76,0.095,0.58,240);
+  crystalShard(m, 0.06,-0.27,0.74,0.09, 0.55,250);
   return m;
 }
 
 // --- renderer (same as core-art, trimmed) ---
 class Framebuffer { constructor(w,h){this.w=w;this.h=h;this.color=new Uint8Array(w*h*4);this.depth=new Float32Array(w*h).fill(Infinity);} blend(x,y,r,g,b,a){ if(x<0||y<0||x>=this.w||y>=this.h||a<=0) return; const i=(y*this.w+x)*4; const sa=a/255, da=this.color[i+3]/255; const oa=sa+da*(1-sa); if(oa<=0) return; this.color[i]=(r*sa+this.color[i]*da*(1-sa))/oa; this.color[i+1]=(g*sa+this.color[i+1]*da*(1-sa))/oa; this.color[i+2]=(b*sa+this.color[i+2]*da*(1-sa))/oa; this.color[i+3]=oa*255; } }
 function edge(a,b,px,py){return (b.x-a.x)*(py-a.y)-(b.y-a.y)*(px-a.x);}
-function project(p, target, cx, cy){ const x=p[0]-target[0], y=p[1]-target[1], z=p[2]-target[2]; return { x: cx + dot([x,y,z], RIGHT)*PPU, y: cy - dot([x,y,z], UP)*PPU, z: dot([x,y,z], VIEW), wx:p[0], wy:p[1], wz:p[2] }; }
+function project(p, target, cx, cy){ const x=p[0]-target[0], y=p[1]-target[1], z=p[2]-target[2]; return { x: cx + dot([x,y,z], RIGHT)*PPU, y: cy - dot([x,y,z], UP)*PPU, z: -dot([x,y,z], VIEW), wx:p[0], wy:p[1], wz:p[2] }; }
 function drawTri(fb, A,B,Cc, col, mat){ const area=edge(A,B,Cc.x,Cc.y); if(Math.abs(area)<1e-9) return; const sign=area>0?1:-1; const inv=1/area; const x0=Math.max(0,Math.floor(Math.min(A.x,B.x,Cc.x))); const x1=Math.min(fb.w-1,Math.ceil(Math.max(A.x,B.x,Cc.x))); const y0=Math.max(0,Math.floor(Math.min(A.y,B.y,Cc.y))); const y1=Math.min(fb.h-1,Math.ceil(Math.max(A.y,B.y,Cc.y))); for(let y=y0;y<=y1;y++){ const py=y+0.5; for(let x=x0;x<=x1;x++){ const px=x+0.5; const w0=edge(B,Cc,px,py), w1=edge(Cc,A,px,py), w2=edge(A,B,px,py); if(w0*sign<0||w1*sign<0||w2*sign<0) continue; const z=(w0*A.z+w1*B.z+w2*Cc.z)*inv; const i=y*fb.w+x; if(z>=fb.depth[i]) continue; fb.depth[i]=z; let r=col[0],g=col[1],b=col[2]; if(mat){ const wx=(w0*A.wx+w1*B.wx+w2*Cc.wx)*inv; const wy=(w0*A.wy+w1*B.wy+w2*Cc.wy)*inv; const wz=(w0*A.wz+w1*B.wz+w2*Cc.wz)*inv; const f=materialFactor(mat,[wx,wy,wz]); r=clamp255(r*f); g=clamp255(g*f); b=clamp255(b*f);} fb.color[i*4]=r; fb.color[i*4+1]=g; fb.color[i*4+2]=b; fb.color[i*4+3]=255; } } }
 function softEllipse(fb,cx,cy,rx,ry,alpha,color){ const x0=Math.max(0,Math.floor(cx-rx-2)), x1=Math.min(fb.w-1,Math.ceil(cx+rx+2)); const y0=Math.max(0,Math.floor(cy-ry-2)), y1=Math.min(fb.h-1,Math.ceil(cy+ry+2)); for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){ const dx=(x+0.5-cx)/rx, dy=(y+0.5-cy)/ry; const d=dx*dx+dy*dy; if(d>1) continue; const a=alpha*Math.pow(1-d,1.55)*255; fb.blend(x,y,color[0],color[1],color[2],a); } }
 function drawShadow(fb,cx,cy){
