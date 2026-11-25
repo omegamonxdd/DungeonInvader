@@ -149,9 +149,13 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
 function normalizeStructure(rec) {
   if (!rec || typeof rec !== 'object' || !rec.kind || !rec.id) return null;
   const kind = String(rec.kind);
+  const id = String(rec.id);
   // Parche de emergencia: los almacenes legacy `vault` ya no existen.
   // Se descartan para que no cuenten, no se dibujen y no se vuelvan a guardar.
   if (kind === 'vault') return null;
+  // Los saves que pasaron por la conversión vault->vault-coins/vault-crystals
+  // conservaron ids legacy (`vault-N`). Se purgan para no duplicar almacenes.
+  if ((kind === 'vault-coins' || kind === 'vault-crystals') && /^vault-\d+$/.test(id)) return null;
   const spec = specFor(kind);
   if (!spec) return null; // se conserva en `orphans` desde normalizeSnapshot
 
