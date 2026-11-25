@@ -386,6 +386,7 @@ export class EditorController {
 
     const pickBtn = byId('ed-pick');
     if (pickBtn) {
+      pickBtn.hidden = false;
       pickBtn.classList.toggle('gold', this.picking);
       pickBtn.setAttribute('aria-pressed', String(this.picking));
     }
@@ -582,10 +583,10 @@ export class EditorController {
     const def = this._def(id);
     if (!def || !def.movable || this._isShelved(def) || def.placed === false) return false;
     if (this.invaderView) return false;
-    // Estar en obras (mejora o construcción) NO quita la opción de mover:
+    // Estar en obras (mejora o construcci??n) NO quita la opci??n de mover:
     // el edificio se recoge y se vuelve a colocar con su obra en curso.
 
-    // Libera la huella. En el núcleo además las celdas CORE vuelven a EMPTY.
+    // Libera la huella. En el n??cleo adem??s las celdas CORE vuelven a EMPTY.
     const w = def.w || def.size || 1;
     const h = def.h || w;
     if (def.kind === 'core' || def.id === 'core') {

@@ -128,12 +128,19 @@ const STRUCTURE_SPECS = Object.freeze({
     source: 'incubator', targetable: true, art: 'incubator',
   }),
 
-  vault: simple({
-    kind: 'vault', name: 'Almacén', slot: 'vault-coins', limitKind: 'vault',
+  'vault-coins': simple({
+    kind: 'vault-coins', name: 'Almacén de monedas', slot: 'vault-coins', limitKind: 'vault-coins',
     size: E.almacen.size, height: E.almacen.height, category: 'recursos',
     maxLevel: E.almacen.maxNivel, hp: hpFrom(E.almacen.hp),
     storage: lvl => levelRow(E.almacen.capacidad, lvl) ?? 0,
-    targetable: true, art: 'vault',
+    targetable: true, art: 'vault', resource: 'coins',
+  }),
+  'vault-crystals': simple({
+    kind: 'vault-crystals', name: 'Almacén de cristales', slot: 'vault-crystals', limitKind: 'vault-crystals',
+    size: E.almacen.size, height: E.almacen.height, category: 'recursos',
+    maxLevel: E.almacen.maxNivel, hp: hpFrom(E.almacen.hp),
+    storage: lvl => levelRow(E.almacen.capacidad, lvl) ?? 0,
+    targetable: true, art: 'vault', resource: 'crystals',
   }),
   mine: simple({
     kind: 'mine', name: 'Mina de cristal', slot: 'prod-crystals', limitKind: 'mine',

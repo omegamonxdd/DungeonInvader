@@ -36,7 +36,8 @@ export const costes = {
     rift:        { 2: { crystals: 750 }, 3: { crystals: 3000 }, 4: { crystals: 7500 } },
     lab:         { 2: { crystals: 7500 } },
     incubator:   { 2: { crystals: 15000 } },
-    vault:       { 2: { coins: 1000, crystals: 1000 }, 3: { coins: 3000, crystals: 3000 } },
+    'vault-coins':    { 2: { coins: 1000, crystals: 1000 }, 3: { coins: 3000, crystals: 3000 } },
+    'vault-crystals': { 2: { coins: 1000, crystals: 1000 }, 3: { coins: 3000, crystals: 3000 } },
     mine:        { 2: { coins: 300 }, 3: { coins: 750 }, 4: { coins: 1500 } },
     workshop:    { 2: { crystals: 300 }, 3: { crystals: 750 }, 4: { crystals: 1500 } },
     banner:      { 2: { crystals: 300 }, 3: { crystals: 800 }, 4: { crystals: 2000 }, 5: { crystals: 4000 } },
@@ -44,5 +45,14 @@ export const costes = {
     bomb:        { 2: { coins: 150 }, 3: { coins: 300 }, 4: { coins: 600 } },
     rocktrap:    { 2: { coins: 700 }, 3: { coins: 1500 } },
     electro:     { 2: { coins: 10000 } },
+  },
+
+  mutacionTropa: {
+    esqueleto:  { 2: { crystals: 200 }, 3: { crystals: 500 } },
+    slime:      { 2: { crystals: 250 }, 3: { crystals: 600 } },
+    golem:      { 2: { crystals: 800 }, 3: { crystals: 1600 } },
+    murcielago: { 2: { crystals: 400 } },
+    armadura:   { 2: { crystals: 1200 } },
+    arana:      { 2: { crystals: 1500 } },
   },
 };

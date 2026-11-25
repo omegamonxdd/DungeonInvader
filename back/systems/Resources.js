@@ -1,14 +1,14 @@
-/* ==========================================================
+﻿/* ==========================================================
  * RECURSOS DE LA APP
  * ----------------------------------------------------------
  * Ya no existe un "dinero suelto": todos los recursos viven dentro de
- * estructuras que almacenan (el núcleo, como reserva inicial, y los
+ * estructuras que almacenan (el nÃºcleo, como reserva inicial, y los
  * almacenes de cada recurso). Los gastos se reparten proporcionalmente
- * entre esos almacenes y la producción se deposita en ellos.
+ * entre esos almacenes y la producciÃ³n se deposita en ellos.
  *
- * Un guardado antiguo puede traer más dinero del que cabe (p. ej.
- * 5500/5000): se conserva como excedente, pero mientras esté por encima
- * del límite no se puede volver a añadir nada hasta que baje.
+ * Un guardado antiguo puede traer mÃ¡s dinero del que cabe (p. ej.
+ * 5500/5000): se conserva como excedente, pero mientras estÃ© por encima
+ * del lÃ­mite no se puede volver a aÃ±adir nada hasta que baje.
  * ========================================================== */
 
 import { BALANCE, levelRow } from '../balance/index.js';
@@ -32,22 +32,31 @@ export class Resources {
   get crystals() { return this.get('crystals'); }
   set crystals(v) { this._set('crystals', v); }
 
-  /** Almacenes válidos para un recurso: núcleo + los vaults de ese tipo. */
-  stores(kind) {
-    const coreLevel = this.getCoreLevel();
-    const coreCap = levelRow(BALANCE.nucleo.niveles, coreLevel)?.storage ?? 0;
+  vaultResource(def) {
+    if (!def) return null;
+    if (def.kind === 'core') return 'core';
+    if (def.kind === 'vault-coins' || (def.kind === 'vault' && (def.resource || 'coins') === 'coins')) return 'coins';
+    if (def.kind === 'vault-crystals' || (def.kind === 'vault' && def.resource === 'crystals')) return 'crystals';
+    return null;
+  }
+
+  isVault(def, kind = null) {
+    const res = this.vaultResource(def);
+    if (res === 'core') return !kind || kind === 'coins' || kind === 'crystals';
+    return Boolean(res && (!kind || res === kind));
+  }
+
+  /** Almacenes válidos para un recurso: núcleo + almacenes dedicados. */
+  stores(kind, structures = this.structures) {
     const out = [];
-    for (const def of this.structures) {
-      if (!def?.placed || def.shelved) continue;
+    for (const def of structures || []) {
+      if (def?.moving || !def?.placed || def?.shelved) continue;
       if (def.kind === 'core') {
-        out.push({
-          def,
-          key: kind === 'coins' ? 'stored' : 'storedCrystals',
-          cap: coreCap,
-        });
-      } else if (def.kind === 'vault' && (def.resource || 'coins') === kind) {
-        out.push({ def, key: 'stored', cap: def.storage || 0 });
+        out.push({ def, key: kind === 'crystals' ? 'storedCrystals' : 'stored', cap: def.storage || 0 });
+        continue;
       }
+      if (!this.isVault(def, kind) || pausedByWork(def)) continue;
+      out.push({ def, key: 'stored', cap: def.storage || 0 });
     }
     return out;
   }
@@ -60,16 +69,16 @@ export class Resources {
     return this.stores(kind).reduce((n, s) => n + safeNum(s.def[s.key]), 0);
   }
 
-  /** Capacidad total (núcleo + almacenes) de un recurso. */
-  capacity(coreLevel = 1, structures = [], kind = null) {
-    const core = levelRow(BALANCE.nucleo.niveles, coreLevel)?.storage ?? 0;
-    const vaults = (structures || []).reduce((sum, def) => {
-      if (def?.kind !== 'vault' || !def.placed || def.shelved || pausedByWork(def)) return sum;
-      if (kind && (def.resource || 'coins') !== kind) return sum;
+  /** Capacidad total: núcleo + almacenes dedicados para un recurso. */
+  capacity(_coreLevel = 1, structures = this.structures, kind = null) {
+    const sumKind = res => (structures || []).reduce((sum, def) => {
+      if (def?.moving || !def?.placed || def?.shelved) return sum;
+      if (def.kind === 'core') return sum + (def.storage || 0);
+      if (!this.isVault(def, res) || pausedByWork(def)) return sum;
       return sum + (def.storage || 0);
     }, 0);
-    if (!kind) return core * RESOURCES.length + vaults;
-    return core + vaults;
+    if (!kind) return RESOURCES.reduce((n, res) => n + sumKind(res), 0);
+    return sumKind(kind);
   }
 
   /** Elimina el excedente cuando el total supera la capacidad de almacenes. */
@@ -93,7 +102,7 @@ export class Resources {
       && (cost?.crystals || 0) <= this.get('crystals');
   }
 
-  /** Cobro atómico, repartido proporcionalmente entre los almacenes. */
+  /** Cobro atÃ³mico, repartido proporcionalmente entre los almacenes. */
   pay(cost) {
     if (!this.canAfford(cost)) return false;
     if (devResources() !== null) return true;
@@ -104,7 +113,7 @@ export class Resources {
     return true;
   }
 
-  /** Ingreso con límite: devuelve lo que realmente se pudo guardar. */
+  /** Ingreso con lÃ­mite: devuelve lo que realmente se pudo guardar. */
   add(kind, amount) {
     const n = safeNum(amount);
     if (!n || !isRes(kind)) return 0;
@@ -116,7 +125,7 @@ export class Resources {
     return this._deposit(kind, n, false);
   }
 
-  /** Fija un total (load de snapshots): permite excedente temporal. */
+  /** Fija un total (load de snapshots): deposita solo en almacenes con hueco. */
   _set(kind, value) {
     if (!isRes(kind) || devResources() !== null) return;
     const target = safeNum(value);
@@ -125,7 +134,7 @@ export class Resources {
       return;
     }
     const current = this.get(kind);
-    if (target > current) this._deposit(kind, target - current, true);
+    if (target > current) this._deposit(kind, target - current, false);
     else if (target < current) this._withdraw(kind, current - target);
   }
 
@@ -133,7 +142,6 @@ export class Resources {
     const stores = this.stores(kind);
     if (!stores.length) return 0;
     let left = amount;
-    // Primero se llena el hueco disponible de cada almacén (núcleo incluido).
     for (const s of stores) {
       if (left <= 0) break;
       const used = safeNum(s.def[s.key]);
@@ -143,9 +151,6 @@ export class Resources {
       s.def[s.key] = used + put;
       left -= put;
     }
-    // Un guardado antiguo puede traer excedente: se conserva en el primer
-    // almacén, pero mientras siga por encima del límite no se podrá añadir
-    // más (add() solo deposita donde haya hueco).
     if (ignoreCap && left > 0) {
       const s = stores[0];
       s.def[s.key] = safeNum(s.def[s.key]) + left;

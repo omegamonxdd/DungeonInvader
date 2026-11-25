@@ -147,7 +147,12 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
 
 function normalizeStructure(rec) {
   if (!rec || typeof rec !== 'object' || !rec.kind || !rec.id) return null;
-  const kind = String(rec.kind);
+  let kind = String(rec.kind);
+  let resource = rec.resource || null;
+  if (kind === 'vault') {
+    resource = resource === 'crystals' ? 'crystals' : 'coins';
+    kind = resource === 'crystals' ? 'vault-crystals' : 'vault-coins';
+  }
   const spec = specFor(kind);
   if (!spec) return null; // se conserva en `orphans` desde normalizeSnapshot
 
@@ -173,9 +178,9 @@ function normalizeStructure(rec) {
     placed: Boolean(rec.placed),
     shelved: Boolean(rec.shelved),
     movable: rec.movable !== false,
-    resource: rec.resource || null,
-    costKey: rec.costKey || null,
-    limitKind: rec.limitKind || null,
+    resource: resource || spec.resource || null,
+    costKey: rec.costKey || spec.slot || null,
+    limitKind: rec.limitKind || spec.limitKind || null,
     work,
     frozenUpgrade: rec.frozenUpgrade && typeof rec.frozenUpgrade === 'object'
       ? {
@@ -218,6 +223,8 @@ export function normalizeSnapshot(raw) {
   const seen = new Set();
   const structures = [];
   const orphans = Array.isArray(doc.orphans) ? [...doc.orphans] : [];
+  let legacyCoreCoins = 0;
+  let legacyCoreCrystals = 0;
   for (const rec of Array.isArray(doc.structures) ? doc.structures : []) {
     const clean = normalizeStructure(rec);
     if (!clean) {
@@ -226,10 +233,18 @@ export function normalizeSnapshot(raw) {
     }
     if (seen.has(clean.id)) continue; // ids duplicados: el primero gana
     seen.add(clean.id);
+    if (clean.kind === 'core') {
+      clean.stored = Math.max(0, num(clean.stored, 0));
+      clean.storedCrystals = Math.max(0, num(clean.storedCrystals, 0));
+    }
     structures.push(clean);
   }
   out.structures = structures;
   out.orphans = orphans;
+  if (legacyCoreCoins || legacyCoreCrystals) {
+    out.resources.coins = Math.max(0, int(out.resources.coins + legacyCoreCoins, 0));
+    out.resources.crystals = Math.max(0, int(out.resources.crystals + legacyCoreCrystals, 0));
+  }
 
   const counts = {};
   const levels = {};

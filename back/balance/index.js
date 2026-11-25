@@ -45,6 +45,7 @@ export function defDamage(dps, cooldown) {
 /* Costes -------------------------------------------------------------- */
 export const buildCost = slot => costes.construccion[slot] || {};
 export const upgradeCost = (kind, toLevel) => levelRow(costes.mejora[kind], toLevel) || {};
+export const troopMutateCost = (id, toLevel) => levelRow(costes.mutacionTropa?.[id], toLevel) || {};
 
 export function formatCost(cost) {
   const parts = [];
@@ -58,6 +59,9 @@ export const scaled = seconds => seconds * obras.escalaTiempo;
 export const buildTime = kind => scaled(levelRow(obras.tiemposConstruccion, kind) ?? obras.porDefecto.construccion);
 export const upgradeTime = (kind, toLevel) => scaled(
   levelRow(obras.tiemposMejora[kind], toLevel) ?? obras.porDefecto.mejora,
+);
+export const troopMutateTime = (id, toLevel) => scaled(
+  levelRow(obras.tiemposMutacion?.[id], toLevel) ?? obras.porDefecto.mejora,
 );
 
 /* Límites y niveles ---------------------------------------------------- */
@@ -158,8 +162,8 @@ export function balanceReport() {
 
 // Los helpers también cuelgan de BALANCE para poder usarlos desde la consola.
 Object.assign(BALANCE, {
-  levelRow, defDamage, buildCost, upgradeCost, formatCost, scaled,
-  buildTime, upgradeTime, structureLimit, allowedMaxLevel, statAt,
+  levelRow, defDamage, buildCost, upgradeCost, troopMutateCost, formatCost, scaled,
+  buildTime, upgradeTime, troopMutateTime, structureLimit, allowedMaxLevel, statAt,
   defensaAt, tropaAt, trampaAt, troopIntervalAt, troopDamageAt,
   report: balanceReport,
 });

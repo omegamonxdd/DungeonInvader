@@ -44,6 +44,7 @@ export class StructureFactory {
     const attack = spec.attack ? spec.attack(level) : null;
     const trap = spec.trap || null;
     const resource = options.resource
+      || spec.resource
       || (kind === 'mine' ? 'crystals' : kind === 'workshop' ? 'coins' : null);
 
     const def = {
@@ -83,6 +84,7 @@ export class StructureFactory {
       trap: trap || null,
       pending: 0,
       shelved: false,
+      moving: false,
       view: null,
     };
     def.view = this.makeView(def);

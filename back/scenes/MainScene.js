@@ -123,6 +123,7 @@ export class MainScene extends Phaser.Scene {
       riftLevel: () => levelOf('rift'),
       incubatorLevel: () => levelOf('incubator'),
       labLevel: () => levelOf('lab'),
+      resources: this.resources,
       onToast: msg => this.ui?.showToast(msg),
       onChange: () => {
         this.ui?.renderInvasionItems();

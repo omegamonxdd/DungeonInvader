@@ -70,13 +70,11 @@ export class WorkController {
 
   /* ---------- Edificios del núcleo (legacy missingBuildings/unlockingBuildings) ---- */
 
-  // Cuenta los edificios COLOCADOS, incluidos los que están en obras: un
-  // edificio en construcción (o en mejora) ya está colocado y cumple el
-  // requisito de los edificios necesarios para mejorar el núcleo. Solo se
-  // excluyen los guardados en el editor (`shelved`). Las ranuras con
+  // Cuenta los edificios de la aldea, incluidos los guardados en el editor:
+  // no desaparecen de la mazmorra ni descuentan requisitos. Las ranuras con
   // `resource` (almacenes) se cuentan por separado.
   countPlaced(slot) {
-    return this.structures.filter(d => d.placed && !d.shelved
+    return this.structures.filter(d => d
       && d.kind === slot.kind
       && (!slot.resource || d.resource === slot.resource)).length;
   }

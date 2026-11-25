@@ -257,10 +257,17 @@ export class GameService {
 
   /* ---------- Guardado -------------------------------------------------- */
 
-  markDirty() {
-    if (!this.started || this.sessionLocked) return;
+  markDirty({ reload = true } = {}) {
+    if (!this.started || this.sessionLocked || this.applying) return;
     this.dirty = true;
     clearTimeout(this._debounce);
+    if (reload && !import.meta.env.DEV) {
+      this._debounce = setTimeout(async () => {
+        await this.save({ force: true });
+        window.location.reload();
+      }, 150);
+      return;
+    }
     this._debounce = setTimeout(() => this.save(), SAVE_DEBOUNCE_MS);
   }
 
@@ -374,11 +381,16 @@ export class GameService {
       this.pendingApply = snapshot;
       return;
     }
-    const applied = applySnapshot(snapshot, this.ctx);
-    this.lastSaved = applied;
-    this.savedAt = applied.savedAt;
-    this.dirty = false;
-    this._rememberCheckpoint(applied);
+    this.applying = true;
+    try {
+      const applied = applySnapshot(snapshot, this.ctx);
+      this.lastSaved = applied;
+      this.savedAt = applied.savedAt;
+      this.dirty = false;
+      this._rememberCheckpoint(applied);
+    } finally {
+      this.applying = false;
+    }
   }
 
   /* ---------- APIs que usa la UI --------------------------------------- */

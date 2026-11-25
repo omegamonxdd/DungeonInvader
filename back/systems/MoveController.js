@@ -58,16 +58,12 @@ export class MoveController {
     this.lastT = 0;
     this.active = true;
 
-    // Al levantarla, su huella vuelve a ser suelo despejado. Un edificio
-    // guardado ya fue liberado por el editor: no hay que repetirlo.
-    if (!fromStore) {
-      if (def.kind === 'core') this._setCoreFootprint(def.x, def.y, false);
-      else this.terrain.setFootprint(def.x, def.y, def.size, def.size, false);
-      def.placed = false;
-    } else {
-      // Sale del almacén del editor: vuelve a hacerse visible bajo el cursor.
-      def.view?.setHidden?.(false);
-    }
+    // Al levantarla, su huella vuelve a ser suelo despejado.
+    if (def.kind === 'core') this._setCoreFootprint(def.x, def.y, false);
+    else this.terrain.setFootprint(def.x, def.y, def.size, def.size, false);
+    def.placed = false;
+    def.moving = true;
+    def.view?.setHidden?.(false);
     this.g.setVisible(true);
 
     if (isNew) {
@@ -157,15 +153,12 @@ export class MoveController {
         def.view.x = nx;
         def.view.y = ny;
       }
-      if (commit || !this.fromStore) {
-        def.placed = true;
-        if (this.fromStore) def.shelved = false;
-        if (def.kind === 'core') this._setCoreFootprint(nx, ny, true);
-        else this.terrain.setFootprint(nx, ny, def.size, def.size, true);
-      }
-      // fromStore + cancel: sigue guardado, en su casilla original.
+      def.placed = true;
+      def.moving = false;
+      def.shelved = false;
+      if (def.kind === 'core') this._setCoreFootprint(nx, ny, true);
+      else this.terrain.setFootprint(nx, ny, def.size, def.size, true);
       def.view?.clearFloating?.();
-      if (this.fromStore && !commit) def.view?.setHidden?.(true);
     }
 
     this.g.clear().setVisible(false);

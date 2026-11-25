@@ -29,7 +29,9 @@ function derive(def) {
   def.splash = atk?.splash ?? null;
   def.storage = spec.storage ? spec.storage(lvl) : null;
   def.stored = spec.storage ? (def.stored || 0) : null;
-  if (def.kind === 'core') def.storedCrystals = def.storedCrystals || 0;
+  if (def.kind === 'core') {
+    def.storedCrystals = Math.max(0, Math.floor(def.storedCrystals || 0));
+  }
   def.producer = spec.producer
     ? {
       resource: spec.producer.resource,

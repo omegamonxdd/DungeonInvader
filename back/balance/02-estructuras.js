@@ -14,7 +14,8 @@ export const estructuras = {
     catapult:    { 1: 0, 3: 1 },
     turret:      { 1: 0, 2: 1, 3: 2 },
     rift:        { 1: 1 },
-    vault:       { 1: 1 },
+    'vault-coins':    { 1: 1 },
+    'vault-crystals': { 1: 1 },
     banner:      { 1: 1, 2: 2 },
     bannerslime: { 1: 0, 2: 1, 3: 2 },
     bomb:        { 1: 2, 2: 3, 3: 4 },
@@ -27,15 +28,15 @@ export const estructuras = {
   },
 
   topeNivelPorNucleo: {
-    1: { ballista: 2, turret: 1, entrance: 1, rift: 1, vault: 2, banner: 3, bomb: 3, rocktrap: 1, mine: 2, workshop: 2 },
-    2: { entrance: 2, ballista: 3, turret: 2, rift: 3, banner: 4, bomb: 4, rocktrap: 2, bannerslime: 2, lab: 1, mine: 3, workshop: 3, vault: 2 },
-    3: { incubator: 2, rift: 4, electro: 2, entrance: 3, mine: 4, workshop: 4, vault: 3, lab: 2, turret: 4, catapult: 2, banner: 5, bannerslime: 3, rocktrap: 3, ballista: 4 },
+    1: { ballista: 2, turret: 1, entrance: 1, rift: 1, 'vault-coins': 2, 'vault-crystals': 2, banner: 3, bomb: 3, rocktrap: 1, mine: 2, workshop: 2 },
+    2: { entrance: 2, ballista: 3, turret: 2, rift: 3, banner: 4, bomb: 4, rocktrap: 2, bannerslime: 2, lab: 1, mine: 3, workshop: 3, 'vault-coins': 2, 'vault-crystals': 2 },
+    3: { incubator: 2, rift: 4, electro: 2, entrance: 3, mine: 4, workshop: 4, 'vault-coins': 3, 'vault-crystals': 3, lab: 2, turret: 4, catapult: 2, banner: 5, bannerslime: 3, rocktrap: 3, ballista: 4 },
   },
 
   maxNivel: {
     ballista: 4, turret: 4, catapult: 2,
     rift: 4, lab: 2, incubator: 2,
-    vault: 3, mine: 4, workshop: 4,
+    'vault-coins': 3, 'vault-crystals': 3, mine: 4, workshop: 4,
     banner: 5, bannerslime: 3,
     bomb: 4, electro: 2, rocktrap: 3,
   },
