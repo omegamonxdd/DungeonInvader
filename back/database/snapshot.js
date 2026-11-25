@@ -90,8 +90,9 @@ export function buildSnapshot(ctx, slot = DEFAULT_SLOT) {
     },
     // Las estructuras en modo Mover (placed=false y no guardadas) aún no
     // forman parte de la base: se descartan para no resurrectear fantasmas.
+    // Los `vault` legacy se ignoran por completo (parche de emergencia).
     structures: structures
-      .filter(def => def && def.id && (def.placed || def.shelved || def.kind === 'core' || def.kind === 'entrance'))
+      .filter(def => def && def.id && def.kind !== 'vault' && (def.placed || def.shelved || def.kind === 'core' || def.kind === 'entrance'))
       .map(structureRecord),
     army: {
       counts: { ...(army?.counts || {}) },
@@ -147,12 +148,10 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
 
 function normalizeStructure(rec) {
   if (!rec || typeof rec !== 'object' || !rec.kind || !rec.id) return null;
-  let kind = String(rec.kind);
-  let resource = rec.resource || null;
-  if (kind === 'vault') {
-    resource = resource === 'crystals' ? 'crystals' : 'coins';
-    kind = resource === 'crystals' ? 'vault-crystals' : 'vault-coins';
-  }
+  const kind = String(rec.kind);
+  // Parche de emergencia: los almacenes legacy `vault` ya no existen.
+  // Se descartan para que no cuenten, no se dibujen y no se vuelvan a guardar.
+  if (kind === 'vault') return null;
   const spec = specFor(kind);
   if (!spec) return null; // se conserva en `orphans` desde normalizeSnapshot
 
@@ -222,13 +221,12 @@ export function normalizeSnapshot(raw) {
 
   const seen = new Set();
   const structures = [];
-  const orphans = Array.isArray(doc.orphans) ? [...doc.orphans] : [];
-  let legacyCoreCoins = 0;
-  let legacyCoreCrystals = 0;
+  const orphans = (Array.isArray(doc.orphans) ? doc.orphans : [])
+    .filter(rec => rec?.kind !== 'vault'); // emergencia: purgar vaults legacy
   for (const rec of Array.isArray(doc.structures) ? doc.structures : []) {
     const clean = normalizeStructure(rec);
     if (!clean) {
-      orphans.push(rec);
+      if (rec?.kind !== 'vault') orphans.push(rec);
       continue;
     }
     if (seen.has(clean.id)) continue; // ids duplicados: el primero gana
@@ -241,10 +239,6 @@ export function normalizeSnapshot(raw) {
   }
   out.structures = structures;
   out.orphans = orphans;
-  if (legacyCoreCoins || legacyCoreCrystals) {
-    out.resources.coins = Math.max(0, int(out.resources.coins + legacyCoreCoins, 0));
-    out.resources.crystals = Math.max(0, int(out.resources.crystals + legacyCoreCrystals, 0));
-  }
 
   const counts = {};
   const levels = {};

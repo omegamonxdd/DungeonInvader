@@ -98,6 +98,7 @@ function restoreStructures(snap, ctx) {
   }
 
   for (const rec of snap.structures) {
+    if (rec.kind === 'vault') continue; // emergencia: no recrear vaults legacy
     let def = structures.find(d => d.id === rec.id);
     if (!def) {
       def = factory.create(rec.kind, rec.x, rec.y, {
