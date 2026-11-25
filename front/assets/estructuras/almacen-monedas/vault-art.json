@@ -1,0 +1,15 @@
+{
+  "generator": "tools/vault-art/generate.mjs",
+  "cell": 256,
+  "artScale": 1.0947,
+  "anchor": {
+    "x": 128,
+    "y": 182
+  },
+  "bbox": [
+    35,
+    114,
+    188,
+    219
+  ]
+}

@@ -13,6 +13,8 @@
 import { iso } from '../systems/iso.js';
 import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W } from '../config/world.js';
 import { OVERLAY_DEPTH } from '../config/interaction.js';
+import { VAULT_ART, vaultArtFor } from '../config/vaultArt.js';
+import { makeDungeonRockTexture } from '../systems/defenseTextures.js';
 import { specFor } from '../systems/structureSpecs.js';
 
 const C = {
@@ -365,8 +367,10 @@ export class StructureView {
 
     this.baseDepth = this.x + this.y + this.size;
     this.ground = scene.add.graphics().setDepth(this.baseDepth + 0.01);
+    this.groundRock = null;
     this.shadow = scene.add.graphics().setDepth(this.baseDepth + 0.02);
     this.body = scene.add.graphics().setDepth(this.baseDepth + 0.05);
+    this.image = null;
     this.bubble = null;
     this.floating = false;
     this.destroyed = false;
@@ -388,14 +392,30 @@ export class StructureView {
 
   drawGround() {
     const g = this.ground;
+    g.clear();
+    const vaultArt = vaultArtFor(this.kind);
+    if (vaultArt) {
+      const key = `structure-rock-${this.size}`;
+      makeDungeonRockTexture(this.scene, key, this.size);
+      const top = iso(this.x, this.y, 0);
+      if (!this.groundRock) {
+        this.groundRock = this.scene.add.image(top.x, top.y, key)
+          .setOrigin(0, 0)
+          .setDepth(this.baseDepth + 0.01);
+      } else {
+        this.groundRock.setTexture(key).setPosition(top.x, top.y).setDepth(this.baseDepth + 0.01);
+      }
+      this.groundRock.setVisible(!this.hidden).setAlpha(this.destroyed ? 0.6 : 0.95);
+      return;
+    }
+    if (this.groundRock) { this.groundRock.setVisible(false); }
     const n = this.size;
     const top = iso(this.x, this.y);
     const right = iso(this.x + n, this.y);
     const bottom = iso(this.x + n, this.y + n);
     const left = iso(this.x, this.y + n);
-    const colors = GROUND[this.kind] || [0x3d3d44, 0x7b7b86];
+    const colors = GROUND[this.kind] || GROUND.vault || [0x3d3d44, 0x7b7b86];
 
-    g.clear();
     brickDiamond(g,
       (top.x + bottom.x) / 2, (top.y + bottom.y) / 2,
       (right.x - left.x) / 2, (bottom.y - top.y) / 2,
@@ -404,15 +424,47 @@ export class StructureView {
 
   drawShadow() {
     const g = this.shadow;
-    const c = this.center();
     g.clear();
+    if (vaultArtFor(this.kind)) return;
+    const c = this.center();
     g.fillStyle(0x000000, 0.26);
     g.fillEllipse(c.x, c.y + 4 * SCALE, this.size * HALF_W * 0.62 * 2, this.size * HALF_H * 0.55 * 2);
+  }
+
+  placeImage(lift = 0) {
+    const art = vaultArtFor(this.kind);
+    if (!art || !this.image) return;
+    const c = this.center(lift);
+    const px = VAULT_ART.artScale;
+    this.image.setPosition(c.x - VAULT_ART.anchor.x * px, c.y - VAULT_ART.anchor.y * px);
   }
 
   drawBody(time) {
     const g = this.body;
     g.clear();
+    const vaultArt = vaultArtFor(this.kind);
+    if (vaultArt) {
+      if (!this.image) {
+        this.image = this.scene.add.image(0, 0, vaultArt.texture)
+          .setOrigin(0, 0)
+          .setScale(VAULT_ART.artScale);
+      } else if (this.image.texture?.key !== vaultArt.texture) {
+        this.image.setTexture(vaultArt.texture);
+      }
+      const lift = this.floating ? this.lift || 0 : 0;
+      const depth = this.floating ? OVERLAY_DEPTH + 0.05 : this.baseDepth + 0.05;
+      this.image.setDepth(depth);
+      this.placeImage(lift);
+      this.image.setVisible(!this.hidden && !this.destroyed)
+        .setAlpha(this.floating ? (this.working ? 0.55 : 0.85) : (this.working ? 0.55 : 1));
+      if (this.destroyed) {
+        this.image.setVisible(false);
+        const c = this.center();
+        drawRubble(g, c.x, c.y, this.unit);
+      }
+      return;
+    }
+    if (this.image) { this.image.destroy(); this.image = null; }
     if (this.destroyed) {
       const c = this.center();
       drawRubble(g, c.x, c.y, this.unit);
@@ -420,13 +472,13 @@ export class StructureView {
     }
     const lift = this.floating ? this.lift || 0 : 0;
     const c = this.center(lift);
-    const drawer = DRAWERS[this.kind];
+    const drawer = DRAWERS[this.kind] || (this.kind?.startsWith('vault-') ? DRAWERS.vault : null);
     if (!drawer) {
       cuboid(g, c.x, c.y, 36 * this.unit, 22, 18 * this.unit, WOOD);
       return;
     }
     const args = [g, c.x, c.y, this.unit, time, this.aim];
-    if (this.kind === 'vault') args.splice(4, 0, this.resource);
+    if (this.kind === 'vault' || this.kind?.startsWith('vault-')) args.splice(4, 0, this.resource);
     if (this.kind === 'banner' || this.kind === 'bannerslime') args[5] = this.kind;
     drawer(...args);
   }
@@ -445,6 +497,7 @@ export class StructureView {
     this.ground.setDepth(this.baseDepth + 0.01);
     this.shadow.setDepth(this.baseDepth + 0.02);
     this.body.setDepth(this.baseDepth + 0.05);
+    if (this.image) this.image.setDepth(this.baseDepth + 0.05);
     this.drawGround();
     this.drawShadow();
     this.drawBody(this.scene.time.now);
@@ -458,9 +511,11 @@ export class StructureView {
     this.x = gx;
     this.y = gy;
     this.ground.setVisible(false);
+    if (this.groundRock) this.groundRock.setVisible(false);
     this.shadow.setVisible(false);
     this.body.setAlpha(this.working ? 0.55 : 0.85)
       .setDepth(OVERLAY_DEPTH + 0.05);
+    if (this.image) this.image.setAlpha(this.working ? 0.55 : 0.85).setDepth(OVERLAY_DEPTH + 0.05);
     this.drawBody(time);
     this.updateBubble();
   }
@@ -470,10 +525,12 @@ export class StructureView {
     this.lift = 0;
     this.x = this.def.x;
     this.y = this.def.y;
-    this.ground.setVisible(!this.hidden);
-    this.shadow.setVisible(!this.hidden);
+    this.ground.setVisible(!this.hidden && !vaultArtFor(this.kind));
+    if (this.groundRock) this.groundRock.setVisible(!this.hidden);
+    this.shadow.setVisible(!this.hidden && !vaultArtFor(this.kind));
     this.body.setVisible(!this.hidden)
       .setAlpha(this.working ? 0.55 : 1);
+    if (this.image) this.image.setVisible(!this.hidden && !this.destroyed).setAlpha(this.working ? 0.55 : 1);
     this.placeAt(this.x, this.y, 0);
   }
 
@@ -488,6 +545,7 @@ export class StructureView {
     if (this.working === on) return;
     this.working = on;
     this.body.setAlpha(on ? 0.55 : 1);
+    if (this.image) this.image.setAlpha(on ? 0.55 : 1);
   }
 
   setDestroyed(on = true) {
@@ -501,9 +559,12 @@ export class StructureView {
   setHidden(on = true) {
     if (this.hidden === on) return;
     this.hidden = on;
-    this.ground.setVisible(!on);
-    this.shadow.setVisible(!on);
+    const vaultArt = Boolean(vaultArtFor(this.kind));
+    this.ground.setVisible(!on && !vaultArt);
+    if (this.groundRock) this.groundRock.setVisible(!on);
+    this.shadow.setVisible(!on && !vaultArt);
     this.body.setVisible(!on);
+    if (this.image) this.image.setVisible(!on && !this.destroyed);
     if (this.bubble) this.bubble.setVisible(!on);
   }
 
@@ -552,8 +613,10 @@ export class StructureView {
 
   destroy() {
     this.ground.destroy();
+    if (this.groundRock) this.groundRock.destroy();
     this.shadow.destroy();
     this.body.destroy();
+    if (this.image) this.image.destroy();
     if (this.bubble) this.bubble.destroy();
   }
 }
@@ -563,5 +626,6 @@ export class StructureView {
 // DartTurret, Catapult); sus DRAWERS se conservan solo como referencia
 // histórica del aspecto previo al horneado.
 export function needsGenericView(kind) {
+  if (vaultArtFor(kind)) return true;
   return Boolean(DRAWERS[kind]) && kind !== 'ballista' && kind !== 'turret' && kind !== 'catapult';
 }

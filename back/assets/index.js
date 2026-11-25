@@ -22,6 +22,8 @@ import catapultHead2 from '../../front/assets/estructuras/catapulta/catapult-hea
 import catapultHead3 from '../../front/assets/estructuras/catapulta/catapult-head-g3.png';
 import coreImage from '../../front/assets/estructuras/nucleo/core.png';
 import coreGlow from '../../front/assets/estructuras/nucleo/core-glow.png';
+import vaultCoinsImage from '../../front/assets/estructuras/almacen-monedas/vault-coins.png';
+import vaultCrystalsImage from '../../front/assets/estructuras/almacen-cristales/vault-crystals.png';
 
 export const ASSETS = Object.freeze({
   ballista: Object.freeze({
@@ -40,4 +42,6 @@ export const ASSETS = Object.freeze({
     image: coreImage,
     glow: coreGlow,
   }),
+  vaultCoins: Object.freeze({ image: vaultCoinsImage }),
+  vaultCrystals: Object.freeze({ image: vaultCrystalsImage }),
 });

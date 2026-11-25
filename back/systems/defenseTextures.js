@@ -100,7 +100,7 @@ function buildRockPattern() {
 /* Hornea el mismo suelo de piedra para cualquier huella cuadrada. La usan las
  * tres defensas con su propia clave para compartir EXACTAMENTE la familia de
  * roca del mapa. */
-function makeDungeonRockTexture(scene, key, n) {
+export function makeDungeonRockTexture(scene, key, n) {
   if (scene.textures.exists(key)) return key;
 
   const pattern = buildRockPattern();
