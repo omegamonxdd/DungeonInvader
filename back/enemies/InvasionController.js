@@ -105,15 +105,23 @@ export class InvasionController {
     this.lootGained[resource] = (this.lootGained[resource] || 0) + amount;
   }
 
+  vaultResource(def) {
+    if (!def) return null;
+    if (def.kind === 'vault-coins' || (def.kind === 'vault' && (def.resource || 'coins') === 'coins')) return 'coins';
+    if (def.kind === 'vault-crystals' || (def.kind === 'vault' && def.resource === 'crystals')) return 'crystals';
+    return null;
+  }
+
   /** Botín que aún guarda una estructura viva. */
   lootOf(def) {
     if (!def?.placed || (this.siege[def.id] ?? this.maxHpOf(def)) <= 0) {
       return { resource: null, amount: 0 };
     }
     const spec = specFor(def);
-    if (def.kind === 'vault') {
+    const vaultRes = this.vaultResource(def);
+    if (vaultRes) {
       return {
-        resource: def.resource || 'coins',
+        resource: vaultRes,
         amount: Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate)),
       };
     }
@@ -126,39 +134,28 @@ export class InvasionController {
     return { resource: null, amount: 0 };
   }
 
-  /** Botín total que se ve en el panel; solo de estructuras aún vivas.
-   *  El núcleo también guarda recursos (stored / storedCrystals). */
+  /** Botín total que se ve en el panel; solo de estructuras aún vivas. */
   availableLoot() {
     const out = { coins: 0, crystals: 0 };
     if (!this.active) return out;
-    // El botín base siempre cuenta: el panel muestra «1500 + robo» por recurso.
-    const base = BALANCE.invasion.botinBase || {};
-    out.coins = Math.max(0, Math.floor(base.coins || 0));
-    out.crystals = Math.max(0, Math.floor(base.crystals || 0));
     for (const def of this.structures) {
-      if (def?.kind === 'core') {
-        if ((this.siege[def.id] ?? this.maxHpOf(def)) <= 0) continue;
-        out.coins += Math.max(0, Math.floor((def.stored || 0) * this.vaultLootRate));
-        out.crystals += Math.max(0, Math.floor((def.storedCrystals || 0) * this.vaultLootRate));
-        continue;
-      }
+      if (def?.kind === 'core') continue;
       const { resource, amount } = this.lootOf(def);
       if (resource && amount) out[resource] = (out[resource] || 0) + amount;
     }
     return out;
   }
 
-  /** Se lleva el porcentaje de una estructura al destruirla. Se calcula
-   *  directamente: en este momento `siege` ya está a 0 y `lootOf()` lo
-   *  descartaría como estructura caída. */
+  /** Se lleva el porcentaje de una estructura al destruirla. */
   takeLootFrom(def) {
     if (!def || !this.resources) return;
     const spec = specFor(def);
     let resource = null;
     let current = 0;
     let rate = 0;
-    if (def.kind === 'vault') {
-      resource = def.resource || 'coins';
+    const vaultRes = this.vaultResource(def);
+    if (vaultRes) {
+      resource = vaultRes;
       current = def.stored || 0;
       rate = this.vaultLootRate;
     } else if (spec?.producer) {
@@ -170,31 +167,23 @@ export class InvasionController {
     const amount = Math.max(0, Math.floor(current * rate));
     if (amount <= 0) return;
     this.addLoot(resource, amount);
-    if (def.kind === 'vault') def.stored = Math.max(0, current - amount);
+    if (vaultRes) def.stored = Math.max(0, current - amount);
     else def.pending = Math.max(0, current - amount);
   }
 
-  /** Recursos guardados en el núcleo (monedas y cristales por separado). */
-  takeCoreLoot(def) {
-    for (const [key, resource] of [['stored', 'coins'], ['storedCrystals', 'crystals']]) {
-      const amount = Math.max(0, Math.floor((def[key] || 0) * this.vaultLootRate));
-      if (!amount) continue;
-      this.addLoot(resource, amount);
-      def[key] = Math.max(0, (def[key] || 0) - amount);
-    }
-  }
+  /** El núcleo ya no guarda recursos de almacén. */
+  takeCoreLoot(_def) {}
 
   /** Colapso de la mazmorra: al caer el núcleo se destruyen todos los
    *  edificios, pero el botín aplica los mismos porcentajes de siempre
-   *  (25 % núcleo/almacenes, 50 % minas y talleres). */
+   *  (25 % almacenes, 50 % minas y talleres). */
   collapseBase() {
     for (const def of this.structures) {
-      if (def.kind === 'core') this.takeCoreLoot(def);
-      else this.takeLootFrom(def);
       if (def.kind === 'core') {
         def.view?.setDestroyed?.(true);
         continue;
       }
+      this.takeLootFrom(def);
       this.siege[def.id] = 0;
       this.hitAt[def.id] = this.scene.time.now;
       def.view?.setDestroyed?.(true);
@@ -375,20 +364,15 @@ export class InvasionController {
       def.view?.setHidden?.(false);
     }
     const swap = this.baseSwap;
-    const baseLoot = BALANCE.invasion.botinBase || {};
-    const baseCoins = Math.max(0, Math.floor(baseLoot.coins || 0));
-    const baseCrystals = Math.max(0, Math.floor(baseLoot.crystals || 0));
     const loot = {
-      coins: (this.lootGained?.coins || 0) + baseCoins,
-      crystals: (this.lootGained?.crystals || 0) + baseCrystals,
+      coins: Math.max(0, Math.floor(this.lootGained?.coins || 0)),
+      crystals: Math.max(0, Math.floor(this.lootGained?.crystals || 0)),
     };
-    // El botín base se guarda directamente en el núcleo, sin depender del
-    // hueco libre en almacenes (también en invasiones locales, sin rival).
-    const depositBase = (structures) => {
-      const core = structures?.find(d => d?.kind === 'core' && d.placed && !d.shelved);
-      if (!core) return;
-      core.stored = Math.max(0, Math.floor(core.stored || 0)) + baseCoins;
-      core.storedCrystals = Math.max(0, Math.floor(core.storedCrystals || 0)) + baseCrystals;
+    // Solo se entrega el botín obtenido destruyendo núcleo/almacenes/productores.
+    const grantLoot = (resources) => {
+      if (!resources) return;
+      if (loot.coins) resources.add('coins', loot.coins);
+      if (loot.crystals) resources.add('crystals', loot.crystals);
     };
     this.baseSwap = null;
     this.opponent = null;
@@ -396,22 +380,17 @@ export class InvasionController {
     if (swap) {
       const ctx = this.getContext();
       restoreOwnBase(ctx, swap.own);
-      depositBase(ctx.structures);
       // restoreOwnBase reaplica el snapshot propio, que tiene los recursos
-      // de ANTES del botín: los robados se vuelven a sumar aquí para que
-      // flushPending() los guarde con la base ya restaurada.
-      if (this.resources) {
-        if (this.lootGained?.coins) this.resources.add('coins', this.lootGained.coins);
-        if (this.lootGained?.crystals) this.resources.add('crystals', this.lootGained.crystals);
-      }
+      // de ANTES del botín: se suman aquí para que flushPending() los guarde.
+      grantLoot(ctx.resources || this.resources);
     } else {
-      depositBase(this.structures);
+      grantLoot(this.resources);
     }
     // applySnapshot ya refrescó el HUD con los recursos anteriores al botín:
     // se vuelve a sincronizar después de re-sumirlo.
     this.scene?.ui?.syncResources?.();
     if (loot.coins || loot.crystals) {
-      this.onToast(`Botín: +${loot.coins || 0} oro · +${loot.crystals || 0} cristales`);
+      this.onToast(`Botín: +${loot.coins} oro · +${loot.crystals} cristales`);
     }
     this.reset();
     if (swap) {
