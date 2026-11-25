@@ -257,7 +257,7 @@ export class GameService {
 
   /* ---------- Guardado -------------------------------------------------- */
 
-  markDirty({ reload = true } = {}) {
+  markDirty({ reload = false } = {}) {
     if (!this.started || this.sessionLocked || this.applying) return;
     this.dirty = true;
     clearTimeout(this._debounce);
@@ -411,7 +411,7 @@ export class GameService {
       stats.wins = (stats.wins || 0) + 1;
     }
     else stats.losses = (stats.losses || 0) + 1;
-    this.markDirty();
+    this.markDirty({ reload: false });
   }
 
   dispose() {
