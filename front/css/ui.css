@@ -39,6 +39,8 @@
 @import './modales/05-rival.css';
 /* Sesión abierta en otra pestaña. */
 @import './modales/06-tab-lock.css';
+/* Notas del parche. */
+@import './modales/07-patch-notes.css';
 
 /* Fase 8: tropas y letrero de fin de invasión (mismos estilos del legacy). */
 @import './invasion/01-tropas.css';
@@ -129,16 +131,12 @@ body.editing #upg-btn { display: none; }
 }
 body.inv-end #game canvas { pointer-events: none; }
 
-/* Botones "−" de la ventana de la entrada (retirar tropas sin reembolso). */
-.info-troops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-.info-troop-remove {
-  padding: 4px 8px;
-  font: 600 var(--fs-sm)/1.2 var(--font);
-  color: var(--txt);
-  cursor: pointer;
-}
+/* Ventana de entrada: administración de ejército. */
+.army-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.army-head .army-label { margin: 0; }
+.army-head .action-btn { padding: 8px 10px; font-size: var(--fs-sm); }
+.army-tile { position: relative; overflow: visible; }
+.army-tile .troop-dot { width: 34px; height: 34px; margin: 2px 0 4px; }
+.army-tile .army-name { max-width: 100%; }
+.army-tile .troop-info-btn { top: 4px; right: 4px; left: auto; width: 24px; height: 24px; font-size: var(--fs-sm); }
+.army-remove-btn { --bg: var(--red); --hi: var(--red-hi); --lo: var(--red-lo); --bg-h: var(--red-h); --hi-h: var(--red-hi-h); color: var(--white); text-shadow: 2px 2px 0 var(--shadow-red); }

@@ -226,6 +226,28 @@ export class ShortcutsUI {
     document.addEventListener?.('fullscreenchange', syncFullscreenLabel);
     document.addEventListener?.('webkitfullscreenchange', syncFullscreenLabel);
     syncFullscreenLabel();
+
+    const patchBtn = document.getElementById('patch-notes-btn');
+    const patchOverlay = document.getElementById('patch-notes-overlay');
+    const patchClose = document.getElementById('patch-notes-close');
+    const closePatch = () => {
+      if (!patchOverlay) return;
+      patchOverlay.hidden = true;
+      patchBtn?.setAttribute('aria-expanded', 'false');
+    };
+    const openPatch = () => {
+      if (!patchOverlay) return;
+      patchOverlay.hidden = false;
+      patchBtn?.setAttribute('aria-expanded', 'true');
+      patchClose?.focus?.();
+    };
+    patchBtn?.addEventListener('click', () => (patchOverlay?.hidden ? openPatch() : closePatch()));
+    patchClose?.addEventListener('click', closePatch);
+    patchOverlay?.addEventListener('pointerdown', e => { if (e.target === patchOverlay) closePatch(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && patchOverlay && !patchOverlay.hidden) closePatch();
+    }, { capture: true });
+
     this.keysClose.addEventListener('click', () => this.closeKeys());
     this.keysOverlay.addEventListener('pointerdown', e => {
       if (e.target === this.keysOverlay) this.closeKeys();

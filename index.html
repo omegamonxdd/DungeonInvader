@@ -194,6 +194,9 @@
         <button id="fullscreen-btn" class="action-btn" type="button" aria-label="Pantalla completa" title="Pantalla completa">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
         </button>
+        <button id="patch-notes-btn" class="action-btn" type="button" aria-label="Notas del parche" title="Notas del parche" aria-expanded="false" aria-controls="patch-notes-overlay">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M15 4v3h3"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
+        </button>
       </div>
       <div id="profile-popover" class="profile-popover" role="dialog" aria-label="Perfil de usuario" hidden>
         <div class="profile-who">
@@ -363,7 +366,6 @@
   <div id="editor-bar">
     <div id="editor-bar-inner" role="toolbar" aria-label="Acciones del editor">
       <button id="ed-pick" class="action-btn ed-lock" type="button" aria-pressed="false">Recoger</button>
-      <button id="ed-all" class="action-btn ed-lock" type="button">Guardar todo</button>
       <button id="ed-view" class="action-btn" type="button" aria-pressed="false">Vista invasor</button>
       <button id="ed-save" class="action-btn gold ed-lock" type="button">Guardar diseño</button>
     </div>
@@ -425,6 +427,23 @@
   <div id="victory-banner">
     <b></b><span></span>
     <button id="victory-back" class="action-btn gold" type="button">Volver</button>
+  </div>
+
+  <!-- Notas del parche -->
+  <div id="patch-notes-overlay" class="patch-notes-overlay" role="dialog" aria-modal="true" aria-labelledby="patch-notes-title" hidden>
+    <section class="patch-notes-card">
+      <div class="patch-notes-head">
+        <h2 id="patch-notes-title">Notas del parche</h2>
+        <button id="patch-notes-close" class="action-btn" type="button" aria-label="Cerrar notas del parche">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="patch-notes-body">
+        <h3 class="patch-notes-section">Cambios</h3>
+        <p class="patch-notes-version">version 1.0.1</p>
+        <p class="patch-notes-item">1.-</p>
+      </div>
+    </section>
   </div>
 
   <!-- Otra pestaña con la misma cuenta tomó el control de esta sesión. -->

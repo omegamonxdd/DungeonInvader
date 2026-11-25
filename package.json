@@ -11,7 +11,8 @@
     "art:ballista": "node tools/ballista-art/generate.mjs",
     "art:turret": "node tools/turret-art/generate.mjs",
     "art:catapult": "node tools/catapult-art/generate.mjs",
-    "art:core": "node tools/core-art/generate.mjs"
+    "art:core": "node tools/core-art/generate.mjs",
+    "art:vault": "node tools/vault-art/generate.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

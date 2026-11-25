@@ -1,86 +1,135 @@
 /* Móvil en cualquier orientación: retrato (<700px) o horizontal con
    pantalla táctil y poca altura (~500px). */
 @media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
-  #summon-panel { bottom: 92px; }
-  /* Ancho completo como antes, pero un 30 % más bajo. */
-  #invasion-panel {
-    bottom: 8px; width: calc(100vw - 16px); max-width: calc(100vw - 16px);
-    max-height: 120px; padding: 10px;
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
   }
-  #invasion-head { margin-bottom: 4px; }
+
+  #summon-panel { bottom: calc(86px + var(--safe-bottom)); width: min(var(--w-summon), calc(100vw - 16px - var(--safe-left) - var(--safe-right))); }
+  #invasion-panel {
+    bottom: calc(8px + var(--safe-bottom));
+    left: calc(8px + var(--safe-left));
+    right: auto;
+    width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
+    max-width: none;
+    max-height: 120px; padding: 10px;
+    transform: translateY(calc(100% + 50px));
+  }
+  #invasion-panel.open { transform: none; }
+  #invasion-head { margin-bottom: 4px; gap: 8px; }
   #invasion-items { min-height: 58px; max-height: 58px; padding: 6px 8px; }
   #invasion-hint { display: none; }
   .inv-troop { flex-basis: 72px; width: 72px; min-height: 56px; padding: 6px 4px 10px; gap: 3px; }
   .inv-troop .troop-dot { width: 28px; height: 28px; }
-  #action-bar, #move-hint { bottom: 92px; }
-  #toast { bottom: 176px; }
+
+  #action-bar, #move-hint {
+    bottom: calc(86px + var(--safe-bottom));
+    gap: 8px;
+    padding: 10px;
+    max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #action-bar .action-btn { padding: 10px 12px; min-height: 44px; font-size: var(--fs-sm); }
+  #toast { bottom: calc(156px + var(--safe-bottom)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
   #action-title { display: none; }
 
-  /* Botón rojo "Cancelar", un 20 % más pequeño, justo sobre el panel. */
   body.invading #invasion-btn {
-    bottom: 138px; padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8);
+    bottom: calc(138px + var(--safe-bottom));
+    left: calc(12px + var(--safe-left));
+    padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8); min-height: 44px;
   }
   body.invading #invasion-btn .btn-label { display: none; }
   body.invading #invasion-btn .btn-short { display: inline; }
 
-  /* Select solo aparece durante la invasión: alterna arrastrar la cámara /
-     seleccionar tropas con el dedo. En la base normal estorba. */
   #select-mode-btn { display: none; }
   body.invading #select-mode-btn {
     display: block;
-    position: fixed; right: 10px; top: 50%; z-index: 4;
+    position: fixed; right: calc(10px + var(--safe-right)); top: 50%; z-index: 4;
     transform: translateY(-50%);
-    padding: 12px 10px; font: 700 var(--fs-sm)/1 var(--font);
+    padding: 12px 10px; min-height: 44px; font: 700 var(--fs-sm)/1 var(--font);
   }
 
-  /* Cronómetro un 35 % más pequeño. */
   #invasion-timer {
-    top: 10px; min-width: calc(150px * 0.65);
+    top: calc(10px + var(--safe-top)); min-width: calc(150px * 0.65);
     padding: 5px 14px 7px; gap: 3px;
   }
   #invasion-timer .it-label { font-size: calc(var(--fs-sm) * 0.65); }
   #invasion-timer .it-time { font-size: calc(var(--fs-xl) * 0.65); }
 
-  /* Sin atajos de teclado en pantallas táctiles. */
   .key-hint { display: none !important; }
 
-  /* El HUD superior se pliega con el botón › para no tapar el juego. */
-  #topbar-toggle { display: grid; }
+  #topbar { left: calc(10px + var(--safe-left)); top: calc(10px + var(--safe-top)); max-width: calc(100vw - 20px - var(--safe-left) - var(--safe-right)); }
+  #topbar-toggle { display: grid; width: 44px; height: 44px; }
   body.topbar-collapsed #status,
   body.topbar-collapsed #builders-status { display: none; }
 
-  /* Etiqueta corta de Información. */
   #btn-info .label-full { display: none; }
   #btn-info .label-short { display: inline; }
 
-  /* Barras de recursos un 20 % más cortas en móvil. */
-  #resources { width: calc(var(--w-recursos) * 0.8); }
+  #resources {
+    right: calc(10px + var(--safe-right));
+    top: calc(10px + var(--safe-top));
+    width: min(calc(var(--w-recursos) * 0.8), calc(100vw - 20px - var(--safe-left) - var(--safe-right)));
+  }
+  body.invading #resources { left: calc(10px + var(--safe-left)); right: auto; }
+  #invasion-loot { top: calc(10px + var(--safe-top)); right: calc(10px + var(--safe-right)); max-width: calc(100vw - 20px - var(--safe-left) - var(--safe-right)); }
 
-  /* Móvil: al abrir, el botón Mejoras desaparece y el panel nace justo donde
-     estaba (bajo los recursos), un 10 % más pequeño en conjunto. La X de la
-     cabecera sirve para cerrarlo. */
   body.upg-open #upg-btn { display: none; }
   #upg-panel {
-    right: 8px; left: auto; top: 88px; bottom: 84px;
-    width: var(--w-upg); max-width: calc(100vw - 16px);
+    right: calc(8px + var(--safe-right)); left: auto;
+    top: calc(78px + var(--safe-top)); bottom: calc(78px + var(--safe-bottom));
+    width: min(var(--w-upg), calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
     transform-origin: top right;
-    transform: translateX(calc(100% + 50px)) scale(0.9); opacity: 0;
+    transform: translateX(calc(100% + 50px)) scale(0.96); opacity: 0;
     transition: transform var(--dur-panel) var(--ease-panel), opacity var(--dur-fade) ease;
   }
-  #upg-panel.open { transform: scale(0.9); opacity: 1; }
-  .upg-close { flex: 0 0 auto; }
+  #upg-panel.open { transform: scale(0.96); opacity: 1; }
+  .upg-close { flex: 0 0 auto; width: 44px; height: 44px; }
 
-  /* Construcción: sustituye el panel de aviso por un botón de cancelar. */
+  #build-btn, #invasion-btn, #editor-btn { min-height: 44px; }
+  #build-btn { right: calc(12px + var(--safe-right)); bottom: calc(12px + var(--safe-bottom)); padding: 12px 20px; }
+  #editor-btn { right: calc(12px + var(--safe-right)); bottom: calc(68px + var(--safe-bottom)); width: 44px; height: 44px; padding: 0; justify-content: center; }
+  body.editing #editor-btn { left: calc(12px + var(--safe-left)); right: auto; bottom: calc(12px + var(--safe-bottom)); }
+
   #move-hint { display: none !important; }
   body.moving #move-cancel {
     display: flex;
-    position: fixed; left: 50%; bottom: 92px; z-index: 5;
+    position: fixed; left: 50%; bottom: calc(86px + var(--safe-bottom)); z-index: 5;
     transform: translateX(-50%);
-    padding: 10px 16px;
+    padding: 10px 16px; min-height: 44px;
     font: 600 var(--fs-sm)/1 var(--font);
     white-space: nowrap;
   }
-  body.editing.moving #move-cancel { bottom: 148px; }
+  body.editing.moving #move-cancel { bottom: calc(140px + var(--safe-bottom)); }
+
+  /* Editor compacto en horizontal móvil */
+  #editor-panel {
+    width: min(280px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+    padding: 12px;
+  }
+  #editor-bar {
+    left: calc(68px + var(--safe-left));
+    right: calc(min(280px, calc(100vw - 16px - var(--safe-left) - var(--safe-right))) + 12px + var(--safe-right));
+    bottom: calc(12px + var(--safe-bottom));
+  }
+  #editor-bar-inner { gap: 8px; padding: 10px; }
+  #editor-bar .action-btn { min-height: 44px; padding: 10px 12px; font-size: var(--fs-sm); }
+  body.editing #action-bar, body.editing #move-hint { bottom: calc(86px + var(--safe-bottom)); left: calc(50% - 100px); max-width: calc(100vw - 360px); }
+  body.editing #toast { bottom: calc(150px + var(--safe-bottom)); left: calc(50% - 100px); }
+
+  /* Targets táctiles y paneles */
+  .troop-info-btn, .army-remove, .army-remove-btn { width: 32px; height: 32px; padding: 0; }
+  .army-tile { padding-top: 32px; }
+  .army-tile .troop-info-btn { top: 2px; right: 2px; }
+  #info-overlay { padding: 10px; align-items: flex-end; }
+  #info-panel { width: min(var(--w-info), calc(100vw - 20px)); max-height: calc(100vh - 20px - var(--safe-top) - var(--safe-bottom)); padding: 18px 16px 16px; }
+  #info-close, #summon-close, #build-close, #patch-notes-close { width: 44px; height: 44px; }
+  #info-upgrade { min-height: 48px; }
+  .patch-notes-card { width: min(520px, calc(100vw - 20px)); max-height: calc(100vh - 20px - var(--safe-top) - var(--safe-bottom)); }
 }
 
 /* Retrato táctil: pantalla de piedra que bloquea el juego hasta girar. */
