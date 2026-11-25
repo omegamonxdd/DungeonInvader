@@ -240,22 +240,20 @@ export class TopoController {
       x1: CORE_MIN + CORE_SIZE, y1: CORE_MIN + CORE_SIZE,
     };
     const cands = [];
-    const y0 = Math.max(0, CORE_MIN - 4);
-    const y1 = Math.min(this.terrain.n, CORE_MIN + CORE_SIZE + 4);
-    const x0 = Math.max(0, CORE_MIN - 4);
-    const x1 = Math.min(this.terrain.n, CORE_MIN + CORE_SIZE + 4);
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
+    const n = this.terrain.n;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
         if (!this.cellOk(x, y)) continue;
-        const d = distToRect(x + 0.5, y + 0.5, core);
-        if (d > 3) continue;
         if (this._topos.some(o => o.alive
           && Math.hypot(o.x - (x + 0.5), o.y - (y + 0.5)) < 0.6)) continue;
+        const d = distToRect(x + 0.5, y + 0.5, core);
         cands.push({ x, y, d });
       }
     }
     if (!cands.length) return null;
     cands.sort((a, b) => a.d - b.d);
+    // Elige entre las más cercanas al núcleo; sin límite de radio porque
+    // los topos pueden excavar para llegar a cualquier zona disponible.
     const near = cands.slice(0, 8);
     return near[Math.floor(Math.random() * near.length)];
   }

@@ -14,8 +14,8 @@ export const edificios = {
     hp: { 1: 400, 2: 450, 3: 500, 4: 550 },
   },
   laboratorio: {
-    size: 2, height: 26, maxNivel: 2,
-    hp: { 1: 350, 2: 400 },
+    size: 2, height: 26, maxNivel: 3,
+    hp: { 1: 350, 2: 400, 3: 450 },
   },
   incubadora: {
     size: 2, height: 40, maxNivel: 2,

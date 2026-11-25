@@ -38,6 +38,6 @@ export const defensas = {
     accuracy: 0.55,     // radio máximo de dispersión (casillas)
     missChance: 0.18,   // probabilidad de un lanzamiento desviado
     hp:  { 1: 750, 2: 800 },
-    dps: { 1: 7,   2: 8 },
+    dps: { 1: 6,   2: 7 },
   },
 };

@@ -177,7 +177,7 @@ function normalizeStructure(rec) {
     placed: Boolean(rec.placed),
     shelved: Boolean(rec.shelved),
     movable: rec.movable !== false,
-    resource: resource || spec.resource || null,
+    resource: rec.resource || spec.resource || null,
     costKey: rec.costKey || spec.slot || null,
     limitKind: rec.limitKind || spec.limitKind || null,
     work,

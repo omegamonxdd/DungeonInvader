@@ -20,7 +20,7 @@ export const obras = {
   },
 
   tiemposMejora: {
-    core:        { 2: 60, 3: 300 },
+    core:        { 2: 60, 3: 300, 4: 600 },
     entrance:    { 2: 120, 3: 300 },
     ballista:    { 2: 45, 3: 150, 4: 240 },
     turret:      { 2: 90, 3: 150, 4: 270 },

@@ -39,9 +39,9 @@ export const nucleo = {
     1: { hp: 1000, storage: 2500 },
     2: { hp: 1250, storage: 4000 },
     3: { hp: 1500, storage: 10000 },
-    4: { hp: 2000, storage: 25000 }, // definido, aún inalcanzable
+    4: { hp: 2000, storage: 25000 },
   },
-  limiteExcavacion: { 1: 100, 2: 115, 3: 150 },
+  limiteExcavacion: { 1: 100, 2: 115, 3: 150, 4: 150 },
 };
 
 export const entrada = {
