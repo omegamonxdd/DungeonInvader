@@ -140,7 +140,13 @@ export class UpgradeMenu {
         if (from >= (def.maxNivel || 1)) continue;
         const req = this.army.labRequired(id, from + 1);
         if (this.army.labLevel() < req) continue;
-        troops.push({ id, name: TROOP_ART[id]?.name || id, from, to: from + 1, req });
+        const cost = this.army.mutateCost(id, from + 1);
+        troops.push({
+          id, name: TROOP_ART[id]?.name || id, from, to: from + 1, req,
+          cost: costText(cost),
+          poor: !this.resources?.canAfford(cost),
+          time: fmtDur(this.army.mutateTime(id, from + 1)),
+        });
       }
     }
     // `lab` es una def con su vista de Phaser: meterla en `d` haría fallar
@@ -173,7 +179,7 @@ export class UpgradeMenu {
       if (!d.troops.length) return '<p class="army-empty">No hay mutaciones disponibles con el nivel actual del laboratorio.</p>';
       return '<div class="army-label">Mutaciones disponibles</div>' + d.troops.map(t =>
         this.row(`data-troop="${t.id}"`, this.iconHtml(null, t.id), t.name,
-          `${levels(t.from, t.to)} · Lab. ${t.req}`),
+          `${levels(t.from, t.to)} · Lab. ${t.req} · <span class="${t.poor ? 'upg-poor' : ''}">${t.cost}</span> · ${t.time}`),
       ).join('');
     }
 

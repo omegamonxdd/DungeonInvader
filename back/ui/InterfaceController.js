@@ -71,7 +71,7 @@ export class InterfaceController {
     this.focus = deps.focus || (() => {});
 
     this.buildUI = { open: false, cat: 'recursos' };
-    this.infoUI = { open: false, mode: 'info' };
+    this.infoUI = { open: false, mode: 'info', troop: null, source: null, armyManage: false };
     this.summonUI = { open: false, mode: 'summon' };
     this.selection = null;
     this.toastTimer = 0;
@@ -447,11 +447,7 @@ export class InterfaceController {
   // countStructures() del legacy. Los dos almacenes comparten `limitKind`
   // pero se cuentan por recurso.
   countOf(slot) {
-    return this.structures.filter(d => {
-      if (d.kind !== slot.kind) return false;
-      if (slot.kind === 'vault' && d.resource !== slot.resource) return false;
-      return true;
-    }).length;
+    return this.structures.filter(d => (d.limitKind || d.kind) === slot.limitKind).length;
   }
 
   unlockLevel(slot, count) {
@@ -552,7 +548,7 @@ export class InterfaceController {
     this.els.btnMutate.hidden = editing || !(kind === 'lab');
     this.els.btnBreed.hidden = editing || !(kind === 'incubator');
     this.els.btnMove.hidden = !(sel && sel.movable);
-    this.els.btnRetire.hidden = !(editing && sel && sel.movable);
+    this.els.btnRetire.hidden = !(editing && sel && sel.movable && !sel.shelved);
     this.syncScene();
   }
 
@@ -573,7 +569,7 @@ export class InterfaceController {
     if (sel && mode !== 'mutate' && sel.kind !== source) return false;
     // Grietas, incubadoras y laboratorios siguen funcionando mientras se
     // mejoran: usan su nivel actual y el cambio llega al terminar la obra.
-    if (pausedByWork(sel)) {
+    if (sel?.work?.kind === 'build') {
       this.showToast(`${nameOf(sel)}: en construcción`);
       return false;
     }
@@ -711,8 +707,7 @@ export class InterfaceController {
 
   // Mutar una tropa abre primero la misma ventana de Mejorar de las
   // estructuras: valor actual » valor del siguiente nivel con barras que se
-  // llenan. El botón del pie confirma la mutación (es gratis, como en el
-  // legacy). Si ya está al máximo solo se muestra su información.
+  // llenan. El botón del pie confirma la mutación.
   openTroopUpgrade(id) {
     const def = BALANCE.tropas.tipos[id];
     if (!def || !this.army) return false;
@@ -724,6 +719,7 @@ export class InterfaceController {
     }
     const to = lvl + 1;
     const why = this.army.canMutate(id);
+    const cost = this.army.mutateCost(id, to);
     this.infoUI.open = true;
     this.infoUI.mode = 'troop-upgrade';
     this.infoUI.troop = id;
@@ -738,7 +734,14 @@ export class InterfaceController {
       .map(s => this.renderStat(s, s.next)).join('');
     this.hideMissingBox();
     this.els.infoFooter.hidden = false;
-    this.els.infoWork.hidden = true;       // las mutaciones no cuestan recursos ni obra
+    this.els.infoWork.hidden = false;
+    const parts = costParts(cost);
+    this.els.iwCost.innerHTML = parts.length
+      ? parts.map(p => `<span class="cost-${p.res}">${p.n}${RES_ICON[p.res]}</span>`).join('')
+      : 'Gratis';
+    this.els.iwCost.classList.toggle('poor', !this.resources.canAfford(cost));
+    this.els.iwTime.textContent = fmtDur(this.army.mutateTime(id, to));
+    this.els.iwBuilders.textContent = this.army.labLevel();
     this.els.infoUpgrade.disabled = Boolean(why);
     this.els.infoUpgrade.classList.toggle('locked', Boolean(why));
     this.els.infoUpgrade.querySelector('span').textContent = why || 'Mutar';
@@ -1296,6 +1299,57 @@ export class InterfaceController {
     if (cards.length) this.showInfoBox('Desbloqueas al mejorar', cards);
   }
 
+  renderEntranceArmy(sel, upgrading) {
+    if (sel?.kind !== 'entrance' || upgrading || !this.army) return;
+    const troops = Object.entries(this.army.counts || {}).filter(([, n]) => n > 0);
+    const manage = Boolean(this.infoUI.armyManage);
+    const head = `
+      <div class="army-section stat-wide" id="entrance-army">
+        <div class="army-head">
+          <div class="army-label">Ejército en la entrada</div>
+          <button class="action-btn" id="entrance-army-manage" type="button" ${!troops.length ? 'disabled' : ''}>
+            ${manage ? 'Listo' : 'Administrar ejercito'}
+          </button>
+        </div>
+        ${troops.length ? `
+          <div class="army-grid" role="list">
+            ${troops.map(([id, n]) => {
+              const art = TROOP_ART[id] || {};
+              const level = this.army.levelOf(id);
+              const max = BALANCE.tropas.tipos[id]?.maxNivel || 1;
+              return `
+                <div class="army-tile troop-wrap" role="listitem">
+                  ${manage
+                    ? `<button class="troop-info-btn army-remove-btn" type="button" data-remove-troop="${id}" aria-label="Retirar ${TROOP_NAME(id)}">−</button>`
+                    : `<button class="troop-info-btn" type="button" data-troop-info="${id}" aria-label="Información de ${TROOP_NAME(id)}">i</button>`}
+                  <span class="troop-dot" style="--troop-hi:${art.hi || '#d9c7a0'};--troop-lo:${art.lo || '#7d7054'};background:${art.color || '#999'}"></span>
+                  <span class="army-name">${TROOP_NAME(id)}</span>
+                  <span class="army-count">x${n}</span>
+                  ${this.troopLevelBadge(level, max).outerHTML}
+                </div>`;
+            }).join('')}
+          </div>
+        ` : '<p class="army-empty">No hay tropas en la entrada.</p>'}
+      </div>`;
+    this.els.infoStats.insertAdjacentHTML('beforeend', head);
+    this.els.infoStats.querySelector('#entrance-army-manage')?.addEventListener('click', () => {
+      this.infoUI.armyManage = !this.infoUI.armyManage;
+      this.openPanel('info');
+    });
+    this.els.infoStats.querySelectorAll('[data-remove-troop]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this.army.remove(btn.dataset.removeTroop)) {
+          this.invasion?.refreshArmy?.();
+          if (!Object.values(this.army.counts || {}).some(n => n > 0)) this.infoUI.armyManage = false;
+          this.openPanel('info');
+        }
+      });
+    });
+    this.els.infoStats.querySelectorAll('[data-troop-info]').forEach(btn => {
+      btn.addEventListener('click', () => this.openTroopInfo(btn.dataset.troopInfo));
+    });
+  }
+
   openPanel(mode = 'info') {
     const sel = this.selection;
     if (!sel) return;
@@ -1323,27 +1377,7 @@ export class InterfaceController {
     const nextStats = upgrading && lvl < max ? this.statsFor(sel, lvl + 1, max) : [];
     this.els.infoStats.innerHTML = stats.map((s, i) => this.renderStat(s, nextStats[i])).join('');
 
-    // Como en el legacy, la ventana de la entrada permite retirar tropas
-    // con un botón "−" por tipo (sin reembolso, solo fuera de invasión).
-    if (kind === 'entrance' && !upgrading && this.army && !this.invasion?.active) {
-      const troops = Object.entries(this.army.counts).filter(([, n]) => n > 0);
-      if (troops.length) {
-        this.els.infoStats.insertAdjacentHTML('beforeend',
-          '<div class="info-troops" role="group" aria-label="Retirar tropas">' +
-          troops.map(([id, n]) =>
-            `<button class="action-btn info-troop-remove" type="button" data-remove-troop="${id}" ` +
-            `title="Retirar ${TROOP_NAME(id)} (sin reembolso)">− ${TROOP_NAME(id)} (${n})</button>`,
-          ).join('') + '</div>');
-        this.els.infoStats.querySelectorAll('[data-remove-troop]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (this.army.remove(btn.dataset.removeTroop)) {
-              this.invasion?.refreshArmy?.();
-              this.openPanel('info');
-            }
-          });
-        });
-      }
-    }
+    this.renderEntranceArmy(sel, upgrading);
 
     // Mejora del núcleo: si faltan edificios se enumeran (y el botón queda
     // bloqueado por WorkController); si no, se muestra lo que se desbloquea.
@@ -1394,6 +1428,7 @@ export class InterfaceController {
   closePanel() {
     if (!this.infoUI.open) return false;
     this.infoUI.open = false;
+    this.infoUI.armyManage = false;
     this.hideMissingBox();
     this.els.infoOverlay.classList.remove('open');
     document.body.classList.remove('info-open');

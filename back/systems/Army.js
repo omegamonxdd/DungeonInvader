@@ -7,7 +7,7 @@
  * balance/; aquí solo se validan las reglas del legacy.
  * ========================================================== */
 
-import { BALANCE, levelRow, tropaAt, troopDamageAt } from '../balance/index.js';
+import { BALANCE, levelRow, tropaAt, troopDamageAt, troopMutateCost, troopMutateTime } from '../balance/index.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 
 const T = BALANCE.tropas;
@@ -40,6 +40,8 @@ export class Army {
     this.levels = {};
     for (const id of Object.keys(this.counts)) this.levels[id] = 1;
   }
+
+  resources() { return this.deps.resources || null; }
 
   capacity() {
     const lvl = this.deps.entranceLevel?.() || 1;
@@ -120,6 +122,14 @@ export class Army {
     return levelRow(T.labRequerido[id], to) ?? 1;
   }
 
+  mutateCost(id, to = this.levelOf(id) + 1) {
+    return troopMutateCost(id, to);
+  }
+
+  mutateTime(id, to = this.levelOf(id) + 1) {
+    return troopMutateTime(id, to);
+  }
+
   canMutate(id) {
     const def = T.tipos[id];
     if (!def) return 'Tropa desconocida';
@@ -127,19 +137,25 @@ export class Army {
       const building = def.source === 'incubator' ? 'incubadora' : 'grieta';
       return `Necesitas ${building} nivel ${def.minNivel}`;
     }
-    // No hace falta tener una copia: en el legacy la mutación sube el nivel de
-    // todo el tipo en cuanto se desbloquea, antes de invocar/criar la primera.
     const to = this.levelOf(id) + 1;
     if (to > (def.maxNivel || 1)) return 'Nivel máximo';
     const need = this.labRequired(id, to);
     if (this.labLevel() < need) return `Necesitas laboratorio nivel ${need}`;
+    const cost = this.mutateCost(id, to);
+    if (this.resources() && !this.resources().canAfford(cost)) return 'Recursos insuficientes';
     return '';
   }
 
   mutate(id) {
     const why = this.canMutate(id);
     if (why) { this.onToast(why); return false; }
-    this.levels[id] = this.levelOf(id) + 1;
+    const to = this.levelOf(id) + 1;
+    const cost = this.mutateCost(id, to);
+    if (this.resources() && !this.resources().pay(cost)) {
+      this.onToast('Recursos insuficientes');
+      return false;
+    }
+    this.levels[id] = to;
     this.onToast(`${TROOP_NAME(id)} → nivel ${this.levels[id]}`);
     this.onChange();
     return true;
