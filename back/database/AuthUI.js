@@ -32,8 +32,6 @@ export class AuthUI {
       email: byId('auth-email'),
       passwordField: byId('auth-password-field'),
       password: byId('auth-password'),
-      codeField: byId('auth-code-field'),
-      code: byId('auth-code'),
       newPasswordField: byId('auth-new-password-field'),
       newPassword: byId('auth-new-password'),
       error: byId('auth-error'),
@@ -55,6 +53,12 @@ export class AuthUI {
     this.popoverOpen = false;
     this.bind();
     this.service.onStatus(state => this.renderStatus(state));
+    this.service.auth?.onRecovery?.(() => {
+      this.show();
+      this.setMode('reset');
+      this.setError('Enlace verificado. Escribe tu nueva contraseña.');
+      requestAnimationFrame(() => this.els.newPassword?.focus());
+    });
   }
 
   bind() {
@@ -123,14 +127,14 @@ export class AuthUI {
 
     if (this.els.sub) {
       this.els.sub.textContent = forgot
-        ? 'Escribe tu correo y te enviaremos un código para cambiar la contraseña.'
+        ? 'Escribe tu correo y te enviaremos un enlace para cambiar la contraseña.'
         : reset
-          ? 'Escribe el código que recibiste por correo y tu nueva contraseña.'
+          ? 'Escribe tu nueva contraseña.'
           : 'Entra para guardar tu mazmorra y continuar donde la dejaste.';
     }
     if (this.els.submit) {
       this.els.submit.textContent = registering ? 'Crear cuenta'
-        : forgot ? 'Enviar código'
+        : forgot ? 'Enviar enlace'
         : reset ? 'Cambiar contraseña'
         : 'Entrar';
     }
@@ -147,9 +151,6 @@ export class AuthUI {
       this.els.password.autocomplete = registering ? 'new-password' : 'current-password';
       if (!loginLike) this.els.password.value = '';
     }
-
-    if (this.els.codeField) this.els.codeField.hidden = !reset;
-    if (this.els.code) { this.els.code.required = reset; if (!reset) this.els.code.value = ''; }
 
     if (this.els.newPasswordField) this.els.newPasswordField.hidden = !reset;
     if (this.els.newPassword) { this.els.newPassword.required = reset; if (!reset) this.els.newPassword.value = ''; }
@@ -168,10 +169,9 @@ export class AuthUI {
 
   async onSubmit(e) {
     e.preventDefault();
-    const email = (this.mode === 'reset' ? this.resetEmail : this.els.email?.value.trim()) || '';
+    const email = this.els.email?.value.trim() || '';
     const password = this.els.password?.value || '';
     const username = this.mode === 'register' ? (this.els.username?.value.trim() || '') : '';
-    const code = this.els.code?.value.trim() || '';
     const newPassword = this.els.newPassword?.value || '';
 
     if (this.mode === 'register' && (!email || !password || !username)) {
@@ -183,8 +183,8 @@ export class AuthUI {
     if (this.mode === 'forgot' && !email) {
       this.setError('Escribe tu correo electrónico.'); return;
     }
-    if (this.mode === 'reset' && (!this.resetEmail || !code || !newPassword)) {
-      this.setError('Escribe el código del correo y tu nueva contraseña.'); return;
+    if (this.mode === 'reset' && !newPassword) {
+      this.setError('Escribe tu nueva contraseña.'); return;
     }
 
     this.setError('');
@@ -202,20 +202,16 @@ export class AuthUI {
       const { error } = await this.service.requestPasswordReset(email);
       if (this.els.submit) this.els.submit.disabled = false;
       if (error) { this.setError(error); return; }
-      this.resetEmail = email;
-      this.setMode('reset');
-      this.setError('Te enviamos un código a tu correo. Escríbelo aquí para crear una nueva contraseña.');
-      requestAnimationFrame(() => this.els.code?.focus());
+      this.setError('Te enviamos un enlace a tu correo. Ábrelo para cambiar tu contraseña.');
       return;
     }
 
     if (this.mode === 'reset') {
-      const { error: verifyError } = await this.service.verifyRecoveryCode(this.resetEmail, code);
-      if (verifyError) { if (this.els.submit) this.els.submit.disabled = false; this.setError(verifyError); return; }
       const { error } = await this.service.updatePassword(newPassword);
       if (this.els.submit) this.els.submit.disabled = false;
       if (error) { this.setError(error); return; }
       this.resetEmail = '';
+      this.setError('');
       this.hide();
       return;
     }

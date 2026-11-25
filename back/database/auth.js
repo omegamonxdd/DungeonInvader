@@ -31,6 +31,7 @@ export class AuthService {
     this.client = null;
     this.user = asUser({ guest: true });
     this.listeners = new Set();
+    this.recoveryListeners = new Set();
     this._authUnsub = null;
   }
 
@@ -44,6 +45,12 @@ export class AuthService {
   onChange(cb) {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
+  }
+
+  /** Suscribe evento de recuperación de contraseña (link por correo). */
+  onRecovery(cb) {
+    this.recoveryListeners.add(cb);
+    return () => this.recoveryListeners.delete(cb);
   }
 
   _emit() {
@@ -72,9 +79,14 @@ export class AuthService {
         console.warn('[auth] No se pudo restaurar la sesión:', err);
       }
       try {
-        const { data } = await this.client.auth.onAuthStateChange((_event, session) => {
+        const { data } = await this.client.auth.onAuthStateChange((event, session) => {
           if (session?.user) this._set(session.user);
           else this._set({ guest: true });
+          if (event === 'PASSWORD_RECOVERY') {
+            for (const cb of this.recoveryListeners) {
+              try { cb(session?.user); } catch (err) { console.warn('[auth] recovery listener falló:', err); }
+            }
+          }
         });
         this._authUnsub = data?.subscription || null;
       } catch { /* la suscripción es opcional */ }
@@ -121,16 +133,8 @@ export class AuthService {
     return { error: null };
   }
 
-  async verifyRecoveryCode(email, token) {
-    if (!this.client) return { error: 'Supabase no está configurado en este navegador.' };
-    const { data, error } = await this.client.auth.verifyOtp({
-      email,
-      token,
-      type: 'recovery',
-    });
-    if (error) return { error: error.message };
-    if (data?.session?.user) this._set(data.session.user);
-    return { error: null };
+  async verifyRecoveryCode() {
+    return { error: 'El flujo por código ya no está activo. Usa el enlace enviado a tu correo.' };
   }
 
   async updatePassword(password) {
