@@ -112,6 +112,35 @@ export class AuthService {
     return { user: this.user, error: null, needsConfirmation: !data?.session };
   }
 
+  async requestPasswordReset(email) {
+    if (!this.client) return { error: 'Supabase no está configurado en este navegador.' };
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: appUrl(),
+    });
+    if (error) return { error: error.message };
+    return { error: null };
+  }
+
+  async verifyRecoveryCode(email, token) {
+    if (!this.client) return { error: 'Supabase no está configurado en este navegador.' };
+    const { data, error } = await this.client.auth.verifyOtp({
+      email,
+      token,
+      type: 'recovery',
+    });
+    if (error) return { error: error.message };
+    if (data?.session?.user) this._set(data.session.user);
+    return { error: null };
+  }
+
+  async updatePassword(password) {
+    if (!this.client) return { error: 'Supabase no está configurado en este navegador.' };
+    const { data, error } = await this.client.auth.updateUser({ password });
+    if (error) return { error: error.message };
+    if (data?.user) this._set(data.user);
+    return { error: null };
+  }
+
   async signOut() {
     if (this.client) {
       const { error } = await this.client.auth.signOut();

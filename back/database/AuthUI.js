@@ -21,18 +21,28 @@ const STATUS_TEXT = {
 export class AuthUI {
   constructor(service) {
     this.service = service;
-    this.mode = 'login';
+    this.mode = 'login'; // login | register | forgot | reset
+    this.resetEmail = '';
     this.els = {
       overlay: byId('auth-overlay'),
       form: byId('auth-form'),
       username: byId('auth-username'),
       nameField: byId('auth-name-field'),
+      emailField: byId('auth-email-field'),
       email: byId('auth-email'),
+      passwordField: byId('auth-password-field'),
       password: byId('auth-password'),
+      codeField: byId('auth-code-field'),
+      code: byId('auth-code'),
+      newPasswordField: byId('auth-new-password-field'),
+      newPassword: byId('auth-new-password'),
       error: byId('auth-error'),
       submit: byId('auth-submit'),
       guest: byId('auth-guest'),
+      forgotRow: byId('auth-forgot-row'),
+      forgotLink: byId('auth-forgot-link'),
       note: byId('auth-note'),
+      sub: byId('auth-sub'),
       tabs: [...document.querySelectorAll('#auth-overlay [data-mode]')],
       profileBtn: byId('profile-btn'),
       popover: byId('profile-popover'),
@@ -56,6 +66,7 @@ export class AuthUI {
       this.service.continueAsGuest();
       this.hide();
     });
+    this.els.forgotLink?.addEventListener('click', () => this.setMode('forgot'));
     this.els.profileBtn?.addEventListener('click', e => {
       e.stopPropagation();
       if (this.popoverOpen) this.closeProfile();
@@ -96,20 +107,56 @@ export class AuthUI {
   }
 
   setMode(mode) {
-    this.mode = mode === 'register' ? 'register' : 'login';
+    const allowed = ['login', 'register', 'forgot', 'reset'];
+    this.mode = allowed.includes(mode) ? mode : 'login';
     for (const tab of this.els.tabs) {
-      const on = tab.dataset.mode === this.mode;
-      tab.classList.toggle('active', on);
-      tab.setAttribute('aria-selected', String(on));
+      const on = tab.dataset.mode === this.mode || (this.mode === 'reset' && tab.dataset.mode === 'login') || (this.mode === 'forgot' && tab.dataset.mode === 'login');
+      const active = tab.dataset.mode === this.mode || (this.mode === 'register' ? tab.dataset.mode === 'register' : tab.dataset.mode === 'login');
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
     }
+
     const registering = this.mode === 'register';
-    if (this.els.submit) this.els.submit.textContent = registering ? 'Crear cuenta' : 'Entrar';
-    if (this.els.password) this.els.password.autocomplete = registering ? 'new-password' : 'current-password';
-    if (this.els.nameField) this.els.nameField.hidden = !registering;
-    if (this.els.username) {
-      this.els.username.required = registering;
-      if (!registering) this.els.username.value = '';
+    const forgot = this.mode === 'forgot';
+    const reset = this.mode === 'reset';
+    const loginLike = this.mode === 'login' || registering;
+
+    if (this.els.sub) {
+      this.els.sub.textContent = forgot
+        ? 'Escribe tu correo y te enviaremos un código para cambiar la contraseña.'
+        : reset
+          ? 'Escribe el código que recibiste por correo y tu nueva contraseña.'
+          : 'Entra para guardar tu mazmorra y continuar donde la dejaste.';
     }
+    if (this.els.submit) {
+      this.els.submit.textContent = registering ? 'Crear cuenta'
+        : forgot ? 'Enviar código'
+        : reset ? 'Cambiar contraseña'
+        : 'Entrar';
+    }
+
+    if (this.els.nameField) this.els.nameField.hidden = !registering;
+    if (this.els.username) { this.els.username.required = registering; if (!registering) this.els.username.value = ''; }
+
+    if (this.els.emailField) this.els.emailField.hidden = reset;
+    if (this.els.email) { this.els.email.required = !reset; if (reset) this.els.email.value = this.resetEmail; }
+
+    if (this.els.passwordField) this.els.passwordField.hidden = !loginLike;
+    if (this.els.password) {
+      this.els.password.required = loginLike;
+      this.els.password.autocomplete = registering ? 'new-password' : 'current-password';
+      if (!loginLike) this.els.password.value = '';
+    }
+
+    if (this.els.codeField) this.els.codeField.hidden = !reset;
+    if (this.els.code) { this.els.code.required = reset; if (!reset) this.els.code.value = ''; }
+
+    if (this.els.newPasswordField) this.els.newPasswordField.hidden = !reset;
+    if (this.els.newPassword) { this.els.newPassword.required = reset; if (!reset) this.els.newPassword.value = ''; }
+
+    if (this.els.forgotRow) this.els.forgotRow.hidden = !loginLike;
+    if (this.els.guest) this.els.guest.hidden = !loginLike;
+
     this.setError('');
   }
 
@@ -121,28 +168,58 @@ export class AuthUI {
 
   async onSubmit(e) {
     e.preventDefault();
-    const email = this.els.email?.value.trim();
+    const email = (this.mode === 'reset' ? this.resetEmail : this.els.email?.value.trim()) || '';
     const password = this.els.password?.value || '';
     const username = this.mode === 'register' ? (this.els.username?.value.trim() || '') : '';
-    if (!email || !password || (this.mode === 'register' && !username)) {
-      this.setError(this.mode === 'register'
-        ? 'Escribe tu nombre de usuario, correo y contraseña.'
-        : 'Escribe tu correo y tu contraseña.');
-      return;
+    const code = this.els.code?.value.trim() || '';
+    const newPassword = this.els.newPassword?.value || '';
+
+    if (this.mode === 'register' && (!email || !password || !username)) {
+      this.setError('Escribe tu nombre de usuario, correo y contraseña.'); return;
     }
+    if (this.mode === 'login' && (!email || !password)) {
+      this.setError('Escribe tu correo y tu contraseña.'); return;
+    }
+    if (this.mode === 'forgot' && !email) {
+      this.setError('Escribe tu correo electrónico.'); return;
+    }
+    if (this.mode === 'reset' && (!this.resetEmail || !code || !newPassword)) {
+      this.setError('Escribe el código del correo y tu nueva contraseña.'); return;
+    }
+
     this.setError('');
     if (this.els.submit) this.els.submit.disabled = true;
+
     if (this.mode === 'register') {
       const { error, needsConfirmation } = await this.service.signUp(email, password, username);
       if (this.els.submit) this.els.submit.disabled = false;
       if (error) { this.setError(error); return; }
-      if (needsConfirmation) {
-        this.setError('Revisa tu correo para confirmar la cuenta y vuelve a entrar.');
-        return;
-      }
+      if (needsConfirmation) { this.setError('Revisa tu correo para confirmar la cuenta y vuelve a entrar.'); return; }
+      this.hide(); return;
+    }
+
+    if (this.mode === 'forgot') {
+      const { error } = await this.service.requestPasswordReset(email);
+      if (this.els.submit) this.els.submit.disabled = false;
+      if (error) { this.setError(error); return; }
+      this.resetEmail = email;
+      this.setMode('reset');
+      this.setError('Te enviamos un código a tu correo. Escríbelo aquí para crear una nueva contraseña.');
+      requestAnimationFrame(() => this.els.code?.focus());
+      return;
+    }
+
+    if (this.mode === 'reset') {
+      const { error: verifyError } = await this.service.verifyRecoveryCode(this.resetEmail, code);
+      if (verifyError) { if (this.els.submit) this.els.submit.disabled = false; this.setError(verifyError); return; }
+      const { error } = await this.service.updatePassword(newPassword);
+      if (this.els.submit) this.els.submit.disabled = false;
+      if (error) { this.setError(error); return; }
+      this.resetEmail = '';
       this.hide();
       return;
     }
+
     const { error } = await this.service.signIn(email, password);
     if (this.els.submit) this.els.submit.disabled = false;
     if (error) { this.setError(error); return; }

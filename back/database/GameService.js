@@ -397,6 +397,9 @@ export class GameService {
 
   signIn(email, password) { return this.auth.signIn(email, password); }
   signUp(email, password, displayName) { return this.auth.signUp(email, password, displayName); }
+  requestPasswordReset(email) { return this.auth.requestPasswordReset(email); }
+  verifyRecoveryCode(email, token) { return this.auth.verifyRecoveryCode(email, token); }
+  updatePassword(password) { return this.auth.updatePassword(password); }
   signOut() { return this.auth.signOut(); }
   continueAsGuest() { return this.auth.continueAsGuest(); }
 
