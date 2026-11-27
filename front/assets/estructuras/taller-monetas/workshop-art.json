@@ -1,0 +1,15 @@
+{
+  "generator": "tools/workshop-art/generate.mjs",
+  "cell": 256,
+  "artScale": 1.0947,
+  "anchor": {
+    "x": 128,
+    "y": 182
+  },
+  "bbox": [
+    43,
+    97,
+    190,
+    220
+  ]
+}

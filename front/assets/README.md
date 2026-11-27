@@ -19,10 +19,13 @@
 | `estructuras/almacen-monedas/vault-coins.png` | Caja fuerte negra con herrajes grises, amarres de cuerda en las esquinas y cuerda que ciñe todo el conjunto, 256×256 RGBA | `back/assets/index.js` → textura `vault-coins` |
 | `estructuras/almacen-cristales/vault-crystals.png` | Cubeta de madera abierta con uniones de cuerda y minerales cian dentro, 256×256 RGBA | `back/assets/index.js` → textura `vault-crystals` |
 | `estructuras/almacen-*/vault-art.json` | Ancla, escala y bbox del render | Documentación del generador |
+| `estructuras/taller-monetas/workshop.png` | Taller de madera con techo inclinado, letrero de moneda y tocón para cortar leña, 256×256 RGBA | `back/assets/index.js` → textura `workshop` |
+| `estructuras/taller-monetas/workshop-art.json` | Ancla, escala y bbox del render | Documentación del generador |
 
 Las imágenes se generan con `npm run art:ballista`, `npm run art:turret`,
-`npm run art:catapult`, `npm run art:core` y `npm run art:vault`
-(`tools/*-art/generate.mjs`) desde modelos 3D con cámara isométrica real.
+`npm run art:catapult`, `npm run art:core`, `npm run art:vault` y
+`npm run art:workshop` (`tools/*-art/generate.mjs`) desde modelos 3D con cámara
+isométrica real.
 Todos los edificios (excepto trampas, núcleo y entrada) comparten el mismo
 suelo de roca de mazmorra: `makeDungeonRockTexture()` en
 `back/systems/defenseTextures.js`. No hay fuentes sueltas:
