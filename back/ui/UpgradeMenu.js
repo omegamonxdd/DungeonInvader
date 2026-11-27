@@ -16,6 +16,7 @@
 import {
   BALANCE, buildCost, buildTime, structureLimit, upgradeCost, upgradeTime,
 } from '../balance/index.js';
+import { effectiveLimit } from '../systems/WorkController.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 import { fmtDur } from '../systems/WorkController.js';
 import { nameOf, specFor } from '../systems/structureSpecs.js';
@@ -24,7 +25,7 @@ import { drawBuildIcon } from './buildIcons.js';
 
 const ORDER = ['defensas', 'militar', 'recursos', 'estandartes', 'trampas'];
 const BUILDABLES = [...SLOTS].sort((a, b) => ORDER.indexOf(a.cat) - ORDER.indexOf(b.cat));
-const RES_NAMES = { coins: 'monedas', crystals: 'cristales' };
+const RES_NAMES = { coins: 'monedas', crystals: 'cristales', rubies: 'rubíes' };
 const byId = id => document.getElementById(id);
 
 const CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>';
@@ -32,7 +33,7 @@ const CORE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy
 const DOOR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M3 21h18"/><path d="M9 21v-7a3 3 0 0 1 6 0v7"/></svg>';
 
 const costText = cost => {
-  const parts = ['coins', 'crystals'].filter(r => (cost?.[r] || 0) > 0);
+  const parts = ['coins', 'crystals', 'rubies'].filter(r => (cost?.[r] || 0) > 0);
   return parts.length ? parts.map(r => `${cost[r]} ${RES_NAMES[r]}`).join(' + ') : 'Gratis';
 };
 const levels = (a, b) => `Nivel ${a} <span class="stat-arrow">»</span> ${b}`;
@@ -85,6 +86,7 @@ export class UpgradeMenu {
 
   data() {
     const core = this.coreLevel;
+    const reductions = this.deps?.extra?.fusionReductions || {};
     const up = [];
 
     for (const def of this.structures) {
@@ -119,7 +121,7 @@ export class UpgradeMenu {
     BUILDABLES.forEach((slot, i) => {
       const limitKind = slot.limitKind || slot.kind;
       const n = this.countOf(limitKind);
-      const lim = structureLimit(limitKind, core);
+      const lim = effectiveLimit(limitKind, core, reductions);
       if (n >= lim) return;
       const cost = buildCost(slot.costKey);
       build.push({

@@ -51,6 +51,9 @@
 
 .stat { margin-bottom: 12px; padding: 14px 16px; }
 .stat-top { display: flex; align-items: center; gap: 12px; }
+/* El botón "i" reutiliza .troop-info-btn (absolute en las tarjetas de tropa).
+   Dentro del panel de información va en línea, al final de la fila. */
+#info-stats .troop-info-btn { position: static; top: auto; right: auto; flex: 0 0 auto; margin-left: auto; }
 .stat-icon { flex: 0 0 auto; width: 26px; height: 26px; color: var(--c); filter: drop-shadow(2px 2px 0 var(--black)); }
 .stat-label { flex: 1 1 auto; color: var(--txt); font: 500 var(--fs-md)/1.3 var(--font); }
 .stat-value { color: var(--txt-gold); font: 700 var(--fs-lg)/1 var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -228,6 +228,10 @@
       <span class="res-icon" id="res-icon-crystals" aria-hidden="true"></span>
       <div class="res-bar"><div class="res-fill" id="res-fill-crystals"></div><div class="res-value" id="res-text-crystals"></div></div>
     </div>
+    <div class="res-row res-rubies" role="meter" aria-label="Rubíes" aria-valuemin="0" hidden>
+      <span class="res-icon" id="res-icon-rubies" aria-hidden="true"></span>
+      <div class="res-bar"><div class="res-fill" id="res-fill-rubies"></div><div class="res-value" id="res-text-rubies"></div></div>
+    </div>
     <!-- Mejoras pendientes: botón bajo los recursos + panel lateral (legacy 24-mejoras.js). -->
     <button id="upg-btn" class="action-btn" type="button" data-action="upgrades" aria-expanded="false" aria-controls="upg-panel" aria-keyshortcuts="Alt Izq">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
@@ -242,6 +246,7 @@
     <span class="il-values">
       <span class="il-row il-coins"><i aria-hidden="true"></i><b id="loot-coins">0</b></span>
       <span class="il-row il-crystals"><i aria-hidden="true"></i><b id="loot-crystals">0</b></span>
+      <span class="il-row il-rubies" hidden><i aria-hidden="true"></i><b id="loot-rubies">0</b></span>
     </span>
   </div>
 
@@ -271,6 +276,7 @@
       <span id="invasion-status">Seleccionadas 0 · En campo 0</span>
     </div>
     <div id="invasion-items" role="list"></div>
+    <button id="invasion-select-all" type="button">Seleccionar todo <span class="kbd">Ctrl+A</span></button>
     <div id="invasion-hint"><b>Clic izq.</b>: seleccionar · <b>Clic der.</b>: mover o atacar · <b>Ctrl+A</b>: todas · <b>Esc</b>: deseleccionar</div>
   </div>
   <div id="invasion-timer"><span class="it-label"></span><span class="it-time"></span></div>
@@ -294,6 +300,7 @@
         <button class="build-tab" type="button" role="tab" data-cat="defensas">Defensas</button>
         <button class="build-tab" type="button" role="tab" data-cat="estandartes">Estandartes</button>
         <button class="build-tab" type="button" role="tab" data-cat="trampas">Trampas</button>
+        <button class="build-tab" type="button" role="tab" data-cat="fusiones">Fusiones</button>
       </div>
       <!-- Las ranuras se generan desde back/ui/InterfaceController.js
            con los límites y costes de back/balance/. -->
@@ -348,6 +355,38 @@
     <div id="summon-items" role="list"></div>
   </div>
 
+  <!-- Selector de bases (Fase 1-2 editor mejorado) -->
+  <div id="base-select-overlay" class="patch-notes-overlay" role="dialog" aria-modal="true" aria-labelledby="base-select-title" hidden style="display:none">
+    <section class="patch-notes-card base-select-card">
+      <div class="patch-notes-head">
+        <h2 id="base-select-title">Editor de bases</h2>
+        <button id="base-select-close" class="action-btn" type="button" aria-label="Cerrar selector de bases">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="base-select-body">
+        <div id="base-select-actions" class="base-select-actions" hidden>
+          <button id="base-activate" class="action-btn gold" type="button">Activar dungeon</button>
+          <button id="base-edit" class="action-btn" type="button">Editar base</button>
+        </div>
+        <div class="base-select-grid" role="listbox" aria-label="Bases disponibles">
+          <button class="base-slot-card" type="button" data-base-slot="main" role="option" aria-selected="false">
+            <span class="base-slot-alert" hidden aria-label="Faltan edificios">!</span>
+            <span class="base-slot-name">Base 1</span>
+            <span class="base-slot-sub">La base que se va guardando</span>
+            <span class="base-slot-state"></span>
+          </button>
+          <button class="base-slot-card" type="button" data-base-slot="base2" role="option" aria-selected="false">
+            <span class="base-slot-alert" hidden aria-label="Faltan edificios">!</span>
+            <span class="base-slot-name">Base 2</span>
+            <span class="base-slot-sub">Base en blanco / alternativa</span>
+            <span class="base-slot-state"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <!-- Fase 11: editor de mazmorra (panel de guardados y barra de acciones). -->
   <aside id="editor-panel">
     <div id="ed-head">
@@ -369,6 +408,8 @@
   <div id="editor-bar">
     <div id="editor-bar-inner" role="toolbar" aria-label="Acciones del editor">
       <button id="ed-pick" class="action-btn ed-lock" type="button" aria-pressed="false">Recoger</button>
+      <button id="ed-all" class="action-btn ed-lock" type="button">Recoger todos</button>
+      <button id="ed-fill-all" class="action-btn ed-lock" type="button">Rellenar base</button>
       <button id="ed-view" class="action-btn" type="button" aria-pressed="false">Vista invasor</button>
       <button id="ed-save" class="action-btn gold ed-lock" type="button">Guardar diseño</button>
     </div>
@@ -415,7 +456,7 @@
       <div id="info-work" hidden>
         <span class="iw-item"><span class="iw-label">Coste</span><span class="build-cost" id="iw-cost"></span></span>
         <span class="iw-item"><span class="iw-label">Tiempo</span><b class="iw-time" id="iw-time"></b></span>
-        <span class="iw-item"><span class="iw-label">Constructores libres</span><b class="iw-time" id="iw-builders"></b></span>
+        <span class="iw-item" id="iw-builders-item"><span class="iw-label">Constructores libres</span><b class="iw-time" id="iw-builders"></b></span>
       </div>
       <div id="info-footer" hidden>
         <button id="info-upgrade" type="button">
@@ -445,6 +486,7 @@
         <p class="patch-notes-version">version 1.1.0</p>
         <h3 class="patch-notes-section">Cambios</h3>
         <p class="patch-notes-item">1.- Nucleo nivel 4 a llegado</p>
+        <p class="patch-notes-item">2.- bug fixes: se arreglaron varios bugs, entre ellos la trampa de rocas golpeaba dos veces en el primer golpe.</p>
         <p class="patch-notes-version">version 1.0.2</p>
         <h3 class="patch-notes-section">Cambios</h3>
         <p class="patch-notes-item">1.- Arreglo de bug que duplicaba los almacenes.</p>

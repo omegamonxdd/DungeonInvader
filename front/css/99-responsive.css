@@ -15,13 +15,15 @@
     right: auto;
     width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
     max-width: none;
-    max-height: 120px; padding: 10px;
+    max-height: 148px; padding: 10px;
     transform: translateY(calc(100% + 50px));
   }
   #invasion-panel.open { transform: none; }
   #invasion-head { margin-bottom: 4px; gap: 8px; }
   #invasion-items { min-height: 58px; max-height: 58px; padding: 6px 8px; }
   #invasion-hint { display: none; }
+  #invasion-select-all { margin-top: 6px; padding: 8px; font-size: var(--fs-xs); min-height: 44px; }
+  #invasion-select-all .kbd { display: none; }
   .inv-troop { flex-basis: 72px; width: 72px; min-height: 56px; padding: 6px 4px 10px; gap: 3px; }
   .inv-troop .troop-dot { width: 28px; height: 28px; }
 
@@ -38,7 +40,7 @@
   #action-title { display: none; }
 
   body.invading #invasion-btn {
-    bottom: calc(138px + var(--safe-bottom));
+    bottom: calc(166px + var(--safe-bottom));
     left: calc(12px + var(--safe-left));
     padding: 11px 24px; font-size: calc(var(--fs-lg) * 0.8); min-height: 44px;
   }
@@ -48,9 +50,9 @@
   #select-mode-btn { display: none; }
   body.invading #select-mode-btn {
     display: block;
-    position: fixed; right: calc(10px + var(--safe-right)); top: 50%; z-index: 4;
-    transform: translateY(-50%);
-    padding: 12px 10px; min-height: 44px; font: 700 var(--fs-sm)/1 var(--font);
+    position: fixed; right: calc(10px + var(--safe-right)); bottom: calc(166px + var(--safe-bottom)); top: auto; z-index: 4;
+    transform: none;
+    padding: 10px 12px; min-height: 44px; font: 700 var(--fs-sm)/1 var(--font);
   }
 
   #invasion-timer {

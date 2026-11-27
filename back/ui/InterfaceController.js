@@ -14,6 +14,7 @@ import {
   BALANCE, buildCost, levelRow, structureLimit, troopDamageAt, troopIntervalAt,
   tropaAt, upgradeCost, upgradeTime,
 } from '../balance/index.js';
+import { effectiveLimit } from '../systems/WorkController.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 import { nameOf, pausedByWork, specFor } from '../systems/structureSpecs.js';
 import { TROOP_NAME, troopStatsText } from '../systems/Army.js';
@@ -29,6 +30,7 @@ export { SLOTS };
 const SVG = {
   coin: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.2c-.6-.8-1.5-1.2-2.5-1.2-1.4 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-1.9-.4-2.5-1.2"/></svg>',
   crystal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l6 7-6 11-6-11z"/><path d="M6 10h12"/><path d="M12 3l-2 7 2 11 2-11z"/></svg>',
+  ruby: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l4 5-8 11L4 9z"/><path d="M4 9h16"/><path d="M12 4 9 9l3 11 3-11z"/></svg>',
   bow: '<svg viewBox="0 0 24 24"><path d="M6 4c9 0 14 5 14 14"/><path d="M6 4l14 14"/><path d="M3 21L14 10"/></svg>',
   dart: '<svg viewBox="0 0 24 24"><path d="M4 20L16 8"/><path d="M16 8l1-5 4 4z"/></svg>',
   catapult: '<svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M7 20l4-8 4 8"/><path d="M5 7l10 7"/></svg>',
@@ -47,11 +49,11 @@ const SVG = {
   door: '<svg viewBox="0 0 24 24"><path d="M5 21V9a7 7 0 0 1 14 0v12"/><path d="M3 21h18"/><path d="M9 21v-7a3 3 0 0 1 6 0v7"/></svg>',
 };
 
-const RES_NAMES = { coins: 'monedas', crystals: 'cristales' };
-const RES_ICON = { coins: SVG.coin, crystals: SVG.crystal };
+const RES_NAMES = { coins: 'monedas', crystals: 'cristales', rubies: 'rubíes' };
+const RES_ICON = { coins: SVG.coin, crystals: SVG.crystal, rubies: SVG.ruby };
 
 const byId = id => document.getElementById(id);
-const costParts = cost => ['coins', 'crystals'].filter(r => (cost?.[r] || 0) > 0).map(r => ({ res: r, n: cost[r] }));
+const costParts = cost => ['coins', 'crystals', 'rubies'].filter(r => (cost?.[r] || 0) > 0).map(r => ({ res: r, n: cost[r] }));
 const costText = cost => {
   const parts = costParts(cost);
   return parts.length ? parts.map(p => `${p.n} ${RES_NAMES[p.res]}`).join(' + ') : 'Gratis';
@@ -95,16 +97,17 @@ export class InterfaceController {
       infoStats: byId('info-stats'), infoFooter: byId('info-footer'), infoUpgrade: byId('info-upgrade'),
       infoMissing: byId('info-missing'), infoMissingTitle: document.querySelector('#info-missing .army-label'),
       infoMissingList: byId('info-missing-list'),
-      infoWork: byId('info-work'), iwCost: byId('iw-cost'), iwTime: byId('iw-time'), iwBuilders: byId('iw-builders'),
-      resIconCoins: byId('res-icon-coins'), resIconCrystals: byId('res-icon-crystals'),
-      resFillCoins: byId('res-fill-coins'), resFillCrystals: byId('res-fill-crystals'),
-      resTextCoins: byId('res-text-coins'), resTextCrystals: byId('res-text-crystals'),
+      infoWork: byId('info-work'), iwCost: byId('iw-cost'), iwTime: byId('iw-time'),
+      iwBuilders: byId('iw-builders'), iwBuildersItem: byId('iw-builders-item'),
+      resIconCoins: byId('res-icon-coins'), resIconCrystals: byId('res-icon-crystals'), resIconRubies: byId('res-icon-rubies'),
+      resFillCoins: byId('res-fill-coins'), resFillCrystals: byId('res-fill-crystals'), resFillRubies: byId('res-fill-rubies'),
+      resTextCoins: byId('res-text-coins'), resTextCrystals: byId('res-text-crystals'), resTextRubies: byId('res-text-rubies'),
       buildersCount: byId('bs-count'), buildersList: byId('bs-list'),
       invasionBtn: byId('invasion-btn'), invasionBtnLabel: byId('invasion-btn-label'),
       selectModeBtn: byId('select-mode-btn'),
       invasionPanel: byId('invasion-panel'),
       invasionItems: byId('invasion-items'), invasionStatus: byId('invasion-status'),
-      lootCoins: byId('loot-coins'), lootCrystals: byId('loot-crystals'),
+      lootCoins: byId('loot-coins'), lootCrystals: byId('loot-crystals'), lootRubies: byId('loot-rubies'),
       invasionTarget: byId('invasion-target'),
       timer: byId('invasion-timer'), timerLabel: document.querySelector('#invasion-timer .it-label'),
       timerTime: document.querySelector('#invasion-timer .it-time'),
@@ -123,6 +126,7 @@ export class InterfaceController {
 
     this.els.resIconCoins.innerHTML = SVG.coin;
     this.els.resIconCrystals.innerHTML = SVG.crystal;
+    if (this.els.resIconRubies) this.els.resIconRubies.innerHTML = SVG.ruby;
     this.bsKey = '';
     this.resKey = '';
 
@@ -141,6 +145,7 @@ export class InterfaceController {
   }
 
   get coreLevel() { return this.works?.coreLevel() || 1; }
+  get extra() { return this.deps?.extra || { fusionReductions: {} }; }
 
   /* ---------- Menú Construir -------------------------------------------- */
 
@@ -230,6 +235,12 @@ export class InterfaceController {
     this.els.infoOverlay.addEventListener('pointerdown', e => {
       if (e.target === this.els.infoOverlay) this.closePanel();
     });
+    this.els.infoStats.addEventListener('click', e => {
+      const btn = e.target.closest?.('[data-info]');
+      if (!btn || btn.dataset.info !== 'arana-bebe') return;
+      const motherLvl = this.army?.levelOf?.('arana') || 1;
+      this.openTroopInfo('arana-bebe', levelRow(BALANCE.tropas.nivelBebePorNivel, motherLvl) || 1);
+    });
     // Las tarjetas de edificios del núcleo se deslizan en horizontal con la
     // rueda, igual que el recuadro del legacy.
     this.els.infoMissingList?.addEventListener('wheel', e => {
@@ -255,6 +266,19 @@ export class InterfaceController {
       if (this.infoUI.mode !== 'upgrade') return;
       const sel = this.selection;
       if (!sel) return;
+      if (sel.kind === 'rag-altar') {
+        const ok = this.army?.upgradeRag?.();
+        if (ok) {
+          this.setSelection(sel);
+          this.openPanel('upgrade');
+          this.refreshBuildItems();
+          this.refreshTerrainUI();
+          this.syncScene();
+        } else {
+          this.closePanel();
+        }
+        return;
+      }
       const id = sel.id;
       this.closePanel();
       if (this.works.startUpgrade(id)) this.syncResources();
@@ -269,6 +293,10 @@ export class InterfaceController {
     // Fase 8: invasión. El botón vuelve a la base cuando ya terminó.
     this.els.invasionBtn.addEventListener('click', () => this.toggleInvasion());
     this.els.victoryBack.addEventListener('click', () => this.invasion.end());
+    this.els.invasionSelectAll?.addEventListener('click', () => {
+      this.invasion?.selectAll?.();
+      this.syncScene();
+    });
     this.els.selectModeBtn?.addEventListener('click', () => {
       const interaction = typeof this.selectMode === 'function' ? this.selectMode() : null;
       const active = Boolean(interaction?.toggleTouchSelect?.());
@@ -441,19 +469,24 @@ export class InterfaceController {
     this.refreshTerrainUI();
   }
 
-  limitOf(slot) { return structureLimit(slot.limitKind, this.coreLevel); }
+  limitOf(slot) {
+    return effectiveLimit(slot.limitKind, this.coreLevel, this.extra?.fusionReductions || {});
+  }
 
-  // Los límites cuentan también los edificios guardados por el editor, como
-  // countStructures() del legacy. Los dos almacenes comparten `limitKind`
-  // pero se cuentan por recurso.
+  // Los límites cuentan también los edificios guardados por el editor.
   countOf(slot) {
-    return this.structures.filter(d => (d.limitKind || d.kind) === slot.limitKind).length;
+    return this.structures.filter(d => {
+      if ((d.limitKind || d.kind) !== slot.limitKind) return false;
+      if (slot.resource && d.resource && d.resource !== slot.resource) return false;
+      return true;
+    }).length;
   }
 
   unlockLevel(slot, count) {
-    const table = BALANCE.estructuras.limitePorNucleo[slot.limitKind] || {};
-    for (const lvl of Object.keys(table).map(Number).sort((a, b) => a - b)) {
-      if (lvl > this.coreLevel && table[lvl] > count) return lvl;
+    const cur = this.coreLevel;
+    const reductions = this.extra?.fusionReductions || {};
+    for (let lv = cur + 1; lv <= BALANCE.nucleo.maxLevel; lv++) {
+      if (effectiveLimit(slot.limitKind, lv, reductions) > count) return lv;
     }
     return null;
   }
@@ -464,7 +497,7 @@ export class InterfaceController {
   }
 
   canAfford(cost) {
-    return (cost?.coins || 0) <= this.resources.coins && (cost?.crystals || 0) <= this.resources.crystals;
+    return this.resources?.canAfford?.(cost) ?? false;
   }
 
   refreshBuildItems() {
@@ -496,6 +529,11 @@ export class InterfaceController {
 
   onBuildClick(slot) {
     if (this.move.active || this.infoUI.open || this.invasion?.active) return;
+    const spec = specFor(slot.kind);
+    if (spec?.unique && this.structures.some(d => d.kind === slot.kind)) {
+      this.showToast(`${slot.name} ya está construida`);
+      return;
+    }
     const n = this.countOf(slot);
     if (n >= this.limitOf(slot)) {
       this.showToast(this.limitMessage(slot, n));
@@ -665,6 +703,18 @@ export class InterfaceController {
           color: 'var(--gold)', pct: pct(r.babies, top.babies),
         });
       }
+      // El nivel del bebé es una estadística de la madre: se deriva de su
+      // propio nivel, así que comparte barra y tramo parpadeante al mejorar.
+      if (id === 'arana') {
+        const babyMax = BALANCE.tropas.tipos['arana-bebe']?.maxNivel || 1;
+        const babyLvl = levelRow(BALANCE.tropas.nivelBebePorNivel, l) || 1;
+        stats.push({
+          icon: 'skull', label: 'Nivel de araña bebé',
+          value: `${babyLvl} / ${babyMax}`, color: 'var(--gold)',
+          pct: babyMax > 0 ? Math.round((babyLvl / babyMax) * 1000) / 10 : 0,
+          info: 'arana-bebe',
+        });
+      }
       return stats;
     };
 
@@ -678,14 +728,15 @@ export class InterfaceController {
 
   // Reutiliza la ventana de Información del legacy con modo 'troop': mismo
   // diseño y barras, sin pie de mejora (los niveles se suben en el laboratorio).
-  openTroopInfo(id) {
+  openTroopInfo(id, levelOverride = null) {
     const def = BALANCE.tropas.tipos[id];
     if (!def) return;
-    const lvl = this.army?.levelOf(id) || 1;
+    const lvl = levelOverride ?? (this.army?.levelOf(id) || 1);
     const max = def.maxNivel || 1;
     this.infoUI.open = true;
     this.infoUI.mode = 'troop';
     this.infoUI.troop = id;
+    this.infoUI.troopLevelOverride = levelOverride;
     document.body.classList.add('info-open');
     this.els.infoOverlay.classList.add('open');
     this.els.infoTitle.textContent = TROOP_NAME(id);
@@ -741,7 +792,8 @@ export class InterfaceController {
       : 'Gratis';
     this.els.iwCost.classList.toggle('poor', !this.resources.canAfford(cost));
     this.els.iwTime.textContent = fmtDur(this.army.mutateTime(id, to));
-    this.els.iwBuilders.textContent = this.army.labLevel();
+    // La mutación usa los slots del laboratorio, no los constructores.
+    if (this.els.iwBuildersItem) this.els.iwBuildersItem.hidden = true;
     this.els.infoUpgrade.disabled = Boolean(why);
     this.els.infoUpgrade.classList.toggle('locked', Boolean(why));
     this.els.infoUpgrade.querySelector('span').textContent = why || 'Mutar';
@@ -761,7 +813,7 @@ export class InterfaceController {
     const frag = document.createDocumentFragment();
 
     if (mode === 'mutate') {
-      this.els.summonSpace.textContent = `Laboratorio nivel ${this.army.labLevel()}`;
+      this.els.summonSpace.textContent = `Laboratorio nivel ${this.army.labLevel()} · ${this.army.labBusy()}/${this.army.labSlots()} ocupados`;
       const ids = this.army.mutableTypes().filter(id => this.army.unlocked(id));
       if (!ids.length) {
         const empty = document.createElement('div');
@@ -776,17 +828,34 @@ export class InterfaceController {
         const max = def.maxNivel || 1;
         const to = level + 1;
         const why = this.army.canMutate(id);
+        const work = this.army.labWorkFor(id);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'build-slot build-item troop-card';
         btn.dataset.mutate = id;
         btn.disabled = Boolean(why);
-        btn.title = why || `Mutar a nivel ${to}`;
+        if (work) {
+          const left = Math.max(0, Math.ceil(((work.end || 0) - Date.now()) / 1000));
+          const m = Math.floor(left / 60);
+          const s = String(left % 60).padStart(2, '0');
+          btn.title = `Mutando · ${m}:${s}`;
+          btn.setAttribute('aria-label', `${TROOP_NAME(id)} mutando a nivel ${work.to}. ${m}:${s}`);
+        } else {
+          btn.title = why || `Mutar a nivel ${to}`;
+        }
+        // Las estadísticas y el nivel detallado viven en la ventana de información.
+        // La línea de tiempo siempre existe (vacía cuando no muta) para no
+        // cambiar el tamaño del menú, y el nivel va dentro de esa línea para
+        // que no tape el nombre.
+        const leftNow = work ? Math.max(0, Math.ceil(((work.end || 0) - Date.now()) / 1000)) : 0;
+        const timeNow = work ? `${Math.floor(leftNow / 60)}:${String(leftNow % 60).padStart(2, '0')}` : '';
         btn.innerHTML =
           `<span class="troop-dot" style="background:${art.color || '#a964ff'}"></span>` +
           `<span class="build-name">${TROOP_NAME(id)}</span>` +
-          `<span class="troop-cost">${troopStatsText(id, level)}</span>` +
-          `<span class="build-count">${level >= max ? 'Máx.' : `Nv ${level}/${max}`}</span>`;
+          `<span class="troop-mut-time"><span class="mut-time-text">${timeNow}</span></span>`;
+        const badge = this.troopLevelBadge(level, max);
+        badge.classList.add('troop-lvl--inline');
+        btn.querySelector('.troop-mut-time').appendChild(badge);
         const wrap = document.createElement('div');
         wrap.className = 'troop-wrap';
         wrap.setAttribute('role', 'listitem');
@@ -799,7 +868,7 @@ export class InterfaceController {
           info.setAttribute('aria-label', `Información de ${TROOP_NAME(id)}`);
           wrap.appendChild(info);
         }
-        wrap.append(btn, this.troopLevelBadge(level, max));
+        wrap.append(btn);
         frag.appendChild(wrap);
       }
     } else {
@@ -886,6 +955,32 @@ export class InterfaceController {
 
   /* Llamada en cada frame: mantiene los botones de herramienta, el aviso del
    * modo Mover y el estado del cursor sin necesidad de eventos duplicados. */
+  syncSummonPanel() {
+    if (!this.summonUI.open || this.summonUI.mode !== 'mutate' || !this.army || !this.els.summonItems) return;
+    this.els.summonSpace.textContent = `Laboratorio nivel ${this.army.labLevel()} · ${this.army.labBusy()}/${this.army.labSlots()} ocupados`;
+    const ids = this.army.mutableTypes().filter(id => this.army.unlocked(id));
+    const levelsNow = ids.map(id => `${id}:${this.army.levelOf(id)}:${Boolean(this.army.labWorkFor(id))}`).join('|');
+    const current = [...this.els.summonItems.querySelectorAll('[data-mutate]')].map(b => b.dataset.mutate);
+    if (this._summonMutateSig !== levelsNow || current.join('|') !== ids.join('|')) {
+      this._summonMutateSig = levelsNow;
+      this.renderSummon();
+      return;
+    }
+    const now = Date.now();
+    for (const btn of this.els.summonItems.querySelectorAll('[data-mutate]')) {
+      const work = this.army.labWorkFor(btn.dataset.mutate);
+      const text = btn.querySelector('.troop-mut-time .mut-time-text');
+      if (work && text) {
+        const left = Math.max(0, Math.ceil(((work.end || 0) - now) / 1000));
+        const m = Math.floor(left / 60);
+        const s = String(left % 60).padStart(2, '0');
+        const value = `${m}:${s}`;
+        if (text.textContent !== value) text.textContent = value;
+        btn.title = `Mutando · ${value}`;
+      }
+    }
+  }
+
   syncScene() {
     const tool = this.terrain.tool;
     if (tool !== this.lastTool) {
@@ -897,6 +992,8 @@ export class InterfaceController {
       }
       this.els.canvas?.classList.toggle('tool-active', Boolean(tool));
     }
+
+    if (this.summonUI.open) this.syncSummonPanel();
 
     const active = this.move.active;
     this.els.actionBar.classList.toggle('open', Boolean(this.selection) && !active && !this.infoUI.open && !this.invasion?.active);
@@ -910,6 +1007,59 @@ export class InterfaceController {
     }
     this.lastMove = active;
     this.syncWorks();
+    this.syncRagPanel();
+  }
+
+  _ragWorkPct(ragWork) {
+    if (!ragWork?.start || !ragWork?.end || ragWork.end <= ragWork.start) return 0;
+    return Math.max(0, Math.min(100, ((Date.now() - ragWork.start) / (ragWork.end - ragWork.start)) * 100));
+  }
+
+  syncRagPanel() {
+    if (!this.infoUI.open || this.selection?.kind !== 'rag-altar') return;
+    const rag = this.army;
+    const lvl = rag?.ragLevel?.() || 1;
+    if (this._ragPanelLevel !== lvl) {
+      this._ragPanelLevel = lvl;
+      this.openPanel(this.infoUI.mode || 'upgrade');
+      return;
+    }
+    const max = BALANCE.tropas.tipos.rag?.maxNivel || 5;
+    const next = Math.min(lvl + 1, max);
+    const ragWork = rag?.ragWork || null;
+    const busy = Boolean(ragWork?.end && ragWork.end > Date.now());
+    const reason = rag?.canUpgradeRag?.() || '';
+    const canUpgrade = !busy && !reason;
+    const state = busy
+      ? `Mejorando a nv ${ragWork.to} · ${fmtDur(Math.max(0, Math.ceil(((ragWork.end || 0) - Date.now()) / 1000)))}`
+      : (lvl >= max ? 'Nivel máximo' : 'Listo para mejorar');
+    const stateEl = this.els.infoStats.querySelector('.army-count');
+    if (stateEl && stateEl.textContent !== state) stateEl.textContent = state;
+
+    const workFill = this.els.infoStats.querySelector('#rag-work-fill');
+    const workNext = this.els.infoStats.querySelector('#rag-work-next');
+    const workBar = this.els.infoStats.querySelector('#rag-work-bar');
+    if (busy && workFill) {
+      const p = this._ragWorkPct(ragWork);
+      workFill.style.width = `${p}%`;
+      workFill.dataset.fill = String(p);
+      if (workNext) { workNext.style.left = `${p}%`; workNext.style.width = `${Math.max(0, 100 - p)}%`; }
+      if (workBar) workBar.setAttribute('aria-valuenow', String(Math.round(p)));
+    } else if (!busy && (workFill || workBar)) {
+      // La mejora terminó pero el nivel no cambió (p.ej. ya redibujado) o se necesita limpiar.
+      // El cambio de nivel lo maneja la rama superior con openPanel().
+    }
+
+    if (this.infoUI.mode === 'upgrade' && lvl < max) {
+      const cost = rag?.ragUpgradeCost?.(next) || {};
+      this.els.iwCost.classList.toggle('poor', !this.resources.canAfford(cost));
+      this.els.iwTime.textContent = fmtDur(rag?.ragUpgradeTime?.(next) || 0);
+      if (this.els.iwBuildersItem) this.els.iwBuildersItem.hidden = true;
+      this.els.infoUpgrade.disabled = !canUpgrade;
+      this.els.infoUpgrade.classList.toggle('locked', !canUpgrade);
+      this.els.infoUpgrade.querySelector('span').textContent = reason || (busy ? 'Mejorando...' : 'Mejorar Rag');
+      this.els.infoUpgrade.title = reason || `Mejorar Rag a nivel ${next}`;
+    }
   }
 
   /* ---------- Recursos y constructores (Fase 9) -------------------------- */
@@ -926,24 +1076,27 @@ export class InterfaceController {
     this.ownResourceTotals = {
       coins: this.resourceTotal('coins'),
       crystals: this.resourceTotal('crystals'),
+      rubies: this.resourceTotal('rubies'),
     };
     this.ownResourceCaps = {
       coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
       crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
+      rubies: this.resources.capacity(this.coreLevel, this.structures, 'rubies'),
     };
   }
 
   syncResources() {
     if (!this.resources) return;
     const borrowed = Boolean(this.invasion?.active || this.invasion?.baseSwap);
-    if (!borrowed) this.resources.clampToCapacity(this.coreLevel, this.structures);
     const liveCaps = {
       coins: this.resources.capacity(this.coreLevel, this.structures, 'coins'),
       crystals: this.resources.capacity(this.coreLevel, this.structures, 'crystals'),
+      rubies: this.resources.capacity(this.coreLevel, this.structures, 'rubies'),
     };
     const liveTotals = {
       coins: this.resourceTotal('coins'),
       crystals: this.resourceTotal('crystals'),
+      rubies: this.resourceTotal('rubies'),
     };
     if (!borrowed) {
       this.ownResourceTotals = { ...liveTotals };
@@ -953,20 +1106,25 @@ export class InterfaceController {
       ? this.ownResourceTotals : liveTotals;
     const caps = borrowed && this.ownResourceCaps
       ? this.ownResourceCaps : liveCaps;
-    const key = `${totals.coins}|${totals.crystals}|${caps.coins}|${caps.crystals}`;
+    const key = `${totals.coins}|${totals.crystals}|${totals.rubies}|${caps.coins}|${caps.crystals}|${caps.rubies}`;
     if (key === this.resKey) return;
     this.resKey = key;
-    for (const [res, icon, fill, text] of [
-      ['coins', this.els.resIconCoins, this.els.resFillCoins, this.els.resTextCoins],
-      ['crystals', this.els.resIconCrystals, this.els.resFillCrystals, this.els.resTextCrystals],
-    ]) {
-      const value = totals[res];
-      const cap = caps[res];
+    const rows = [
+      ['coins', this.els.resIconCoins, this.els.resFillCoins, this.els.resTextCoins, 'Monedas de Mazmorra'],
+      ['crystals', this.els.resIconCrystals, this.els.resFillCrystals, this.els.resTextCrystals, 'Cristales de Mazmorra'],
+      ['rubies', this.els.resIconRubies, this.els.resFillRubies, this.els.resTextRubies, 'Rubíes'],
+    ];
+    for (const [res, icon, fill, text, title] of rows) {
+      if (!icon || !fill || !text) continue;
+      const value = totals[res] || 0;
+      const cap = caps[res] || 0;
+      const row = text.closest('.res-row');
+      if (res === 'rubies' && row) row.hidden = (this.coreLevel || 1) < 4 && cap <= 0 && value <= 0;
       fill.style.width = cap > 0 ? `${Math.min(100, (value / cap) * 100)}%` : '0%';
       text.textContent = `${this.fmtNumber(value)} / ${this.fmtNumber(cap)}`;
-      text.closest('.res-row').setAttribute('aria-valuenow', String(value));
-      text.closest('.res-row').setAttribute('aria-valuemax', String(cap));
-      icon.title = res === 'coins' ? 'Monedas de Mazmorra' : 'Cristales de Mazmorra';
+      row?.setAttribute('aria-valuenow', String(value));
+      row?.setAttribute('aria-valuemax', String(cap));
+      icon.title = title;
     }
   }
 
@@ -1113,7 +1271,7 @@ export class InterfaceController {
         const a = atkAt(l);
         return a.damageType || (a.splash > 0 ? 'area' : 'single');
       };
-      const typeLabel = type => (type === 'area' ? 'De área' : 'Único');
+      const typeLabel = type => (type === 'area' ? 'De área' : type === 'chain' ? 'Cadena' : type === 'beam' ? 'Rayo continuo' : 'Único');
 
       // Orden global de las defensas: Vida · Daño por segundo · Recarga ·
       // Daño por impacto · Rango · Tipo de daño. Vale para ballesta,
@@ -1129,6 +1287,13 @@ export class InterfaceController {
         value: atk.minRange ? `${atk.minRange}-${atk.range} casillas` : `${atk.range} casillas`,
         color: 'var(--crystal)', at: rangeAt,
       });
+      const targetsAt = l => {
+        const t = atkAt(l).targets;
+        return typeof t === 'number' ? t : null;
+      };
+      if (targetsAt(lvl) !== null) {
+        add({ icon: 'skull', label: 'Objetivos', value: targetsAt(lvl), color: 'var(--gold)', at: targetsAt });
+      }
       add({
         icon: typeAt(lvl) === 'area' ? 'bomb' : 'dart',
         label: 'Tipo de daño',
@@ -1160,7 +1325,6 @@ export class InterfaceController {
       add({ icon: 'skull', label: 'Nivel defensor', value: spec.guard.level(lvl), color: 'var(--crystal)', at: spec.guard.level });
       add({ icon: 'target', label: 'Radio de guardia', value: `${spec.guard.range} casillas`, color: 'var(--crystal)' });
     }
-
     if (spec.storage) {
       const cap = spec.storage(lvl);
       const stored = Math.floor(sel.stored || 0);
@@ -1194,21 +1358,27 @@ export class InterfaceController {
   // del legacy). En Información no hay `next` y solo se ve el avance actual.
   renderStat(s, next) {
     const icon = SVG[s.icon] || '';
-    const changes = Boolean(next) && String(next.value) !== String(s.value);
-    const value = changes ? `${s.value} <span class="stat-arrow">»</span> ${next.value}` : s.value;
+    const nextVal = next == null ? undefined
+      : (typeof next === 'object' && 'value' in next ? next.value : next);
+    const nextPct = next && typeof next === 'object' ? next.pct : undefined;
+    const changes = nextVal !== undefined && String(nextVal) !== String(s.value);
+    const value = changes ? `${s.value} <span class="stat-arrow">»</span> ${nextVal}` : s.value;
     let bar = '';
     if (s.pct !== undefined) {
-      const gain = next?.pct === undefined ? 0
-        : Math.max(0, Math.round((next.pct - s.pct) * 10) / 10);
+      const gain = nextPct === undefined ? 0
+        : Math.max(0, Math.round((nextPct - s.pct) * 10) / 10);
       bar = '<div class="stat-bar" role="progressbar" ' +
-        `aria-label="${next ? 'Progreso de mejora' : 'Avance de nivel'}: ${s.label}" ` +
+        `aria-label="${changes ? 'Progreso de mejora' : 'Avance de nivel'}: ${s.label}" ` +
         `aria-valuemin="0" aria-valuemax="100" aria-valuenow="${s.pct}">` +
         `<div class="stat-fill" data-fill="${s.pct}" style="--c:${s.color};--c2:var(--gold-hi)"></div>` +
         (gain > 0 ? `<div class="stat-next" style="left:${s.pct}%;width:${gain}%"></div>` : '') +
         '</div>';
     }
+    const info = s.info
+      ? `<button class="troop-info-btn" type="button" data-info="${s.info}" aria-label="Información de ${TROOP_NAME(s.info)}">i</button>`
+      : '';
     return `<div class="stat"><div class="stat-top"><span class="stat-icon" style="--c:${s.color}">${icon}</span>` +
-      `<span class="stat-label">${s.label}</span><span class="stat-value">${value}</span></div>${bar}</div>`;
+      `<span class="stat-label">${s.label}</span><span class="stat-value">${value}</span>${info}</div>${bar}</div>`;
   }
 
   /* ---------- Recuadro de edificios de la mejora del núcleo ----------------
@@ -1299,9 +1469,83 @@ export class InterfaceController {
     if (cards.length) this.showInfoBox('Desbloqueas al mejorar', cards);
   }
 
+  renderRagAltarPanel(sel, upgrading) {
+    const rag = this.army;
+    const lvl = rag?.ragLevel?.() || 1;
+    const max = BALANCE.tropas.tipos.rag?.maxNivel || 5;
+    const next = Math.min(lvl + 1, max);
+    const ragRow = tropaAt('rag', lvl) || {};
+    const nextRow = tropaAt('rag', next) || ragRow;
+    const maxRow = tropaAt('rag', max) || nextRow || ragRow;
+    const ragWork = rag?.ragWork || null;
+    const busy = Boolean(ragWork?.end && ragWork.end > Date.now());
+    const reason = rag?.canUpgradeRag?.() || '';
+    const canUpgrade = !busy && !reason;
+    const pct = (v, m) => Math.round((m > 0 ? (v / m) * 100 : 100) * 10) / 10;
+
+    const altarRange = BALANCE.edificios?.ragAltar?.range ?? 5;
+    const ragAtkRange = BALANCE.tropas.tipos.rag?.range ?? 0.8;
+    const stats = [
+      { icon: 'heart', label: 'Vida de Rag', value: ragRow.hp || 0, color: 'var(--ok)', pct: pct(ragRow.hp || 0, maxRow.hp || 1) },
+      { icon: 'impact', label: 'Daño por segundo', value: ragRow.dps || 0, color: 'var(--gold)', pct: pct(ragRow.dps || 0, maxRow.dps || 1) },
+      { icon: 'target', label: 'Rango de la Runa', value: `${altarRange} casillas`, color: 'var(--crystal)' },
+      { icon: 'dart', label: 'Ataque de Rag', value: `${ragAtkRange} casillas`, color: 'var(--crystal)' },
+      { icon: 'skull', label: 'Nivel de Rag', value: `${lvl} / ${max}`, color: 'var(--gold)', pct: pct(lvl, max) },
+    ];
+    const nextStats = upgrading && lvl < max ? [
+      { value: nextRow.hp || ragRow.hp || 0, pct: pct(nextRow.hp || ragRow.hp || 0, maxRow.hp || 1) },
+      { value: nextRow.dps || ragRow.dps || 0, pct: pct(nextRow.dps || ragRow.dps || 0, maxRow.dps || 1) },
+      undefined,
+      undefined,
+      { value: `${next} / ${max}`, pct: pct(next, max) },
+    ] : [];
+    this.els.infoStats.innerHTML = stats.map((s, i) => this.renderStat(s, nextStats[i])).join('');
+
+    const ragState = busy
+      ? `Mejorando a nv ${ragWork.to} · ${fmtDur(Math.max(0, Math.ceil(((ragWork.end || 0) - Date.now()) / 1000)))}`
+      : (lvl >= max ? 'Nivel máximo' : 'Listo para mejorar');
+    const workPct = busy ? this._ragWorkPct(ragWork) : 0;
+    this.els.infoStats.insertAdjacentHTML('beforeend', `
+      <div class="stat-wide army-section">
+        <div class="army-head"><div class="army-label">Rag el conquistador</div><div class="army-count">${ragState}</div></div>
+        ${busy ? `
+        <div class="stat-bar" id="rag-work-bar" role="progressbar" aria-label="Progreso de mejora de Rag" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(workPct)}">
+          <div class="stat-fill" id="rag-work-fill" data-fill="${workPct}" style="--c:var(--gold);--c2:var(--gold-hi);width:${workPct}%"></div>
+          <div class="stat-next" id="rag-work-next" style="left:${workPct}%;width:${Math.max(0, 100 - workPct)}%"></div>
+        </div>` : ''}
+        <p class="army-empty">Rag no ocupa espacio de entrada y aparece en invasión con su nivel actual.</p>
+      </div>`);
+
+    const atMax = lvl >= max;
+    this.els.infoFooter.hidden = !upgrading || atMax;
+    this.els.infoWork.hidden = !upgrading || atMax;
+    if (upgrading && !atMax) {
+      const cost = rag?.ragUpgradeCost?.(next) || {};
+      const parts = costParts(cost);
+      this.els.iwCost.innerHTML = parts.length
+        ? parts.map(p => `<span class="cost-${p.res}">${p.n}${RES_ICON[p.res]}</span>`).join('')
+        : 'Gratis';
+      this.els.iwCost.classList.toggle('poor', !this.resources.canAfford(cost));
+      this.els.iwTime.textContent = fmtDur(rag?.ragUpgradeTime?.(next) || 0);
+      if (this.els.iwBuildersItem) this.els.iwBuildersItem.hidden = true;
+      this.els.infoUpgrade.disabled = !canUpgrade;
+      this.els.infoUpgrade.classList.toggle('locked', !canUpgrade);
+      this.els.infoUpgrade.querySelector('span').textContent = reason || (busy ? 'Mejorando...' : 'Mejorar Rag');
+      this.els.infoUpgrade.title = reason || `Mejorar Rag a nivel ${next}`;
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      this.els.infoStats.querySelectorAll('.stat-fill').forEach(f => {
+        if (f.id === 'rag-work-fill') return;
+        f.style.width = `${f.dataset.fill}%`;
+      });
+    }));
+  }
+
   renderEntranceArmy(sel, upgrading) {
     if (sel?.kind !== 'entrance' || upgrading || !this.army) return;
-    const troops = Object.entries(this.army.counts || {}).filter(([, n]) => n > 0);
+    // Rag no ocupa espacio de entrada y no se administra desde aquí.
+    const troops = Object.entries(this.army.counts || {}).filter(([id, n]) => n > 0 && id !== 'rag');
     const manage = Boolean(this.infoUI.armyManage);
     const head = `
       <div class="army-section stat-wide" id="entrance-army">
@@ -1340,7 +1584,8 @@ export class InterfaceController {
       btn.addEventListener('click', () => {
         if (this.army.remove(btn.dataset.removeTroop)) {
           this.invasion?.refreshArmy?.();
-          if (!Object.values(this.army.counts || {}).some(n => n > 0)) this.infoUI.armyManage = false;
+          const remaining = Object.entries(this.army.counts || {}).some(([id, n]) => n > 0 && id !== 'rag');
+          if (!remaining) this.infoUI.armyManage = false;
           this.openPanel('info');
         }
       });
@@ -1357,21 +1602,34 @@ export class InterfaceController {
     const lvl = sel.level || 1;
     const max = Math.max(this.works?.maxLevelOf(sel) || 1, lvl);
     const upgrading = mode === 'upgrade';
+    const ragAltar = kind === 'rag-altar';
 
     this.infoUI.open = true;
     this.infoUI.mode = mode;
     document.body.classList.add('info-open');
     this.els.infoOverlay.classList.add('open');
     const spec = specFor(sel);
-    this.els.infoTitle.textContent = `${nameOf(sel)} · Nivel ${lvl}`;
-    this.els.infoSub.textContent = upgrading
-      ? `Mejora al nivel ${Math.min(lvl + 1, max)}`
-      : (spec?.attack ? `Defensa · huella ${sel.size}×${sel.size} · mira a la entrada`
-        : spec?.category ? `${spec.category} · huella ${sel.size}×${sel.size}` : 'Estructura de la mazmorra');
-    const badge = kind === 'core' ? 'target' : kind === 'entrance' ? 'door'
+    this.els.infoTitle.textContent = ragAltar
+      ? `${nameOf(sel)} · Rag nv ${this.army?.ragLevel?.() || 1}`
+      : `${nameOf(sel)} · Nivel ${lvl}`;
+    this.els.infoSub.textContent = ragAltar
+      ? (upgrading ? 'Mejora a Rag el conquistador' : `Fusión · huella ${sel.size}×${sel.size}`)
+      : (upgrading
+        ? `Mejora al nivel ${Math.min(lvl + 1, max)}`
+        : (spec?.attack ? `Defensa · huella ${sel.size}×${sel.size} · mira a la entrada`
+          : spec?.category ? `${spec.category} · huella ${sel.size}×${sel.size}` : 'Estructura de la mazmorra'));
+    const badge = ragAltar ? 'skull'
+      : kind === 'core' ? 'target' : kind === 'entrance' ? 'door'
       : spec?.attack ? 'bow' : spec?.producer ? 'pick' : spec?.guard ? 'skull'
         : spec?.trap ? 'impact' : spec?.storage ? 'coin' : spec?.source ? 'egg' : 'flask';
     this.els.infoBadge.innerHTML = SVG[badge] || '';
+
+    if (ragAltar) {
+      this._ragPanelLevel = this.army?.ragLevel?.() || 1;
+      this.renderRagAltarPanel(sel, upgrading);
+      this.els.infoClose.focus();
+      return;
+    }
 
     const stats = this.statsFor(sel, lvl, max);
     const nextStats = upgrading && lvl < max ? this.statsFor(sel, lvl + 1, max) : [];
@@ -1405,6 +1663,7 @@ export class InterfaceController {
         : 'Gratis';
       this.els.iwCost.classList.toggle('poor', !this.resources.canAfford(cost));
       this.els.iwTime.textContent = fmtDur(upgradeTime(kind, lvl + 1));
+      if (this.els.iwBuildersItem) this.els.iwBuildersItem.hidden = false;
       this.els.iwBuilders.textContent = this.works
         ? `${this.works.free()}/${this.works.limit}` : '0/0';
 
@@ -1429,6 +1688,7 @@ export class InterfaceController {
     if (!this.infoUI.open) return false;
     this.infoUI.open = false;
     this.infoUI.armyManage = false;
+    this._ragPanelLevel = null;
     this.hideMissingBox();
     this.els.infoOverlay.classList.remove('open');
     document.body.classList.remove('info-open');
@@ -1460,7 +1720,7 @@ export class InterfaceController {
       this.els.invasionBtn.title = locked ? 'Invoca al menos 1 tropa antes de invadir' : '';
     }
 
-    const key = `${inv.active}|${inv.over}|` + Object.entries(inv.army)
+    const key = `${inv.active}|${inv.over}|${this.army?.isRagUpgrading?.() ? 'ragw' : ''}|` + Object.entries(inv.army)
       .map(([id, total]) => `${id}:${total - (inv.deployed[id] || 0)}:${this.army?.levelOf(id) || 1}`).join(',');
     if (key === this.invItemsKey) return;
     this.invItemsKey = key;
@@ -1469,6 +1729,7 @@ export class InterfaceController {
     for (const [id, total] of Object.entries(inv.army)) {
       const art = TROOP_ART[id] || TROOP_ART.esqueleto;
       const left = Math.max(0, total - (inv.deployed[id] || 0));
+      const ragLocked = id === 'rag' && this.army?.isRagUpgrading?.();
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'inv-troop';
@@ -1476,7 +1737,7 @@ export class InterfaceController {
       btn.setAttribute('role', 'listitem');
       // Tarjeta compacta: icono + disponibles. El nombre se pone en title/aria
       // para no estirar el botón a lo ancho de la barra de invasión.
-      const label = `${art.name} · ${left}/${total} · Nivel ${this.army?.levelOf(id) || 1}`;
+      const label = `${art.name} · ${left}/${total} · Nivel ${this.army?.levelOf(id) || 1}${ragLocked ? ' · Mejorando' : ''}`;
       btn.title = label;
       btn.setAttribute('aria-label', `Desplegar ${label}`);
       btn.innerHTML =
@@ -1486,22 +1747,26 @@ export class InterfaceController {
       const level = this.army?.levelOf(id) || 1;
       const max = BALANCE.tropas.tipos[id]?.maxNivel || 1;
       btn.appendChild(this.troopLevelBadge(level, max));
-      btn.disabled = left === 0 || inv.over;
+      btn.disabled = left === 0 || inv.over || ragLocked;
       btn.addEventListener('click', () => inv.deploy(id));
       frag.appendChild(btn);
     }
     this.els.invasionItems.replaceChildren(frag);
   }
 
-  /** Botín aún robable en la base invadida (25 % de almacenes/producción). */
+  /** Botín aún robable en la base invadida. */
   syncLoot(loot) {
     const coins = Math.max(0, Math.floor(loot?.coins || 0));
     const crystals = Math.max(0, Math.floor(loot?.crystals || 0));
-    const key = `${coins}|${crystals}`;
+    const rubies = Math.max(0, Math.floor(loot?.rubies || 0));
+    const key = `${coins}|${crystals}|${rubies}`;
     if (key === this.lootKey) return;
     this.lootKey = key;
     if (this.els.lootCoins) this.els.lootCoins.textContent = coins.toLocaleString('es-ES');
     if (this.els.lootCrystals) this.els.lootCrystals.textContent = crystals.toLocaleString('es-ES');
+    if (this.els.lootRubies) this.els.lootRubies.textContent = rubies.toLocaleString('es-ES');
+    const rubiesRow = this.els.lootRubies?.closest('.il-row');
+    if (rubiesRow) rubiesRow.hidden = rubies <= 0 && (this.coreLevel || 1) < 4;
   }
 
   syncInvasion(inv) {

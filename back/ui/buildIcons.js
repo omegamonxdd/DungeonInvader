@@ -59,17 +59,19 @@ const DRAWERS = {
     px(9, 2, 2, 2, C.purpleHi); px(9, 17, 2, 2, C.purpleHi);
   },
   vault(px, resource) {
-    const gem = resource === 'crystals' ? C.crystal : C.gold;
+    const gem = resource === 'crystals' ? C.crystal : resource === 'rubies' ? '#ff6a8a' : C.gold;
     px(3, 8, 14, 9, C.wood); px(3, 6, 14, 3, C.woodHi);
     px(4, 9, 12, 1, C.ink); px(4, 15, 12, 1, C.ink);
     px(9, 10, 2, 4, C.goldHi); px(8, 13, 4, 2, C.gold);
     px(8, 3, 4, 3, gem);
     px(6, 18, 8, 1, C.ink);
   },
-  mine(px) {
+  mine(px, resource) {
+    const gem = resource === 'rubies' ? '#ff6a8a' : C.crystalHi;
+    const gem2 = resource === 'rubies' ? '#b53149' : C.crystal;
     px(9, 8, 2, 10, C.wood);
     px(4, 5, 12, 2, C.stoneHi); px(3, 6, 3, 2, C.stone); px(14, 6, 3, 2, C.stone);
-    px(7, 12, 6, 6, C.crystalHi); px(8, 13, 4, 5, C.crystal);
+    px(7, 12, 6, 6, gem); px(8, 13, 4, 5, gem2);
     px(4, 18, 12, 1, C.ink);
   },
   workshop(px) {
@@ -100,6 +102,21 @@ const DRAWERS = {
     px(6, 10, 8, 2, C.stone); px(8, 12, 4, 2, C.stoneHi);
     px(9, 14, 2, 3, C.goldHi); px(7, 16, 2, 2, C.goldHi); px(11, 17, 2, 2, C.goldHi);
   },
+  'altar-electrico'(px) {
+    px(6, 14, 8, 4, C.stone); px(7, 12, 6, 2, C.stoneHi);
+    px(8, 4, 4, 8, C.crystalHi); px(9, 5, 2, 6, C.crystal);
+    px(5, 7, 2, 1, C.goldHi); px(13, 8, 2, 1, C.goldHi);
+  },
+  'altar-igneo'(px) {
+    px(6, 14, 8, 4, C.stone); px(7, 12, 6, 2, C.stoneHi);
+    px(8, 4, 4, 8, '#ff8a2a'); px(9, 5, 2, 6, '#ffcf6a');
+    px(5, 8, 2, 1, C.goldHi); px(13, 7, 2, 1, C.goldHi);
+  },
+  'rag-altar'(px) {
+    px(5, 14, 10, 4, C.stone); px(6, 12, 8, 2, C.stoneHi);
+    px(8, 4, 4, 8, C.purpleHi); px(9, 5, 2, 6, '#ff6a8a');
+    px(7, 7, 1, 2, C.goldHi); px(12, 7, 1, 2, C.goldHi);
+  },
   lab(px) {
     px(8, 2, 4, 2, C.stoneHi); px(9, 4, 2, 4, C.stoneHi);
     px(7, 8, 6, 4, C.crystalHi); px(6, 12, 8, 6, C.crystal);
@@ -121,6 +138,7 @@ export function drawBuildIcon(canvas, key) {
 
   // Almacenes, mina/taller y estandartes comparten dibujo con distinto color.
   if (key.startsWith('vault-')) { drawer = DRAWERS.vault; resource = key.slice(6); }
+  else if (key === 'prod-rubies') { drawer = DRAWERS.mine; resource = 'rubies'; }
   else if (key.startsWith('prod-')) { drawer = key === 'prod-crystals' ? DRAWERS.mine : DRAWERS.workshop; }
   else if (key === 'bannerslime') { drawer = DRAWERS.banner; resource = 'slimes'; }
   else if (key === 'banner') { drawer = DRAWERS.banner; resource = 'skeletons'; }

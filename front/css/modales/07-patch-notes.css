@@ -45,6 +45,10 @@
   padding: 14px;
   background: var(--well);
   box-shadow: var(--well-edge-outline);
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 .patch-notes-section {
   margin: 0 0 10px;

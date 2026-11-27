@@ -40,8 +40,7 @@ Juego de **construcción de mazmorra + simulador de invasión**, en vista
   servidor. Migración: **Phaser 3 + Vite + ES modules**.
 - La UI (menús, HUD, ventanas) es DOM + CSS en ambos; Phaser dibuja únicamente
   la escena del juego.
-- No hay persistencia: al recargar todo vuelve al estado inicial (incluidos los
-  atajos de teclado y los guardados del editor).
+- Persistencia por snapshot/servicio de guardado (sin `localStorage`): al recargar se restaura el último estado guardado disponible. Los atajos/ajustes locales pueden variar según su implementación específica.
 - Los archivos están en UTF-8 limpio. **Al editar, conservar UTF-8.**
 
 ---
@@ -109,6 +108,7 @@ final encontró dos detalles que se cerraron antes de dar el traspaso por termin
   (`assignSummonedTarget()`), como en el legacy `19b-aranas.js`.
 - **Electrostal:** respeta `cooldown` (0 = una descarga por invasión, > 0 =
   repetible) y encadena usando `chain`, `targets` y `chainMs` del balance.
+- **Rubíes/Fusión/Rag (fases 1-6):** rubíes con gating por núcleo 4, edificios rubíes, categoría Fusiones, fusión Runa de Rag, Rag con mejora por tiempo/rubíes y restricciones de uso en invasión. Ver [§7](#7-recursos) y [§9.9](#99-fusiones-runa-de-rag).
 
 Los trabajos futuros son ajustes de balance y pruebas de regresión.
 
@@ -123,8 +123,8 @@ Los trabajos futuros son ajustes de balance y pruebas de regresión.
 | 7. Interfaz DOM/CSS | ✅ | Menú Construir, barra de acciones, HUD y ventana Información/Mejorar |
 | 8. Combate / oleadas | ✅ | Tropas, pathfinding 8-dir, saetas, oleadas y victoria/derrota |
 | 9. Obras y mejoras reales | ✅ | Recursos vivos, temporizadores, andamios, cobros y desbloqueos |
-| 10. Estructuras y tropas completas | ✅ | 15 ranuras, vista genérica, fábrica, ejército, producción, trampas y crías de araña |
-| 11. Editor y atajos | ✅ | 19 atajos reasignables, editor con guardados y topos animados |
+| 10. Estructuras y tropas completas | ✅ | 20 ranuras, vista genérica, fábrica, ejército, producción, trampas y crías de araña |
+| 11. Editor y atajos | ✅ | 20 atajos reasignables, editor con guardados y topos animados |
 
 ### 3.1 Verificación acumulada
 
@@ -218,7 +218,7 @@ ui/        puente DOM/escena: InterfaceController, ShortcutsUI, buildIcons
 | **Atajos** | `js/ui/23-atajos.js`, globals y `event.code` | `ShortcutController` + `ShortcutsUI`, 19 acciones (Mejoras = Alt izq.), solapes y `keyboard.js` |
 | **Assets** | `css/estructuras/ballesta/ballista-nivel1.png` | `front/assets/estructuras/ballesta/` (generado con `npm run art:ballista`; importado desde `back/assets/`) |
 | **Barras de estadísticas** | En Info/Mejorar: barra de avance al nivel máximo y tramo parpadeante del siguiente nivel | Mismo detalle estético en `statsFor()`/`renderStat()` de `back/ui/InterfaceController.js`; CSS ya venía en `front/css/modales/01-info.css` |
-| **Persistencia** | Sin `localStorage` | Sin `localStorage` |
+| **Persistencia** | Sin `localStorage` | Persistencia por snapshot/servicio (`GameService`/Supabase); sin `localStorage` |
 | **Idioma** | Español | Español |
 
 **Paridad conservada:** mismas tablas de balance, mismas medidas isométricas,
@@ -405,27 +405,26 @@ comparando 471 elementos × 70 propiedades computadas: **0 diferencias**.
     Fuente `var(--font)` = "Pixel Digitos", "Pixelify Sans".
 12. **Accesibilidad**: `aria-*`, `focus-visible`, `prefers-reduced-motion`, foco
     atrapado en modales.
-13. **Sin `localStorage`**: el estado vive solo en memoria.
+13. **Sin `localStorage`**: no se usa `localStorage`; la app persiste por snapshot/servicio (`GameService`/save service) y restaura desde ese estado.
 
 ---
 
 ## 7. Recursos
 
-- Dos recursos: **monedas** y **cristales** (`'coins'`, `'crystals'`).
+- Tres recursos: **monedas**, **cristales** y **rubíes** (`'coins'`, `'crystals'`, `'rubies'`).
+- **Rubíes (gating por núcleo 4):** antes de núcleo nivel 4 no se muestran en HUD, no se otorgan por botín de invasión ni se pueden usar. Desde núcleo 4 se habilitan: núcleo 4 aporta `storageRubies` (5000), y se desbloquean almacén/mina de rubíes.
 - **No existen recursos sueltos**: todo está dentro del núcleo (reserva) y de
   los almacenes del recurso. `Resources` calcula el total desde esas
   estructuras y reparte los gastos proporcionalmente entre ellas.
-- `add()` respeta la capacidad; `pay()` quita proporcionalmente y falla si no
-  hay suficiente. Un guardado antiguo puede traer excedente (p. ej.
-  5500/5000): se conserva, pero no se puede volver a superar el límite hasta
-  que el total baje de él.
+- `add()` respeta la capacidad: deposita solo donde hay hueco. `usable = min(total, capacidad)` por recurso; `canAfford()` y `pay()` usan ese importe, nunca el total bruto. Esto aplica también a rubíes.
+- Un guardado antiguo puede traer excedente (p. ej. 5500/5000): **se conserva y se muestra, pero es inutilizable**. No se puede añadir nada mientras el total supere la capacidad, y el excedente se va consumiendo al pagar hasta que el total baja del límite. `clampToCapacity()` no recorta el excedente automáticamente.
 - HUD arriba a la derecha: barra con total / capacidad total. Los almacenes
-  ya no muestran burbuja `+N`; su contenido se consulta en Información.
+  no muestran burbuja `+N`; su contenido se consulta en Información.
 - Inicio: los valores de `BALANCE.recursos.inicio`. Para pruebas locales se
   puede forzar otra cantidad con `VITE_DEV_RESOURCES` en `.env.local` (ignorado
   por git): esa cantidad se mantiene incluso al cargar guardados y no se
   persiste en la partida. Ver `back/config/devResources.js`.
-- Producción pasiva (mina/taller): la burbuja crece hasta el límite del
+- Producción pasiva (mina/taller/mina de rubíes): la burbuja crece hasta el límite del
   productor; al recoger se deposita en núcleo/almacenes y lo que no cabe
   sigue en la burbuja.
 
@@ -455,14 +454,18 @@ Los valores numéricos —niveles del núcleo, límites y costes de edificios, v
 daño, rangos, tiempos de obra y estadísticas de tropas— viven en
 `back/balance/01…09` y se consultan dentro del juego, en la ventana
 **Información/Mejorar**. Este README no mantiene copias: al cambiar el balance,
-la interfaz lo refleja sin que haya que editar documentación.
+la interfaz lo refleja sin que haya que editar documentación. Los costes se comprueban contra el importe gastable (`usable`), no contra un excedente heredado de guardados antiguos.
 
-Para mejorar el núcleo hay que tener **colocados** todos los edificios que
-permite su límite actual. Los edificios **en obras (construcción o mejora)
-cuentan como colocados**; solo se excluyen los guardados en el editor. Al abrir
-su pantalla de Mejorar se enumera lo que falta (con el botón bloqueado) o, si ya
-está todo colocado, una tarjeta por edificio que se desbloquea con el siguiente
-nivel (`missingBuildings()` / `unlockingBuildings()`).
+Para mejorar el núcleo hay que haber **construido** todos los edificios que permite su límite actual.
+Cuenta **todo edificio construido por el jugador**, esté colocado en el mapa, en obras (construcción
+o mejora) o guardado/retirado en el editor: lo que importa es que el edificio exista en la partida,
+no que esté físicamente desplegado. **Retirar un edificio en el editor lo guarda, pero no lo elimina
+ni lo descuenta del requisito del núcleo** (`WorkController.countPlaced()` / `missingBuildings()`).
+Al abrir la pantalla de Mejorar se enumera lo que falta construir (con el botón bloqueado) o, si ya
+está todo construido, una tarjeta por edificio que se desbloquea con el siguiente nivel
+(`missingBuildings()` / `unlockingBuildings()`).
+
+La activación de bases también se valida en servicio (`GameService.activateLayout`): una base no activa puede guardarse incompleta para trabajarla en varias sesiones, pero **no se puede activar** hasta que tenga todos los edificios colocados y un camino válido al núcleo.
 
 Un límite 0 significa "aún no se puede construir" y se muestra como "Núcleo N".
 El nivel máximo permitido para un edificio es el menor entre su propio tope y
@@ -473,7 +476,7 @@ atacable ni se puede mover; su espacio de tropas crece con su nivel.
 
 ## 9. Edificios
 
-Categorías del menú Construir: **recursos, militar, defensas, estandartes, trampas**.
+Categorías del menú Construir: **recursos, militar, defensas, estandartes, trampas, fusiones**.
 
 ### 9.1 Defensas
 
@@ -481,6 +484,10 @@ Todas 2×2, con vida (bloquean) y suelo de roca. Ballesta, torreta y catapulta
 comparten el contrato `attack = { range, minRange?, cooldown, damage(nivel),
 boltHeight, projectile?, speed?, arc?, splash? }`. Sus valores por nivel están
 en `back/balance/06-defensas.js` y se ven en Información/Mejorar.
+
+Nuevos altares (núcleo 4, máx. nivel 2, tope 1 por tipo en núcleo 4):
+- **Altar Eléctrico** (`altar-electrico`): modo `chain`. Lanza rayo con rebote. Nv1 = objetivo inicial + 1 extra; Nv2 = inicial + 2 extra. El objetivo inicial recibe daño completo; rebotes reciben 25% del daño de impacto (`chainFactor`). DPS 12, recarga 1.2 s, rango 5, radio de cadena 2, vida 600/660. Valores provisionales marcados en balance.
+- **Altar Ígneo** (`altar-igneo`): modo `beam`. Rayo de fuego continuo. Nv1 = 1 objetivo; Nv2 = hasta 2 objetivos simultáneos, cada uno recibe el mismo daño (no se reparte). DPS 10, recarga 0.1 s, rango 4, vida 600/660. Mantiene objetivos mientras sigan en rango/vivos; rellena huecos cada tick. Valores provisionales marcados en balance.
 
 Objetivo pegajoso; prioridad a las tropas que golpean la defensa. La catapulta
 dispara donde estaba la tropa (puede fallar) y tiene una **zona muerta** interior:
@@ -527,12 +534,14 @@ Botón **Mutar tropa**: sube el nivel de **todas** las unidades de ese tipo.
 
 ### 9.5 Almacenes
 
-Guardan monedas o cristales y suman capacidad a los recursos del núcleo.
+Guardan monedas, cristales o rubíes y suman capacidad a los recursos del núcleo.
+- `vault-rubies` (Alm. rubíes): disponible con núcleo 4, capacidad 1000→2500 (niveles), `limitKind`/costes propios. // TODO balance
 
 ### 9.6 Mina y Taller
 
-Producción pasiva de cristales (`mine`) y monedas (`workshop`): acumulan en una
+Producción pasiva de cristales (`mine`), monedas (`workshop`) y rubíes (`mine-rubies`): acumulan en una
 burbuja hasta que se recogen con un clic.
+- `mine-rubies` (Mina de rubíes): disponible con núcleo 4, producción/capacidad provisional // TODO balance.
 
 ### 9.7 Estandartes
 
@@ -551,6 +560,16 @@ hasta la siguiente invasión.
 
 Tamaños, vida, daños, rangos y niveles de todo lo anterior están en
 `back/balance/05-edificios.js`, `06-defensas.js` y `07-trampas.js`.
+
+### 9.9 Fusiones: Runa de Rag
+
+Categoría **Fusiones** en el menú Construir (atajo 6). La **Runa de Rag** (`rag-altar`, `tag: fusion`) invoca a **Rag el conquistador**.
+
+- **Requisitos de fusión:** núcleo >= 4, no tener Rag/Runa ya invocados, 2 estandartes de esqueletos (`banner`) colocados, nivel 6, sin obra/moviendo/guardados, y 2500 rubíes.
+- **Flujo:** al seleccionar Runa se validan requisitos, se marcan 2 banners candidatos y se entra en modo mover. Cancelar no cobra ni consume banners. Confirmar paga 2500 rubíes, destruye esos 2 banners, coloca la Runa 2x2, fija `army.counts.rag = 1` y suma `extra.fusionReductions.banner += 2`. **No usa obra/constructor.**
+- **Límites:** reducción persistente de límite de banners por fusión (`fusionReductions.banner`) aplicada en obras/UI/mejoras vía `effectiveLimit()`. Solo 1 Runa y 1 Rag.
+- **Runa:** 2x2, rango 5, movible, almacenable, `unique`, nivel máximo 1, sin mejora de edificio. “Mejorar” desde su panel mejora a Rag. // TODO balance
+- **Rag:** niveles 1-5, sin laboratorio, tope por núcleo 4→5, `space:0`, no aparece en panel de entrada ni se retira por clic derecho; aparece en invasión con badge de nivel. Mejora por rubíes (3000/3500/4000/5000, tiempos 60/90/120/180s // TODO balance), persiste en `army.ragWork {to,start,end}` y aplica al terminar en tiempo real (`Date.now()`). Mientras mejora no puede atacar, desplegarse ni ser guardia de Runa.
 
 ---
 
@@ -602,15 +621,9 @@ tropa y, al llegar al máximo, enciende un **fuego azul**.
   Esc = deseleccionar. Las crías no se seleccionan.
 - **Pathfinding**: Dijkstra en 8 direcciones sin cortar esquinas;
   `walkable()` respeta estructuras, atravesables y escombros.
-- **Estructura destruida** → escombros y casillas transitables. Cada edificio
-  guarda sus recursos: al caer un **almacén** se roba el 25 % de lo guardado y
-  al caer una **mina/taller** el 50 % de su burbuja (`botinAlmacenes` /
-  `botinProductores`); el dueño conserva el resto. Al caer el **núcleo** se
-  aplican esos mismos porcentajes al botín y la mazmorra entera se destruye
-  (colapso).
-  El importe disponible se ve en «Recursos disponibles». La base real del
-  invadido no se modifica: solo se ataca una copia. El botín base (`botinBase`,
-  1500 monedas y 1500 cristales) siempre se cuenta y se guarda en el núcleo.
+- **Botín por estructura:** al caer un **almacén** se roba el 25 % de lo guardado, al caer una **mina/taller** el 50 % de su burbuja (`botinAlmacenes` / `botinProductores`). Aplica también a rubíes: almacén de rubíes 25 %, mina de rubíes 50 %. Se acumula al destruir cada estructura y se entrega al terminar la invasión, sin necesidad de destruir el núcleo.
+- **Botín de victoria:** al caer el **núcleo** se entregan 1500 monedas, 1500 cristales y 500 rubíes fijos (`botinBase`) más el 30 % de lo que el núcleo tenga dentro (`botinNucleo`, incluyendo `storedRubies`); el dueño conserva el 70 % restante. Las estructuras destruidas antes del colapso no se cuentan dos veces. Cancelar o perder por tiempo no entrega este botín de victoria, pero sí el de las estructuras ya destruidas. El botín/UI de rubíes solo aplica desde núcleo 4.
+- **Estructura destruida** → escombros y casillas transitables. El importe disponible se ve en «Recursos disponibles». La base real del invadido no se modifica: solo se ataca una copia.
 - Durante la invasión se ocultan `#topbar`, Mejoras y el botón del editor.
 - En móvil, `Select` solo aparece durante la invasión; al abrir Mejoras su botón
   desaparece y el panel ocupa ese hueco un 10 % más pequeño, con una X para cerrarlo.
@@ -653,9 +666,9 @@ su última base válida.
 
 ## 12. Interfaz
 
-- **Construir** (E): Excavar/Rellenar, cinco pestañas (1–5), 15 ranuras con
+- **Construir** (E): Excavar/Rellenar, seis pestañas (1–6), 20 ranuras con
   icono, contador `n/límite` y coste. Con el menú abierto **no se pueden
-  seleccionar edificios** y solo responden sus propios atajos (1–5, Z excavar,
+  seleccionar edificios** y solo responden sus propios atajos (1–6, Z excavar,
   X rellenar) más E para cerrarlo: Q (invasión), Alt y el resto de accesos
   globales no hacen nada.
 - **Barra de acciones**: Información (Z), Mejorar (X), Mover (C) y una acción
@@ -677,9 +690,7 @@ su última base válida.
   confirmación reutilizable `openConfirm({...})`.
 - **Modo Mover**: copia flotante sigue al cursor sobre huella verde/roja; anillo
   de alcance; clic der. o Esc cancelan.
-- **Editor**: panel de guardados, Retirar (incluido el núcleo), Recoger, Guardar
-  todo, Vista invasor y Guardar (exige camino válido). Salir sin guardar restaura
-  la copia tomada al entrar.
+- **Editor**: panel de guardados, Retirar (incluido el núcleo), Recoger, Guardar todo, Vista invasor y Guardar. **Guardar en la base activa exige todos los edificios colocados y camino válido. Guardar en una base no activa permite diseños incompletos para construirlos en varias sesiones; para activarla después hay que completarla y abrir el camino al núcleo.** Salir sin guardar restaura la copia tomada al entrar y recargar la página mientras se edita **no guarda nada**: solo "Guardar diseño" persiste la base. Retirar guarda el edificio en la partida: sigue siendo del jugador y sigue contando para el requisito de mejoras del núcleo.
 - **Retirar tropas**: la ventana de Información de la entrada tiene un botón `−`
   por tipo (además del clic derecho en el panel de invocación).
 - **Topos**: 6 ayudantes decorativos (2 constructores) que pasean por casillas
@@ -700,9 +711,7 @@ su última base válida.
 
 ### En la app Phaser
 
-1. **Nuevo edificio:** añade su fila en `back/balance/02…06`, su dibujo en
-   `back/entities/StructureView.js` (o una clase en `back/towers/`), su entrada
-   en `back/systems/structureSpecs.js` y su ranura en `back/ui/InterfaceController.js`.
+1. **Nuevo edificio/defensa:** añade su fila en `back/balance/02…06` (límites, tope por núcleo, costes, obras, stats), su dibujo en `back/entities/StructureView.js` (o clase en `back/towers/` si usa sprite 2.5D), su spec en `back/systems/structureSpecs.js`, su ranura en `back/config/buildSlots.js`, icono en `back/ui/buildIcons.js`, clave en `back/systems/EditorController.js` (`ICON_KEYS`) y etiquetas/estadísticas en `back/ui/InterfaceController.js` si añade campos nuevos. Para defensas con comportamiento especial, extiende `stepDefenses()` en `back/enemies/InvasionController.js`.
 2. **Nueva tropa:** tabla en `back/balance/08`, textura en `back/enemies/troopArt.js`
    y lógica en `back/enemies/Troop.js` / `back/systems/Army.js`. Si es invocable
    en invasión (como las crías), usa `opts.summoned` y no olvides excluirla de la
@@ -729,7 +738,7 @@ su última base válida.
 - Modelos provisionales en el legacy: torreta, catapulta e incubadora.
 - El menú Construir es una barra centrada al 80 % del ancho disponible.
 - Las fuentes están en base64 dentro de `front/css/tokens/05-fuentes.css`.
-- No hay `localStorage`: recargar reinicia el juego.
+- No se usa `localStorage`. La app guarda/restaura por snapshot y servicio de guardado; al recargar, se carga el último estado guardado disponible.
 
 ---
 
