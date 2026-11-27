@@ -18,6 +18,7 @@ import { BALLISTA } from '../config/defenses.js';
 
 const E = BALANCE.edificios;
 const T = BALANCE.trampas;
+const D = BALANCE.defensas;
 // La lista de estructuras invisibles en invasión vive en balance/01, como en
 // el legacy: no se duplica aquí.
 const HIDDEN_IN_INVASION = new Set(BALANCE.visibilidad.ocultasAlInvadir || []);
@@ -42,6 +43,7 @@ const STRUCTURE_SPECS = Object.freeze({
     maxLevel: BALANCE.nucleo.maxLevel,
     hp: lvl => levelRow(BALANCE.nucleo.niveles, lvl)?.hp ?? 1000,
     storage: lvl => levelRow(BALANCE.nucleo.niveles, lvl)?.storage ?? 0,
+    storageRubies: lvl => levelRow(BALANCE.nucleo.niveles, lvl)?.storageRubies ?? 0,
     targetable: true, movable: true, art: 'core',
   }),
   entrance: simple({
@@ -108,6 +110,47 @@ const STRUCTURE_SPECS = Object.freeze({
     },
     targetable: true, art: 'catapult',
   }),
+  'altar-electrico': simple({
+    kind: 'altar-electrico', name: 'Altar Eléctrico', slot: 'altar-electrico', limitKind: 'altar-electrico',
+    size: D['altar-electrico'].size, height: D['altar-electrico'].height,
+    category: 'defensas', maxLevel: D['altar-electrico'].maxNivel,
+    hp: lvl => defensaAt('altar-electrico', lvl)?.hp ?? 0,
+    range: lvl => defensaAt('altar-electrico', lvl)?.range ?? 0,
+    attack: lvl => {
+      const d = defensaAt('altar-electrico', lvl);
+      const cfg = D['altar-electrico'];
+      return {
+        mode: 'chain',
+        cooldown: cfg.cooldown, damage: d.damage, dps: d.dps,
+        range: d.range, chain: cfg.chain, chainFactor: cfg.chainFactor,
+        targets: d.targets, rayMs: cfg.rayMs,
+        damageType: 'chain',
+        z: cfg.boltHeight,
+        color: 0x9be0ff,
+      };
+    },
+    targetable: true, art: 'altar-electrico',
+  }),
+  'altar-igneo': simple({
+    kind: 'altar-igneo', name: 'Altar Ígneo', slot: 'altar-igneo', limitKind: 'altar-igneo',
+    size: D['altar-igneo'].size, height: D['altar-igneo'].height,
+    category: 'defensas', maxLevel: D['altar-igneo'].maxNivel,
+    hp: lvl => defensaAt('altar-igneo', lvl)?.hp ?? 0,
+    range: lvl => defensaAt('altar-igneo', lvl)?.range ?? 0,
+    attack: lvl => {
+      const d = defensaAt('altar-igneo', lvl);
+      const cfg = D['altar-igneo'];
+      return {
+        mode: 'beam',
+        cooldown: cfg.cooldown, damage: d.damage, dps: d.dps,
+        range: d.range, targets: d.targets, rayMs: cfg.rayMs,
+        damageType: 'beam',
+        z: cfg.boltHeight,
+        color: 0xff9a3d,
+      };
+    },
+    targetable: true, art: 'altar-igneo',
+  }),
 
   rift: simple({
     kind: 'rift', name: 'Grieta', slot: 'rift', limitKind: 'rift',
@@ -142,6 +185,13 @@ const STRUCTURE_SPECS = Object.freeze({
     storage: lvl => levelRow(E.almacen.capacidad, lvl) ?? 0,
     targetable: true, art: 'vault', resource: 'crystals',
   }),
+  'vault-rubies': simple({
+    kind: 'vault-rubies', name: 'Almacén de rubíes', slot: 'vault-rubies', limitKind: 'vault-rubies',
+    size: E.almacenRubies.size, height: E.almacenRubies.height, category: 'recursos',
+    maxLevel: E.almacenRubies.maxNivel, hp: hpFrom(E.almacenRubies.hp),
+    storage: lvl => levelRow(E.almacenRubies.capacidad, lvl) ?? 0,
+    targetable: true, art: 'vault', resource: 'rubies',
+  }), // TODO balance
   mine: simple({
     kind: 'mine', name: 'Mina de cristal', slot: 'prod-crystals', limitKind: 'mine',
     size: E.produccion.size, height: E.produccion.height, category: 'recursos',
@@ -166,6 +216,18 @@ const STRUCTURE_SPECS = Object.freeze({
     },
     targetable: true, art: 'workshop',
   }),
+  'mine-rubies': simple({
+    kind: 'mine-rubies', name: 'Mina de rubíes', slot: 'prod-rubies', limitKind: 'mine-rubies',
+    size: E.produccionRubies.size, height: E.produccionRubies.height, category: 'recursos',
+    maxLevel: E.produccionRubies.maxNivel,
+    hp: lvl => levelRow(E.produccionRubies.niveles, lvl)?.hp ?? 0,
+    producer: {
+      resource: 'rubies',
+      rate: lvl => levelRow(E.produccionRubies.niveles, lvl)?.rate ?? 0,
+      cap: lvl => levelRow(E.produccionRubies.niveles, lvl)?.cap ?? 0,
+    },
+    targetable: true, art: 'mine-rubies',
+  }), // TODO balance
 
   banner: simple({
     kind: 'banner', name: 'Estandarte de esqueletos', slot: 'banner',
@@ -192,6 +254,20 @@ const STRUCTURE_SPECS = Object.freeze({
     },
     art: 'bannerslime',
   }),
+  'rag-altar': simple({
+    kind: 'rag-altar', name: 'Runa de Rag', slot: 'rag-altar', limitKind: 'rag-altar',
+    size: E.ragAltar.size, height: E.ragAltar.height, category: 'fusiones',
+    maxLevel: E.ragAltar.maxNivel, hp: hpFrom(E.ragAltar.hp),
+    range: () => E.ragAltar.range,
+    guard: {
+      troop: 'rag',
+      range: E.ragAltar.range,
+      count: () => 1,
+      level: () => 1,
+      levelFrom: 'army', // lee army.levels.rag
+    },
+    targetable: true, movable: true, art: 'rag-altar', unique: true,
+  }), // TODO balance
 
   bomb: simple({
     kind: 'bomb', name: 'Bomba', slot: 'bomb', limitKind: 'bomb',

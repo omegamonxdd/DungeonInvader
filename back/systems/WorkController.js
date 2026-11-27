@@ -20,6 +20,12 @@
 import {
   BALANCE, buildCost, buildTime, structureLimit, upgradeCost, upgradeTime,
 } from '../balance/index.js';
+
+export function effectiveLimit(limitKind, coreLevel, reductions = {}) {
+  const base = structureLimit(limitKind, coreLevel);
+  const reduced = base - Math.max(0, Math.floor(Number(reductions?.[limitKind]) || 0));
+  return Math.max(0, reduced);
+}
 import { SLOTS } from '../config/buildSlots.js';
 import { DIG_LIMITS } from '../config/interaction.js';
 import { attackOf, nameOf, specFor } from './structureSpecs.js';
@@ -38,10 +44,11 @@ export function fmtDur(sec) {
 }
 
 export class WorkController {
-  constructor({ structures, terrain, resources, onToast = () => {}, onLevel = () => {}, onState = () => {} }) {
+  constructor({ structures, terrain, resources, extra = null, onToast = () => {}, onLevel = () => {}, onState = () => {} }) {
     this.structures = structures;
     this.terrain = terrain;
     this.resources = resources;
+    this.extra = extra;
     this.onToast = onToast;
     this.onLevel = onLevel;
     this.onState = onState;
@@ -83,9 +90,10 @@ export class WorkController {
   // cupo > 0 en el nivel ACTUAL deben estar colocados.
   missingBuildings() {
     const core = this.coreLevel();
+    const reductions = this.extra?.fusionReductions || {};
     const out = [];
     for (const slot of SLOTS) {
-      const lim = structureLimit(slot.limitKind, core);
+      const lim = effectiveLimit(slot.limitKind, core, reductions);
       if (lim <= 0) continue;
       const have = this.countPlaced(slot);
       if (have < lim) out.push({ slot, name: slot.name, have, lim });
@@ -98,10 +106,11 @@ export class WorkController {
   unlockingBuildings() {
     const core = this.coreLevel();
     if (core >= (BALANCE.nucleo.maxLevel || core)) return [];
+    const reductions = this.extra?.fusionReductions || {};
     const out = [];
     for (const slot of SLOTS) {
-      const cur = structureLimit(slot.limitKind, core);
-      const next = structureLimit(slot.limitKind, core + 1);
+      const cur = effectiveLimit(slot.limitKind, core, reductions);
+      const next = effectiveLimit(slot.limitKind, core + 1, reductions);
       if (next > cur) out.push({ slot, name: slot.name, add: next - cur, first: cur === 0 });
     }
     return out.sort((a, b) => Number(b.first) - Number(a.first));
@@ -227,6 +236,15 @@ export class WorkController {
   /* ---------- Terminar obras -------------------------------------------- */
 
   finish(def, work) {
+    if (!def || !work) return;
+    // Idempotencia: si el editor/rollback ya dejó el nivel aplicado, no repetir.
+    if (work.kind === 'upgrade' && (def.level || 1) >= work.to) {
+      if (def.work === work || (def.work?.kind === work.kind && def.work?.to === work.to)) {
+        def.work = null;
+        def.view?.setWorking?.(false);
+      }
+      return;
+    }
     def.work = null;
     def.view?.setWorking?.(false);
 
@@ -243,6 +261,7 @@ export class WorkController {
         def.minRange = atk?.minRange ?? def.minRange;
         def.damage = atk?.damage ?? def.damage;
         def.storage = spec.storage ? spec.storage(to) : def.storage;
+        def.storageRubies = spec.storageRubies ? spec.storageRubies(to) : def.storageRubies;
         if (spec.producer) {
           def.producer = {
             resource: spec.producer.resource,

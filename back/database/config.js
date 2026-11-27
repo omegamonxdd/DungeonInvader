@@ -25,7 +25,8 @@ const DEFAULTS = Object.freeze({
 });
 
 function readEnv(name) {
-  const fromWindow = typeof window !== 'undefined'
+  const isDev = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.DEV);
+  const fromWindow = isDev && typeof window !== 'undefined'
     ? window.__DUNGEON_SUPABASE__?.[name]
     : undefined;
   return String(fromWindow || env[name] || DEFAULTS[name] || '').trim();
@@ -42,6 +43,9 @@ export const SUPABASE_ENABLED = Boolean(
 /** Nombre de la tabla de partidas. Un jugador puede tener varias "ranuras". */
 export const SAVES_TABLE = 'saves';
 export const DEFAULT_SLOT = 'main';
+export const BASE2_SLOT = 'base2';
+/** IDs de layouts del editor (misma base, distinta distribución). */
+export const LAYOUT_IDS = Object.freeze([DEFAULT_SLOT, BASE2_SLOT]);
 /** Ranura auxiliar: última partida en la que el núcleo seguía alcanzable.
  *  Se usa para invadir bases cuyo dueño se fue con el camino bloqueado. */
 export const CHECKPOINT_SLOT = 'checkpoint:main';
@@ -50,7 +54,8 @@ export const CHECKPOINT_SLOT = 'checkpoint:main';
 export const STORAGE_KEYS = Object.freeze({
   guest: 'dungeon-build:guest',
   current: 'dungeon-build:save:current',
-  byUser: userId => `dungeon-build:save:${userId}`,
+  byUser: (userId, slot = DEFAULT_SLOT) => `dungeon-build:save:${userId}:${slot}`,
+  activeSlot: userId => `dungeon-build:active-slot:${userId}`,
   checkpoint: 'dungeon-build:checkpoint:current',
   checkpointByUser: userId => `dungeon-build:checkpoint:${userId}`,
   legacy: [

@@ -46,6 +46,7 @@ export const SHORTCUT_ACTIONS = [
   { id: 'tab-defensas',    ctx: 'build', label: 'Etiqueta: Defensas',    def: 'Digit3' },
   { id: 'tab-estandartes', ctx: 'build', label: 'Etiqueta: Estandartes', def: 'Digit4' },
   { id: 'tab-trampas',     ctx: 'build', label: 'Etiqueta: Trampas',     def: 'Digit5' },
+  { id: 'tab-fusiones',    ctx: 'build', label: 'Etiqueta: Fusiones',    def: 'Digit6' },
   { id: 'dig',      ctx: 'build',  label: 'Excavar',   def: 'KeyZ' },
   { id: 'fill',     ctx: 'build',  label: 'Rellenar',  def: 'KeyX' },
   { id: 'edig',     ctx: 'editor', label: 'Excavar',   def: 'KeyQ' },
@@ -172,7 +173,10 @@ export class ShortcutController {
       read(this.deps.confirmUI, 'open') || read(ui.confirmUI, 'open') ||
       read(ui, 'confirmOpen'));
     const moving = Boolean(read(this.move, 'active') || read(this.deps.moving, 'active'));
-    return shortcutsOpen || infoOpen || keysOpen || confirmOpen || moving;
+    const baseSelectOpen = Boolean(this.editor?.baseSelectorOpen?.());
+    const rivalOpen = Boolean(ui?.rivalPickerOpen);
+    const authOpen = Boolean(typeof window !== 'undefined' && window.__DUNGEON_AUTH_UI__?.isOpen);
+    return shortcutsOpen || infoOpen || keysOpen || confirmOpen || moving || baseSelectOpen || rivalOpen || authOpen;
   }
 
   /* ---------- Ejecución ---------- */

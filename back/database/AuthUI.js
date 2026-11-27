@@ -249,6 +249,10 @@ export class AuthUI {
     if (this.els.password) this.els.password.value = '';
   }
 
+  get isOpen() {
+    return Boolean(this.els.overlay && !this.els.overlay.hidden);
+  }
+
   /** Llamar después de service.start(): oculta el modal si ya hay sesión. */
   ready() {
     if (this.service.auth?.recoveryPending) {

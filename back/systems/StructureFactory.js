@@ -11,6 +11,7 @@ import { Ballista } from '../towers/Ballista.js';
 import { DartTurret } from '../towers/DartTurret.js';
 import { Catapult } from '../towers/Catapult.js';
 import { StructureView, needsGenericView } from '../entities/StructureView.js';
+import { footprintDepth } from '../config/world.js';
 import { specFor, maxHpOf } from './structureSpecs.js';
 
 export class StructureFactory {
@@ -59,7 +60,7 @@ export class StructureFactory {
       size: spec.size,
       height: spec.height,
       category: spec.category,
-      depth: x + y + spec.size,
+      depth: footprintDepth(x, y, spec.size),
       placed: options.placed !== false,
       movable: options.movable !== undefined ? options.movable : spec.movable,
       costKey: options.costKey || spec.slot || kind,
@@ -75,8 +76,10 @@ export class StructureFactory {
       targetable: Boolean(spec.targetable),
       source: spec.source || null,
       storage: spec.storage ? spec.storage(level) : null,
+      storageRubies: spec.storageRubies ? spec.storageRubies(level) : null,
       stored: spec.storage ? 0 : null,
       storedCrystals: kind === 'core' ? 0 : null,
+      storedRubies: kind === 'core' ? 0 : null,
       producer: spec.producer
         ? { resource: spec.producer.resource, rate: spec.producer.rate(level), cap: spec.producer.cap(level) }
         : null,

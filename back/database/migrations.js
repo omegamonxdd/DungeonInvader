@@ -23,7 +23,7 @@ export function emptySnapshot() {
     balanceVersion: null,
     savedAt: null,
     slot: 'main',
-    resources: { coins: 0, crystals: 0 },
+    resources: { coins: 0, crystals: 0, rubies: 0 },
     terrain: {
       size: null,
       rows: [],
@@ -32,7 +32,7 @@ export function emptySnapshot() {
       coreShelved: false,
     },
     structures: [],
-    army: { counts: {}, levels: {} },
+    army: { counts: {}, levels: {}, ragWork: null, mutateWork: [] },
     stats: { invasions: 0, wins: 0, losses: 0, bestWave: 0 },
     settings: {},
     // Datos de versiones futuras o tipos desconocidos: se conservan intactos.
@@ -53,6 +53,8 @@ const MIGRATIONS = {
     out.army = {
       counts: { ...(raw.army?.counts || raw.troops?.counts || {}) },
       levels: { ...(raw.army?.levels || raw.troops?.levels || {}) },
+      ragWork: raw.army?.ragWork || null,
+      mutateWork: Array.isArray(raw.army?.mutateWork) ? raw.army.mutateWork : [],
     };
     out.structures = Array.isArray(raw.structures || raw.defs) ? (raw.structures || raw.defs) : [];
     out.stats = { ...emptySnapshot().stats, ...(raw.stats || {}) };

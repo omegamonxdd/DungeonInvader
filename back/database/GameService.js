@@ -12,10 +12,10 @@
 
 import { BALANCE } from '../balance/index.js';
 import { devResources } from '../config/devResources.js';
-import { AUTOSAVE_MS, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
+import { AUTOSAVE_MS, BASE2_SLOT, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
 import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
-import { buildSnapshot, freshSnapshot, sameProgress, snapshotHasPath } from './snapshot.js';
+import { applyLayoutToSnapshot, buildSnapshot, ensureLayoutState, freshSnapshot, layoutRecord, normalizeSnapshot, sameProgress, snapshotHasPath, snapshotWithLayouts } from './snapshot.js';
 import { applySnapshot } from './restore.js';
 import { SessionLock } from './sessionLock.js';
 
@@ -36,6 +36,8 @@ export class GameService {
     this.invasionPreparing = false;
     this.lastSaved = null;
     this.lastUserId = null;
+    this.activeSlot = DEFAULT_SLOT;
+    this.activeLayout = DEFAULT_SLOT;
     this.status = 'idle';       // idle | loading | saving | saved | offline | error
     this.error = null;
     this.savedAt = null;
@@ -152,17 +154,17 @@ export class GameService {
     this.lastUserId = this.auth.id;
     this.sessionLock.attach(this.auth.isGuest ? null : this.auth.id);
 
-    // Caché local: se aplica siempre, esté o no configurada la nube.
-    const local = this.repository.loadLocal(this.auth.id);
+    this.activeLayout = DEFAULT_SLOT;
+    this.activeSlot = DEFAULT_SLOT;
+    const local = this.repository.loadLocal(this.auth.id, DEFAULT_SLOT);
     if (local) {
-      this.apply(local);
-      this.lastSaved = local;
-      this.savedAt = local.savedAt;
-    } else if (this.auth.isGuest) {
-      this.applyFresh();
+      const ready = ensureLayoutState(local);
+      this._applyLoaded(ready);
+    } else {
+      this.applyFresh(DEFAULT_SLOT);
     }
 
-    if (!this.auth.isGuest) await this.syncFromCloud(this.auth.user, local);
+    if (!this.auth.isGuest) await this.syncFromCloud(this.auth.user, local, DEFAULT_SLOT);
 
     this._onAuthUnsub = this.auth.onChange(user => this.handleAuthChange(user));
     this._timer = setInterval(() => this.tick(), AUTOSAVE_MS);
@@ -184,13 +186,21 @@ export class GameService {
     this.lastUserId = user.id;
     this.sessionLock.attach(user.guest ? null : user.id);
 
+    // Si el editor estaba abierto, se descarta antes de cargar la nueva identidad.
+    // Evita que pendingApply se quede diferido y que leave() restaure/sobrescriba
+    // la base equivocada bajo la cuenta nueva.
+    if (this.ctx?.editor?.active) {
+      try { this.ctx.editor.leave?.(false); } catch { this.ctx.editor.active = false; }
+      this.ctx.editor.active = false;
+    }
+
     // Cerrar sesión NO debe re-guardar ni re-subir la base del usuario: era
     // justo lo que recreaba el guardado aunque se borrara en Supabase.
     const signingOut = Boolean(user.guest && previousId && !isGuestId(previousId));
     if (this.dirty && previousId && !signingOut) {
-      await this.save({ force: true, userId: previousId });
+      await this.save({ force: true, ownerId: previousId });
     }
-    if (signingOut) this.repository.clearLocal(previousId);
+    if (signingOut) this.repository.clearLocal(previousId, DEFAULT_SLOT);
 
     // Nada del estado anterior puede filtrarse a la nueva identidad.
     this.pendingApply = null;
@@ -198,19 +208,16 @@ export class GameService {
     this.dirty = false;
     this.lastSaved = null;
     this.savedAt = null;
+    this.activeLayout = DEFAULT_SLOT;
+    this.activeSlot = DEFAULT_SLOT;
 
     if (user.guest) {
       if (signingOut) {
         this.applyFresh();
       } else {
-        const local = this.repository.loadLocal(user.id);
-        if (local) {
-          this.apply(local);
-          this.lastSaved = local;
-          this.savedAt = local.savedAt;
-        } else {
-          this.applyFresh();
-        }
+        const local = this.repository.loadLocal(user.id, DEFAULT_SLOT);
+        if (local) this._applyLoaded(local);
+        else this.applyFresh();
       }
       this._setStatus('offline');
       return;
@@ -218,40 +225,96 @@ export class GameService {
     await this.syncFromCloud(user, null);
   }
 
+  _applyLoaded(snapshot, { emit = true } = {}) {
+    const ready = ensureLayoutState(snapshot);
+    this.activeLayout = ready.extra?.activeLayout || DEFAULT_SLOT;
+    this.activeSlot = DEFAULT_SLOT;
+    this.apply(ready);
+    this.lastSaved = ready;
+    this.savedAt = ready.savedAt;
+    this.dirty = false;
+    if (emit) this._emit();
+    return ready;
+  }
+
+  _currentSnapshot(layoutId = this.activeLayout) {
+    const snap = buildSnapshot(this.ctx, DEFAULT_SLOT);
+    const base = ensureLayoutState(this.lastSaved || snap);
+    const layouts = { ...(base.extra?.layouts || {}) };
+    layouts[layoutId] = layoutRecord(snap);
+    return snapshotWithLayouts(snap, { activeLayout: layoutId, layouts });
+  }
+
+  getLayouts() {
+    const base = ensureLayoutState(this.lastSaved || buildSnapshot(this.ctx, DEFAULT_SLOT));
+    return {
+      activeLayout: this.activeLayout || base.extra?.activeLayout || DEFAULT_SLOT,
+      layouts: base.extra?.layouts || {},
+    };
+  }
+
   /** Partida limpia para una identidad sin guardado propio. */
   applyFresh() {
     const snap = freshSnapshot(DEFAULT_SLOT);
-    this.apply(snap);
-    this.lastSaved = null;
+    this._applyLoaded(snap, { emit: false });
+    this.lastSaved = snap;
     this.savedAt = null;
     this.dirty = false;
     this.pendingApply = null;
     this.pendingSave = false;
   }
 
+  async activateLayout(layoutId = DEFAULT_SLOT) {
+    if (!layoutId) return false;
+    if (this.ctx?.editor?.active) {
+      this.ctx?.ui?.showToast?.('Guarda o sal del editor antes de cambiar de base.');
+      return false;
+    }
+    if (layoutId === this.activeLayout) return true;
+    if (this.dirty) await this.save({ force: true, sync: true });
+    const base = ensureLayoutState(this.lastSaved || this._currentSnapshot(this.activeLayout));
+    if (!base.extra?.layouts?.[layoutId]) return false;
+    const candidate = applyLayoutToSnapshot(base, layoutId);
+    const complete = (candidate.structures || []).every(s => s?.placed && !s?.shelved) && snapshotHasPath(candidate);
+    if (!complete) {
+      this.ctx?.ui?.showToast?.('Coloca todos los edificios y abre un camino al núcleo antes de activar esta base');
+      return false;
+    }
+    this._applyLoaded(candidate);
+    await this.save({ force: true, sync: true });
+    this.ctx?.ui?.showToast?.(layoutId === BASE2_SLOT ? 'Base 2 activada.' : 'Base 1 activada.');
+    return true;
+  }
+
+  // Compatibilidad con UI anterior basada en slots.
+  async activateSlot(slot = DEFAULT_SLOT) { return this.activateLayout(slot); }
+  async getSlotSnapshot(slot = DEFAULT_SLOT) {
+    const base = ensureLayoutState(this.lastSaved || this._currentSnapshot(this.activeLayout));
+    return applyLayoutToSnapshot(base, slot);
+  }
+  async ensureSlot(userId = this.auth.id, slot = DEFAULT_SLOT) { return this.getSlotSnapshot(slot); }
+
   /** Decide entre la copia local y la remota (last-write-wins) y empuja si hace falta.
    *  Ambos bandos se leen SOLO para `user.id`: nunca se usa `lastSaved` de otra
    *  cuenta como origen. */
   async syncFromCloud(user, localHint) {
-    const local = localHint || this.repository.loadLocal(user.id);
-    const remote = await this.repository.loadRemote(user.id);
+    const local = localHint || this.repository.loadLocal(user.id, DEFAULT_SLOT);
+    const remote = await this.repository.loadRemote(user.id, DEFAULT_SLOT);
     const remoteWins = Boolean(remote && (!local || SaveRepository.newer(remote, local)));
     const chosen = remoteWins ? remote : local;
 
     if (chosen) {
-      this.apply(chosen);
-      this.lastSaved = chosen;
-      this.savedAt = chosen.savedAt;
-      this.dirty = false;
+      this._applyLoaded(chosen);
     } else {
       this.applyFresh();
     }
 
+    const ready = ensureLayoutState(this.lastSaved || this._currentSnapshot(this.activeLayout));
+    this.repository.saveLocal(ready, user.id, DEFAULT_SLOT);
     if (remoteWins) {
-      this.repository.saveLocal(remote, user.id);
-      this._rememberCheckpoint(remote, user.id);
-    } else if (local && (!remote || SaveRepository.newer(local, remote))) {
-      await this.upload(local, user.id);
+      this._rememberCheckpoint(ready, user.id);
+    } else if (!remote || SaveRepository.newer(ready, remote)) {
+      await this.upload(ready, user.id, DEFAULT_SLOT);
     }
   }
 
@@ -259,6 +322,8 @@ export class GameService {
 
   markDirty({ reload = false } = {}) {
     if (!this.started || this.sessionLocked || this.applying) return;
+    // En modo editor no se persiste nada: al salir se guarda o se restaura.
+    if (this.ctx?.editor?.active) return;
     this.dirty = true;
     clearTimeout(this._debounce);
     if (reload && !import.meta.env.DEV) {
@@ -273,38 +338,45 @@ export class GameService {
 
   tick() { if (this.dirty && !this.sessionLocked) this.save(); }
 
-  async save({ force = false, sync = true, ownerId = null } = {}) {
+  async save({ force = false, sync = true, ownerId = null, userId = null, editorCommit = false, layoutId = this.activeLayout, activeLayout = this.activeLayout } = {}) {
     if (!this.ctx || !this.started || this.sessionLocked) return false;
     if (await this.checkVersion({ forceReload: true })) return false;
-    if (this.invasionActive()) {
+    // Durante edición no se guarda nada automáticamente; solo el commit explícito del editor.
+    if (this.ctx?.editor?.active && !editorCommit) {
+      this.pendingSave = false;
+      return false;
+    }
+    if (this._combatActive()) {
       this.pendingSave = true;
       return false;
     }
     if (this.saving) return false;
 
-    const snapshot = buildSnapshot(this.ctx, DEFAULT_SLOT);
+    const snapshot = this._currentSnapshot(layoutId);
+    snapshot.extra = { ...(snapshot.extra || {}), ...(this.ctx.extra || {}), activeLayout };
     if (devResources() !== null) {
-      // El override de pruebas nunca se persiste: al quitarlo debe reaparecer
-      // el progreso real del jugador en vez de un guardado de 999999.
       const fallback = this.lastSaved?.resources || BALANCE.recursos.inicio;
-      snapshot.resources = { coins: fallback.coins, crystals: fallback.crystals };
+      snapshot.resources = { coins: fallback.coins, crystals: fallback.crystals, rubies: fallback.rubies };
     }
     if (!force && !this.dirty && sameProgress(snapshot, this.lastSaved)) return false;
 
     this.saving = true;
     this._setStatus('saving');
-    const userId = ownerId || this.auth.id;
-    this.repository.saveLocal(snapshot, userId);
-    this._rememberCheckpoint(snapshot, userId);
+    const effectiveUserId = ownerId ?? userId ?? this.auth.id;
+    this.repository.saveLocal(snapshot, effectiveUserId, DEFAULT_SLOT);
+    if (!this.ctx?.editor?.active || editorCommit) {
+      this._rememberCheckpoint(snapshot, effectiveUserId);
+    }
 
-    if (sync && !isGuestId(userId) && this.repository.remoteEnabled) {
-      await this.upload(snapshot, userId);
+    if (sync && !isGuestId(effectiveUserId) && this.repository.remoteEnabled) {
+      await this.upload(snapshot, effectiveUserId, DEFAULT_SLOT);
     } else {
       this.savedAt = snapshot.savedAt;
       this._setStatus(this.repository.remoteEnabled ? 'saved' : 'offline');
     }
 
     this.lastSaved = snapshot;
+    this.activeLayout = activeLayout;
     this.dirty = false;
     this.pendingSave = false;
     this.saving = false;
@@ -342,8 +414,8 @@ export class GameService {
   loadOpponentBase(userId) { return this.repository.loadOpponentBase(userId); }
   loadOpponentCheckpoint(userId) { return this.repository.loadOpponentCheckpoint(userId); }
 
-  async upload(snapshot, userId) {
-    const result = await this.repository.saveRemote(userId, snapshot);
+  async upload(snapshot, userId, slot = DEFAULT_SLOT) {
+    const result = await this.repository.saveRemote(userId, { ...snapshot, slot: DEFAULT_SLOT });
     if (result.ok) {
       this.savedAt = result.savedAt || snapshot.savedAt;
       this._setStatus('saved');
@@ -364,20 +436,30 @@ export class GameService {
       this.pendingApply = null;
       this.apply(snap);
     }
+    // En editor no se flushea: solo se guarda al pulsar Guardar (editorCommit).
+    if (this.ctx?.editor?.active) return;
     if (this.pendingSave || this.dirty) await this.save({ force: true });
   }
 
   invasionActive() {
     return Boolean(this.invasionPreparing
+      || this.ctx?.editor?.active
+      || this.ctx?.invasion?.baseSwap
+      || (this.ctx?.invasion?.active && !this.ctx?.invasion?.over));
+  }
+
+  _combatActive() {
+    return Boolean(this.invasionPreparing
+      || this.ctx?.moveController?.active
       || this.ctx?.invasion?.baseSwap
       || (this.ctx?.invasion?.active && !this.ctx?.invasion?.over));
   }
 
   /* ---------- Carga en caliente ---------------------------------------- */
 
-  apply(snapshot) {
+  apply(snapshot, { force = false } = {}) {
     if (!this.ctx) return;
-    if (this.invasionActive()) {
+    if (!force && this.invasionActive()) {
       this.pendingApply = snapshot;
       return;
     }
@@ -387,7 +469,8 @@ export class GameService {
       this.lastSaved = applied;
       this.savedAt = applied.savedAt;
       this.dirty = false;
-      this._rememberCheckpoint(applied);
+      this.pendingApply = null;
+      if (!this.ctx?.editor?.active) this._rememberCheckpoint(applied);
     } finally {
       this.applying = false;
     }

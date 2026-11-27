@@ -30,6 +30,12 @@ export const TILE_W = WORLD.baseTileW * SCALE;
 export const TILE_H = WORLD.baseTileH * SCALE;
 export const HALF_W = TILE_W / 2;
 export const HALF_H = TILE_H / 2;
+
+/* Orden de dibujo de una estructura con huella n×n. Debe estar por encima de
+ * TODAS las baldosas de su huella: la última (x+n-1, y+n-1) dibuja en x+y+2n-2.
+ * Con n=1 y n=2 coincide con el clásico x+y+n; con n=3 evita que la baldosa
+ * inferior del grid tape el suelo de roca de la estructura. */
+export const footprintDepth = (x, y, n) => x + y + Math.max(n, 2 * n - 2);
 export const DIRT_HEIGHT = WORLD.baseDirtH * SCALE;
 export const CORE_HEIGHT = WORLD.baseCoreH * SCALE;
 export const CORE_SIZE = WORLD.coreMax - WORLD.coreMin + 1;

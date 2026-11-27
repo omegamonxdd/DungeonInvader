@@ -185,7 +185,7 @@ export class InteractionController {
           this.view.setToolCell(this.terrain.hover);
         } else {
           const w = this.camera.screenToWorld(p.x, p.y);
-          // La vista de invasor del editor no revela estructuras desde fuera.
+          // En vista invasor no hay hover ni selección de estructuras.
           const hidden = Boolean(this.editor?.active && this.editor.invaderView);
           this.view.setHoverStructure(hidden ? null : structureAt(w.x, w.y, this.structures));
         }
@@ -202,7 +202,8 @@ export class InteractionController {
       }
 
       if (this.mode === 'inv-select') {
-        if (Math.hypot(p.x - this.downX, p.y - this.downY) < CLICK_TOLERANCE) return;
+        const tol = p.pointerType === 'touch' ? 14 : CLICK_TOLERANCE;
+        if (Math.hypot(p.x - this.downX, p.y - this.downY) < tol) return;
         this.mode = 'inv-box';
         this.moved = true;
       }
@@ -212,13 +213,18 @@ export class InteractionController {
       }
 
       if (this.mode === 'click') {
-        if (Math.hypot(p.x - this.downX, p.y - this.downY) < CLICK_TOLERANCE) return;
+        const tol = p.pointerType === 'touch' ? 14 : CLICK_TOLERANCE;
+        if (Math.hypot(p.x - this.downX, p.y - this.downY) < tol) return;
         this.mode = 'pan';
         this.moved = true;
         this.view.setHoverStructure(null);
       }
 
       if (this.mode === 'pan') {
+        if (!this.moved) {
+          const tol = p.pointerType === 'touch' ? 14 : CLICK_TOLERANCE;
+          if (Math.hypot(p.x - this.downX, p.y - this.downY) >= tol) this.moved = true;
+        }
         this.camera.panBy(p.x - this.lastX, p.y - this.lastY);
         this.lastX = p.x;
         this.lastY = p.y;
@@ -234,7 +240,7 @@ export class InteractionController {
       if (this.invasion?.active && !this.invasion.over) {
         const now = Date.now();
         const isTap = allowClick && !this.moved
-          && mode !== 'inv-box' && mode !== 'inv-order';
+          && mode !== 'inv-box' && mode !== 'inv-order' && mode !== 'pan';
         const prev = this.lastTap;
         // Doble tap en el mismo sitio: selecciona todo el ejército.
         if (isTap && prev && now - prev.t < 320
@@ -289,6 +295,9 @@ export class InteractionController {
       if (code === 'Escape') {
         if (this.shortcutsUI?.confirmOpen) { this.shortcutsUI.closeConfirm(); return; }
         if (this.shortcutsUI?.keysOpen) return; // lo cierra su propio overlay
+        if (typeof window !== 'undefined' && window.__DUNGEON_AUTH_UI__?.isOpen) return;
+        if (this.ui?.rivalPickerOpen) { this.ui.closeRivalPicker(); return; }
+        if (this.editor?.baseSelectorOpen?.()) { this.editor.closeBaseSelector(); return; }
         if (this.upgrades?.close?.()) return;
         if (this.ui?.closePanel?.()) return;
         if (this.ui?.closeSummon?.()) return;

@@ -36,7 +36,8 @@ export class Troop {
 
     // Las crías de araña nacen junto a la madre: no salen por la entrada,
     // no se seleccionan y no obedecen órdenes (como en 19b-aranas.js).
-    this.summoned = Boolean(opts.summoned || def.source === 'summoned');
+    // Rag es source:'summoned' (no invocable) pero commandable en invasión.
+    this.summoned = Boolean(opts.summoned || (def.source === 'summoned' && !def.commandable));
     this.babiesLeft = row.babies || 0;
     this.babyStep = def.danoPorCria || 50;
     this.dmgAcc = 0;

@@ -12,7 +12,7 @@
 
 import Phaser from 'phaser';
 import { iso } from '../systems/iso.js';
-import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W } from '../config/world.js';
+import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W, footprintDepth } from '../config/world.js';
 import { OVERLAY_DEPTH } from '../config/interaction.js';
 import { VAULT_ART, vaultArtFor } from '../config/vaultArt.js';
 import { makeDungeonRockTexture, rockSmoothingFor } from '../systems/defenseTextures.js';
@@ -29,6 +29,7 @@ const C = {
   red: 0xb8392b, redHi: 0xf07a5a,
   bone: 0xe8e0c8, boneLo: 0x938d79,
   slime: 0x7dc94a, slimeHi: 0xb6f5a4,
+  ruby: 0xff4d88, rubyHi: 0xffbfd4, rubyLo: 0x8f1f4f,
 };
 
 // Solo las trampas conservan su cimiento dibujado a mano: el resto de
@@ -39,6 +40,8 @@ const TRAP_KINDS = new Set(['bomb', 'electro', 'rocktrap']);
 const GROUND = {
   turret: [0x3d3d44, 0x7b7b86],
   catapult: [0x3d3a35, 0x7b756a],
+  'altar-electrico': [0x36414a, 0x6a8792],
+  'altar-igneo': [0x463830, 0x8a6a4f],
   rift: [0x3a3446, 0x776a8c],
   lab: [0x354247, 0x6e8a92],
   incubator: [0x3e3b36, 0x80796e],
@@ -227,7 +230,9 @@ function drawVault(g, cx, by, s, resource) {
   g.moveTo(cx - 20 * s, by - 22 * s); g.lineTo(cx - 20 * s, by + 3 * s);
   g.moveTo(cx + 20 * s, by - 22 * s); g.lineTo(cx + 20 * s, by + 3 * s);
   g.strokePath();
-  const gem = resource === 'crystals' ? C.crystal : C.goldHi;
+  const gem = resource === 'crystals' ? C.crystal
+    : resource === 'rubies' ? C.rubyHi
+    : C.goldHi;
   g.fillStyle(gem, 1);
   g.fillTriangle(cx, by - 34 * s, cx + 7 * s, by - 24 * s, cx - 7 * s, by - 24 * s);
   g.fillStyle(C.ink, 1);
@@ -241,6 +246,19 @@ function drawMine(g, cx, by, s, time) {
   g.fillStyle(C.crystalHi, 1);
   g.fillTriangle(cx + 2 * s, by - 16 * s, cx + 11 * s, by - 44 * s, cx + 18 * s, by - 16 * s);
   g.fillStyle(C.crystal, 0.7 + Math.sin(time / 400) * 0.2);
+  g.fillTriangle(cx + 5 * s, by - 18 * s, cx + 11 * s, by - 36 * s, cx + 15 * s, by - 18 * s);
+  g.lineStyle(3 * s, C.woodHi, 1);
+  g.beginPath(); g.moveTo(cx - 20 * s, by - 12 * s); g.lineTo(cx + 18 * s, by - 30 * s); g.strokePath();
+}
+
+// TODO balance/arte: visual provisional de la Mina de rubíes.
+function drawMineRubies(g, cx, by, s, time) {
+  cuboid(g, cx, by, 48 * s, 14 * s, 18 * s, STONE);
+  g.fillStyle(C.rubyLo, 1);
+  g.fillTriangle(cx - 14 * s, by - 16 * s, cx - 6 * s, by - 38 * s, cx + 2 * s, by - 16 * s);
+  g.fillStyle(C.rubyHi, 1);
+  g.fillTriangle(cx + 2 * s, by - 16 * s, cx + 11 * s, by - 44 * s, cx + 18 * s, by - 16 * s);
+  g.fillStyle(C.ruby, 0.75 + Math.sin(time / 360) * 0.25);
   g.fillTriangle(cx + 5 * s, by - 18 * s, cx + 11 * s, by - 36 * s, cx + 15 * s, by - 18 * s);
   g.lineStyle(3 * s, C.woodHi, 1);
   g.beginPath(); g.moveTo(cx - 20 * s, by - 12 * s); g.lineTo(cx + 18 * s, by - 30 * s); g.strokePath();
@@ -330,6 +348,55 @@ function drawRocktrap(g, cx, by, s) {
   }
 }
 
+function drawAltarElectrico(g, cx, by, s, time) {
+  cuboid(g, cx, by, 34 * s, 12 * s, 20 * s, STONE);
+  cuboid(g, cx, by - 20 * s, 18 * s, 16 * s, 16 * s, STONE);
+  const pulse = 0.55 + 0.45 * Math.sin(time / 220);
+  g.fillStyle(C.crystalLo, 1);
+  g.fillTriangle(cx, by - 56 * s, cx + 11 * s, by - 34 * s, cx - 11 * s, by - 34 * s);
+  g.fillStyle(C.crystalHi, 0.55 + pulse * 0.45);
+  g.fillTriangle(cx, by - 53 * s, cx + 6 * s, by - 35 * s, cx - 6 * s, by - 35 * s);
+  g.lineStyle(1.5 * s, C.crystal, 0.7);
+  for (let i = 0; i < 3; i++) {
+    const a = time / 320 + i * 2.1;
+    g.beginPath();
+    g.moveTo(cx, by - 44 * s);
+    g.lineTo(cx + Math.cos(a) * 14 * s, by - 44 * s + Math.sin(a) * 6 * s);
+    g.strokePath();
+  }
+}
+
+function drawAltarIgneo(g, cx, by, s, time) {
+  cuboid(g, cx, by, 34 * s, 12 * s, 20 * s, STONE);
+  cuboid(g, cx, by - 20 * s, 18 * s, 16 * s, 16 * s, STONE);
+  const pulse = 0.55 + 0.45 * Math.sin(time / 180);
+  const ember = 0xff8a2a;
+  const emberHi = 0xffcf6a;
+  g.fillStyle(0x7a2d10, 1);
+  g.fillTriangle(cx, by - 56 * s, cx + 11 * s, by - 34 * s, cx - 11 * s, by - 34 * s);
+  g.fillStyle(ember, 0.65 + pulse * 0.35);
+  g.fillTriangle(cx, by - 53 * s, cx + 6 * s, by - 35 * s, cx - 6 * s, by - 35 * s);
+  g.fillStyle(emberHi, 0.45 + pulse * 0.35);
+  g.fillCircle(cx, by - 42 * s, 3.5 * s);
+}
+
+// TODO balance/arte: visual provisional de la Runa de Rag.
+function drawRagAltar(g, cx, by, s, time) {
+  cuboid(g, cx, by, 32 * s, 10 * s, 18 * s, STONE);
+  cuboid(g, cx, by - 18 * s, 20 * s, 8 * s, 14 * s, STONE);
+  const pulse = 0.5 + 0.5 * Math.sin(time / 260);
+  const c = 0xb53149;
+  const hi = 0xff6a8a;
+  g.fillStyle(0x2a0d14, 0.95);
+  g.fillEllipse(cx, by - 24 * s, 18 * s, 8 * s);
+  g.lineStyle(2 * s, c, 0.7 + pulse * 0.3);
+  g.strokeEllipse(cx, by - 24 * s, 18 * s, 8 * s);
+  g.fillStyle(hi, 0.45 + pulse * 0.4);
+  g.fillCircle(cx, by - 38 * s, 5 * s);
+  g.fillStyle(c, 0.9);
+  g.fillTriangle(cx, by - 52 * s, cx + 7 * s, by - 36 * s, cx - 7 * s, by - 36 * s);
+}
+
 function drawRubble(g, cx, by, s) {
   g.fillStyle(0x3a322c, 0.9);
   g.fillEllipse(cx, by, 46 * s, 20 * s);
@@ -355,6 +422,10 @@ const DRAWERS = {
   bomb: drawBomb,
   electro: drawElectro,
   rocktrap: drawRocktrap,
+  'altar-electrico': drawAltarElectrico,
+  'altar-igneo': drawAltarIgneo,
+  'rag-altar': drawRagAltar,
+  'mine-rubies': drawMineRubies,
 };
 
 export class StructureView {
@@ -369,7 +440,7 @@ export class StructureView {
     this.level = def.level || 1;
     this.resource = def.resource || null;
 
-    this.baseDepth = this.x + this.y + this.size;
+    this.baseDepth = footprintDepth(this.x, this.y, this.size);
     this.ground = scene.add.graphics().setDepth(this.baseDepth + 0.01);
     this.groundRock = null;
     this.rockFilter = -1;
@@ -381,6 +452,7 @@ export class StructureView {
     this.destroyed = false;
     this.working = false;
     this.hidden = false;
+    this.fusionMarked = false;
     this.aim = { angle: -0.7 };
     this.lastArt = -1;
 
@@ -515,7 +587,7 @@ export class StructureView {
       return;
     }
     // Al cambiar de sitio se recalculan profundidad, suelo y sombra.
-    this.baseDepth = x + y + this.size;
+    this.baseDepth = footprintDepth(x, y, this.size);
     this.ground.setDepth(this.baseDepth + 0.01);
     this.shadow.setDepth(this.baseDepth + 0.02);
     this.body.setDepth(this.baseDepth + 0.05);
@@ -588,6 +660,32 @@ export class StructureView {
     this.body.setVisible(!on);
     if (this.image) this.image.setVisible(!on && !this.destroyed);
     if (this.bubble) this.bubble.setVisible(!on);
+    if (this.fusionMark) this.fusionMark.setVisible(!on && this.fusionMarked);
+  }
+
+  setFusionMarked(on = true) {
+    if (this.fusionMarked === on) return;
+    this.fusionMarked = on;
+    if (!this.fusionMark) {
+      this.fusionMark = this.scene.add.graphics();
+    }
+    this.drawFusionMark();
+  }
+
+  drawFusionMark() {
+    if (!this.fusionMark) return;
+    const g = this.fusionMark;
+    g.clear();
+    if (!this.fusionMarked) { g.setVisible(false); return; }
+    const c = this.center(this.floating ? this.lift || 0 : 0);
+    const w = this.size * HALF_W * 0.75;
+    const h = this.size * HALF_H * 0.75;
+    const depth = (this.floating ? OVERLAY_DEPTH : this.baseDepth) + 0.08;
+    g.setDepth(depth).setVisible(!this.hidden);
+    g.lineStyle(3 / (this.scene.cameras.main.zoom || 1), 0xff6a8a, 0.95);
+    g.strokeEllipse(c.x, c.y - 2 * SCALE, w * 2, h * 2);
+    g.fillStyle(0xff6a8a, 0.18);
+    g.fillEllipse(c.x, c.y - 2 * SCALE, w * 2, h * 2);
   }
 
   // Lo usa el editor al guardar/colocar una estructura.
@@ -624,7 +722,7 @@ export class StructureView {
 
   update(time) {
     this.syncRockFilter();
-    const animated = ['rift', 'electro', 'bomb', 'lab', 'workshop', 'incubator', 'mine', 'catapult', 'banner', 'bannerslime'];
+    const animated = ['rift', 'electro', 'bomb', 'lab', 'workshop', 'incubator', 'mine', 'mine-rubies', 'catapult', 'banner', 'bannerslime', 'altar-electrico', 'altar-igneo', 'rag-altar'];
     if (this.floating) return;
     if (!animated.includes(this.kind)) return;
     // 12 fps basta para los pulsos y no llena la lista de dibujo.
@@ -641,6 +739,7 @@ export class StructureView {
     this.body.destroy();
     if (this.image) this.image.destroy();
     if (this.bubble) this.bubble.destroy();
+    if (this.fusionMark) this.fusionMark.destroy();
   }
 }
 
@@ -650,5 +749,6 @@ export class StructureView {
 // histórica del aspecto previo al horneado.
 export function needsGenericView(kind) {
   if (vaultArtFor(kind)) return true;
+  if (kind?.startsWith('vault-')) return true;
   return Boolean(DRAWERS[kind]) && kind !== 'ballista' && kind !== 'turret' && kind !== 'catapult';
 }

@@ -11,8 +11,9 @@ import { CHECKPOINT_SLOT, DEFAULT_SLOT, SAVES_TABLE } from './config.js';
 import { getSupabase } from './client.js';
 import {
   clearLocal as clearLocalStorage,
+  loadActiveSlot,
   loadCheckpoint as loadCheckpointLocal,
-  loadLocal, saveCheckpoint as saveCheckpointLocal, saveLocal,
+  loadLocal, saveActiveSlot, saveCheckpoint as saveCheckpointLocal, saveLocal,
 } from './storage.js';
 import { normalizeSnapshot, savedAtMs } from './snapshot.js';
 
@@ -30,11 +31,13 @@ export class SaveRepository {
 
   /* ---------- Local ----------------------------------------------------- */
 
-  loadLocal(userId) { return loadLocal(userId); }
-  saveLocal(snapshot, userId) { return saveLocal(snapshot, userId); }
+  loadLocal(userId, slot = DEFAULT_SLOT) { return loadLocal(userId, slot); }
+  saveLocal(snapshot, userId, slot = snapshot?.slot || DEFAULT_SLOT) { return saveLocal(snapshot, userId, slot); }
+  loadActiveSlot(userId) { return loadActiveSlot(userId); }
+  saveActiveSlot(userId, slot = DEFAULT_SLOT) { return saveActiveSlot(userId, slot); }
 
   loadCheckpoint(userId) { return loadCheckpointLocal(userId); }
-  clearLocal(userId) { return clearLocalStorage(userId); }
+  clearLocal(userId, slot = DEFAULT_SLOT) { return clearLocalStorage(userId, slot); }
 
   /** Escribe el checkpoint en local y, si hay nube, en su propia ranura. */
   async saveCheckpoint(snapshot, userId) {

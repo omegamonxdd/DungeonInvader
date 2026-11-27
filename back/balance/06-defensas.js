@@ -12,11 +12,11 @@ export const defensas = {
   muerteMs: 550,
 
   ballista: {
-    size: 2, height: 28, boltHeight: 26, maxNivel: 4,
+    size: 2, height: 28, boltHeight: 26, maxNivel: 5,
     cooldown: 1.5,
-    ranges: { 1: 4, 2: 4, 3: 4.2, 4: 4.2 },
-    hp:  { 1: 500, 2: 550, 3: 580, 4: 600 },
-    dps: { 1: 6,   2: 8,   3: 9,   4: 10 },
+    ranges: { 1: 4, 2: 4, 3: 4.2, 4: 4.2, 5: 4.3 },
+    hp:  { 1: 500, 2: 550, 3: 580, 4: 610, 5: 675 },
+    dps: { 1: 6,   2: 8,   3: 9,   4: 10,  5: 12 },
   },
   turret: {
     size: 2, height: 34, boltHeight: 28, maxNivel: 4,
@@ -39,5 +39,30 @@ export const defensas = {
     missChance: 0.18,   // probabilidad de un lanzamiento desviado
     hp:  { 1: 750, 2: 800 },
     dps: { 1: 6,   2: 7 },
+  },
+
+  // PROVISIONAL: alcance, radio de cadena, altura de rayo, rayMs y costes/obras
+  // pendientes de ajuste final por el usuario.
+  'altar-electrico': {
+    size: 2, height: 34, boltHeight: 26, maxNivel: 2,
+    mode: 'chain',
+    cooldown: 1.2,
+    ranges: { 1: 5, 2: 5 },
+    chain: 2,
+    chainFactor: 0.25,
+    targets: { 1: 2, 2: 3 }, // objetivo inicial + rebotes
+    rayMs: 300,
+    hp:  { 1: 600, 2: 660 },
+    dps: { 1: 12,  2: 12 },
+  },
+  'altar-igneo': {
+    size: 2, height: 34, boltHeight: 26, maxNivel: 2,
+    mode: 'beam',
+    cooldown: 0.1,
+    ranges: { 1: 4, 2: 4 },
+    targets: { 1: 1, 2: 2 },
+    rayMs: 120,
+    hp:  { 1: 600, 2: 660 },
+    dps: { 1: 10,  2: 10 },
   },
 };

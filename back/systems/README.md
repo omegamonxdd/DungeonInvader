@@ -23,8 +23,8 @@ indicados. Agrupados por responsabilidad:
 - `ShortcutController.js` — 19 acciones reasignables (Mejoras = Alt izquierdo) y detección de solapes. Con el menú Construir abierto solo mandan los atajos del menú y E para cerrarlo.
 
 **Economía y progreso**
-- `Resources.js` — monedas/cristales vivos, `canAfford`, `pay()` atómico y capacidad.
-- `WorkController.js` — obras `build`/`upgrade` con `Date.now()`, bloqueos y subida de nivel; calcula los edificios que faltan para mejorar el núcleo (`missingBuildings()`) y los que se desbloquean con el siguiente nivel (`unlockingBuildings()`).
+- `Resources.js` — monedas/cristales vivos, `canAfford`, `pay()` atómico y capacidad. `canAfford`/`pay()` sobre `usable = min(total, capacidad)` (el excedente se conserva pero no se puede gastar).
+- `WorkController.js` — obras `build`/`upgrade` con `Date.now()`, bloqueos y subida de nivel; calcula los edificios que faltan para mejorar el núcleo (`missingBuildings()`) y los que se desbloquean con el siguiente nivel (`unlockingBuildings()`). `missingBuildings()` cuenta todos los edificios construidos por el jugador, incluidos los que están en obras o guardados/retirados en el editor; `countPlaced()` no exige `placed`, porque un edificio guardado sigue siendo del jugador.
 - `Army.js` — invocar, criar, mutar, espacio de tropas y `snapshot()`.
 - `ProductionController.js` — mina/taller con producción pasiva y recolección.
 - `structureSpecs.js` / `StructureFactory.js` — catálogo común y creación de estructuras.

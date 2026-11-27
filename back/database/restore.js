@@ -8,7 +8,7 @@
  * ========================================================== */
 
 import { DIG_LIMITS } from '../config/interaction.js';
-import { ENTRANCE_Y_MAX, ENTRANCE_Y_MIN } from '../config/world.js';
+import { ENTRANCE_Y_MAX, ENTRANCE_Y_MIN, footprintDepth } from '../config/world.js';
 import { DIRT } from '../systems/map.js';
 import { specFor } from '../systems/structureSpecs.js';
 import { normalizeSnapshot } from './snapshot.js';
@@ -28,9 +28,12 @@ function derive(def) {
   def.damage = atk?.damage ?? null;
   def.splash = atk?.splash ?? null;
   def.storage = spec.storage ? spec.storage(lvl) : null;
+  def.storageRubies = spec.storageRubies ? spec.storageRubies(lvl) : null;
   def.stored = spec.storage ? (def.stored || 0) : null;
   if (def.kind === 'core') {
     def.storedCrystals = Math.max(0, Math.floor(def.storedCrystals || 0));
+    def.storedRubies = Math.max(0, Math.floor(def.storedRubies || 0));
+    def.storageRubies = spec.storageRubies ? spec.storageRubies(lvl) : 0;
   }
   def.producer = spec.producer
     ? {
@@ -42,7 +45,7 @@ function derive(def) {
   def.guard = spec.guard || null;
   def.trap = spec.trap || null;
   def.act = spec.trap?.type === 'bomb' ? spec.trap.activation(lvl) : null;
-  def.depth = def.x + def.y + (def.size || 1);
+  def.depth = footprintDepth(def.x, def.y, def.size || 1);
 }
 
 function syncView(def) {
@@ -121,8 +124,10 @@ function restoreStructures(snap, ctx) {
     // La entrada es 2×3: dos columnas (x=40 dentro, x=41 fuera) y tres filas.
     def.h = def.kind === 'entrance' ? (ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1) : size;
     def.size = size;
-    def.placed = Boolean(rec.placed) && !rec.shelved;
+    const wasMoving = Boolean(rec.moving);
+    def.placed = (Boolean(rec.placed) || wasMoving) && !rec.shelved;
     def.shelved = Boolean(rec.shelved);
+    def.moving = false;
     def.movable = rec.movable !== false;
     def.resource = rec.resource || def.resource;
     def.costKey = rec.costKey || def.costKey;
@@ -132,6 +137,7 @@ function restoreStructures(snap, ctx) {
     def.pending = rec.pending || 0;
     def.stored = rec.stored || 0;
     def.storedCrystals = rec.storedCrystals || 0;
+    def.storedRubies = rec.storedRubies || 0;
     derive(def);
     syncView(def);
   }
@@ -167,12 +173,17 @@ export function applySnapshot(snapshot, ctx, options = {}) {
   if (withResources && ctx.resources) {
     ctx.resources.coins = snap.resources.coins;
     ctx.resources.crystals = snap.resources.crystals;
+    ctx.resources.rubies = snap.resources.rubies;
   }
   if (withArmy && ctx.army) {
     ctx.army.counts = { ...snap.army.counts };
     ctx.army.levels = { ...snap.army.levels };
+    ctx.army.ragWork = snap.army.ragWork ? { ...snap.army.ragWork } : null;
+    ctx.army.mutateWork = Array.isArray(snap.army.mutateWork) ? snap.army.mutateWork.map(w => ({ ...w })) : [];
     ctx.army.onChange?.();
   }
+  if (ctx.extra) ctx.extra.fusionReductions = { ...(snap.extra?.fusionReductions || {}) };
+  else ctx.extra = { fusionReductions: { ...(snap.extra?.fusionReductions || {}) } };
   // La simulación copia el ejército al arrancar: hay que resincronizarla.
   if (resetInvasion) ctx.invasion?.reset?.();
 

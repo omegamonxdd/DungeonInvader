@@ -34,25 +34,25 @@ export const mundo = {
 };
 
 export const nucleo = {
-  maxLevel: 3,
+  maxLevel: 4,
   niveles: {
-    1: { hp: 1000, storage: 2500 },
-    2: { hp: 1250, storage: 4000 },
-    3: { hp: 1500, storage: 10000 },
-    4: { hp: 2000, storage: 25000 },
+    1: { hp: 1000, storage: 2500, storageRubies: 0 },
+    2: { hp: 1250, storage: 4000, storageRubies: 0 },
+    3: { hp: 1500, storage: 10000, storageRubies: 0 },
+    4: { hp: 2000, storage: 25000, storageRubies: 5000 },
   },
-  limiteExcavacion: { 1: 100, 2: 115, 3: 150, 4: 150 },
+  limiteExcavacion: { 1: 100, 2: 115, 3: 150, 4: 185 },
 };
 
 export const entrada = {
-  maxLevel: 3,
-  espacioTropas: { 1: 20, 2: 30, 3: 50 },
+  maxLevel: 4,
+  espacioTropas: { 1: 20, 2: 30, 3: 50, 4: 70},
 };
 
 export const recursos = {
   // Partida nueva: 2000 de cada recurso. Para pruebas locales se puede
   // forzar otra cantidad con VITE_DEV_RESOURCES (ver config/devResources.js).
-  inicio: { coins: 2000, crystals: 2000 },
+  inicio: { coins: 2000, crystals: 2000, rubies: 0 },
 };
 
 export const camara = {

@@ -64,6 +64,12 @@ export const troopMutateTime = (id, toLevel) => scaled(
   levelRow(obras.tiemposMutacion?.[id], toLevel) ?? obras.porDefecto.mejora,
 );
 
+// TODO balance: Rag usa tabla/costes propios, no mutación de laboratorio.
+export const ragUpgradeCost = (toLevel) => costes.mejorasRag?.[toLevel] || null;
+export const ragUpgradeTime = (toLevel) => scaled(
+  levelRow(obras.tiemposMejoraRag, toLevel) ?? obras.porDefecto.mejora,
+);
+
 /* Límites y niveles ---------------------------------------------------- */
 export function structureLimit(kind, coreLevel) {
   const table = estructuras.limitePorNucleo[kind];
@@ -90,6 +96,7 @@ export function defensaAt(kind, lvl) {
   const hp = levelRow(d.hp, lvl);
   const dps = levelRow(d.dps, lvl);
   const range = d.ranges ? levelRow(d.ranges, lvl) : d.range;
+  const targets = d.targets ? levelRow(d.targets, lvl) : undefined;
   return {
     hp,
     dps,
@@ -98,6 +105,7 @@ export function defensaAt(kind, lvl) {
     damage: defDamage(dps, d.cooldown),
     size: d.size,
     height: d.height,
+    ...(targets !== undefined ? { targets } : {}),
   };
 }
 
@@ -163,7 +171,8 @@ export function balanceReport() {
 // Los helpers también cuelgan de BALANCE para poder usarlos desde la consola.
 Object.assign(BALANCE, {
   levelRow, defDamage, buildCost, upgradeCost, troopMutateCost, formatCost, scaled,
-  buildTime, upgradeTime, troopMutateTime, structureLimit, allowedMaxLevel, statAt,
+  buildTime, upgradeTime, troopMutateTime, ragUpgradeCost, ragUpgradeTime,
+  structureLimit, allowedMaxLevel, statAt,
   defensaAt, tropaAt, trampaAt, troopIntervalAt, troopDamageAt,
   report: balanceReport,
 });

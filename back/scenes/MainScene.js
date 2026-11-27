@@ -17,6 +17,9 @@ import { WorkController } from '../systems/WorkController.js';
 import { StructureFactory } from '../systems/StructureFactory.js';
 import { Army } from '../systems/Army.js';
 import { ProductionController } from '../systems/ProductionController.js';
+import { buildCost } from '../balance/index.js';
+import { specFor } from '../systems/structureSpecs.js';
+import { Defender } from '../enemies/Defender.js';
 import { ShortcutController } from '../systems/ShortcutController.js';
 import { EditorController } from '../systems/EditorController.js';
 import { TerrainView } from '../entities/TerrainView.js';
@@ -72,6 +75,8 @@ export class MainScene extends Phaser.Scene {
     // entrada mantienen sus vistas dedicadas.
     this.structures = [];
     this.factory = new StructureFactory(this, this.structures);
+    this.fusionPending = null;
+    this.homeDefenders = [];
 
     const core = this.factory.create('core', CORE_MIN, CORE_MIN, {
       id: 'core', placed: true, movable: true,
@@ -97,10 +102,12 @@ export class MainScene extends Phaser.Scene {
       structures: this.structures,
       getCoreLevel: () => this.works?.coreLevel() || 1,
     });
+    this.extra = { fusionReductions: {} };
     this.works = new WorkController({
       structures: this.structures,
       terrain: this.terrain,
       resources: this.resources,
+      extra: this.extra,
       onToast: msg => this.ui?.showToast(msg),
       onLevel: def => {
         if (def.kind === 'core') this.ui?.refreshBuildItems();
@@ -123,6 +130,7 @@ export class MainScene extends Phaser.Scene {
       riftLevel: () => levelOf('rift'),
       incubatorLevel: () => levelOf('incubator'),
       labLevel: () => levelOf('lab'),
+      coreLevel: () => this.works?.coreLevel() || 1,
       resources: this.resources,
       onToast: msg => this.ui?.showToast(msg),
       onChange: () => {
@@ -160,6 +168,28 @@ export class MainScene extends Phaser.Scene {
     this.moveController = new MoveController(
       this, this.structures, this.terrain, this.cameraController,
       finished => {
+        const isFusion = Boolean(this.fusionPending && this.fusionPending.markedIds);
+        if (finished.commit && isFusion) {
+          const ok = this.commitFusion(finished.def);
+          if (!ok) {
+            // MoveController ya colocó la huella al confirmar; hay que limpiarla.
+            const d = finished.def;
+            this.terrain.setFootprint(d.x, d.y, d.w || d.size, d.h || d.size, false);
+            this.cancelFusion();
+            this.factory.destroy(d);
+            this.ui?.refreshBuildItems();
+            this.ui?.refreshTerrainUI();
+            this.ui?.syncScene();
+            return;
+          }
+          this.interactionView.setHoverStructure(null);
+          this.ui?.refreshBuildItems();
+          this.ui?.refreshTerrainUI();
+          this.editor?.refresh();
+          this.ui?.syncScene();
+          return;
+        }
+        if (!finished.commit && isFusion) this.cancelFusion();
         // Guardar/colocar desde el editor no es una obra nueva: solo cuenta
         // la colocación definitiva de una estructura recién comprada.
         if (finished.commit && finished.isNew && !finished.fromStore) {
@@ -174,9 +204,20 @@ export class MainScene extends Phaser.Scene {
         this.ui?.syncScene();
       },
       // El coste de construcción se cobra al confirmar (cancelar es gratis).
-      // Las recolocaciones del editor nunca cobran.
-      def => (!this.moveController?.isNew || this.moveController?.fromStore)
-        || this.works.payBuild(def),
+      // Las recolocaciones del editor nunca cobran. Fusión valida al confirmar.
+      def => {
+        if (this.fusionPending) {
+          const pending = this.fusionPending;
+          if (this.works.coreLevel() < 4 || this.army?.hasRag?.()) return false;
+          const marked = pending.markedIds
+            .map(id => this.structures.find(d => d.id === id))
+            .filter(d => d && d.kind === 'banner' && d.placed && !d.shelved && !d.moving && !d.work && (d.level || 1) >= 6);
+          if (marked.length < 2) return false;
+          return this.resources.canAfford(pending.cost);
+        }
+        return (!this.moveController?.isNew || this.moveController?.fromStore)
+          || this.works.payBuild(def);
+      },
     );
 
     // Fase 8: el combate ocurre en una capa de simulación; la base real no
@@ -226,6 +267,7 @@ export class MainScene extends Phaser.Scene {
       resources: this.resources,
       works: this.works,
       army: this.army,
+      extra: this.extra,
       selectMode: () => this.interaction,
       select: def => this.select(def),
       build: slot => this.placeNew(slot),
@@ -273,6 +315,7 @@ export class MainScene extends Phaser.Scene {
       invasion: this.invasion,
       editor: this.editor,
       move: this.moveController,
+      extra: this.extra,
       select: def => this.select(def),
       focus: id => this.focusStructure(id),
     });
@@ -370,6 +413,7 @@ export class MainScene extends Phaser.Scene {
       ui: this.ui,
       upgrades: this.upgrades,
       stats: this.stats,
+      extra: this.extra,
     };
   }
 
@@ -410,6 +454,13 @@ export class MainScene extends Phaser.Scene {
       : slotOrId;
     if (!slot) return false;
     if (this.moveController.active || this.invasion.active || this.editor?.active) return false;
+    const spec = specFor(slot.kind);
+    if (spec?.unique && this.structures.some(d => d.kind === slot.kind)) {
+      this.ui?.showToast(`${slot.name} ya está construida`);
+      return false;
+    }
+    if (slot.tag === 'fusion') return this.startFusion(slot);
+
     if (this.works.free() <= 0) {
       this.ui?.showToast(`Sin constructores libres (${this.works.limit}/${this.works.limit} ocupados)`);
       return false;
@@ -429,10 +480,177 @@ export class MainScene extends Phaser.Scene {
     return true;
   }
 
+  fusionCandidates() {
+    return this.structures.filter(def => (
+      def.kind === 'banner'
+      && def.placed
+      && !def.shelved
+      && !def.moving
+      && !def.work
+      && (def.level || 1) >= 6
+    ));
+  }
+
+  clearFusionMarks() {
+    for (const def of this.structures) def.view?.setFusionMarked?.(false);
+  }
+
+  startFusion(slot) {
+    if (this.works.coreLevel() < 4) {
+      this.ui?.showToast('Necesitas núcleo nivel 4');
+      return false;
+    }
+    if (this.army?.hasRag?.() || this.structures.some(d => d.kind === 'rag-altar')) {
+      this.ui?.showToast('Rag ya ha sido invocado');
+      return false;
+    }
+    const candidates = this.fusionCandidates();
+    if (candidates.length < 2) {
+      this.ui?.showToast('Necesitas 2 estandartes de esqueletos de nivel 6');
+      return false;
+    }
+    const cost = buildCost(slot.costKey || 'rag-altar');
+    if (!this.resources.canAfford(cost)) {
+      this.ui?.showToast('No tienes suficientes rubíes');
+      return false;
+    }
+
+    const marked = candidates.slice(0, 2);
+    this.clearFusionMarks();
+    marked.forEach(def => def.view?.setFusionMarked?.(true));
+    this.fusionPending = { slot, markedIds: marked.map(d => d.id), cost };
+
+    const def = this.factory.create(slot.kind, 0, 0, {
+      resource: slot.resource,
+      costKey: slot.costKey,
+      limitKind: slot.limitKind,
+      placed: false,
+    });
+    if (!def) {
+      this.clearFusionMarks();
+      this.fusionPending = null;
+      return false;
+    }
+    if (!this.moveController.start(def.id, true)) {
+      this.factory.destroy(def);
+      this.clearFusionMarks();
+      this.fusionPending = null;
+      return false;
+    }
+    this.ui?.showToast('Coloca la Runa de Rag para completar la fusión');
+    return true;
+  }
+
+  commitFusion(def) {
+    const pending = this.fusionPending;
+    if (!pending) return false;
+    if (this.works.coreLevel() < 4) { this.ui?.showToast('Necesitas núcleo nivel 4'); return false; }
+    if (this.army?.hasRag?.()) { this.ui?.showToast('Rag ya ha sido invocado'); return false; }
+
+    const marked = pending.markedIds
+      .map(id => this.structures.find(d => d.id === id))
+      .filter(d => d && d.kind === 'banner' && d.placed && !d.shelved && !d.moving && !d.work && (d.level || 1) >= 6);
+    if (marked.length < 2) {
+      this.ui?.showToast('La fusión ya no es válida');
+      return false;
+    }
+    if (!this.resources.pay(pending.cost)) {
+      this.ui?.showToast('No tienes suficientes rubíes');
+      return false;
+    }
+
+    // Consumir banners fusionados.
+    for (const banner of marked.slice(0, 2)) {
+      this.terrain.setFootprint(banner.x, banner.y, banner.w || banner.size, banner.h || banner.size, false);
+      this.factory.destroy(banner);
+    }
+
+    // Crear Runa definitiva en la posición confirmada.
+    def.placed = true;
+    def.moving = false;
+    def.shelved = false;
+    this.terrain.setFootprint(def.x, def.y, def.w || def.size, def.h || def.size, true);
+    def.view?.clearFloating?.();
+    def.view?.placeAt?.(def.x, def.y, 0);
+
+    this.extra.fusionReductions.banner = Math.max(0, (this.extra.fusionReductions.banner || 0) + 2);
+    if (this.army) {
+      this.army.counts.rag = Math.max(1, this.army.counts.rag || 0);
+      this.army.onChange?.();
+    }
+
+    this.clearFusionMarks();
+    this.fusionPending = null;
+    this.select(def);
+    this.ui?.refreshBuildItems();
+    this.ui?.refreshTerrainUI();
+    this.ui?.syncScene();
+    this.saveService?.markDirty();
+    this.ui?.showToast('Rag el conquistador ha sido invocado');
+    return true;
+  }
+
+  cancelFusion() {
+    if (!this.fusionPending) return;
+    this.clearFusionMarks();
+    this.fusionPending = null;
+  }
+
+  clearHomeDefenders() {
+    for (const d of this.homeDefenders || []) d.destroy?.();
+    this.homeDefenders = [];
+  }
+
+  syncHomeDefenders(time = this.time?.now || 0) {
+    if (this.invasion?.active) {
+      this.clearHomeDefenders();
+      return;
+    }
+    const wanted = [];
+    for (const def of this.structures) {
+      const spec = specFor(def);
+      const guard = spec?.guard;
+      if (guard?.troop !== 'rag' || !def.placed || def.shelved || def.moving) continue;
+      wanted.push(def);
+    }
+
+    const keep = new Set();
+    for (const def of wanted) {
+      const id = `home:${def.id}:rag`;
+      keep.add(id);
+      let d = (this.homeDefenders || []).find(x => x.homeId === id);
+      const cx = def.x + (def.w || def.size) / 2;
+      const cy = def.y + (def.h || def.size) / 2;
+      const level = this.army?.levelOf?.('rag') || 1;
+      const max = this.army?.ragMaxLevel?.() || 5;
+      if (!d) {
+        d = new Defender(this, this.invasion, 'rag', level, { x: cx, y: cy }, cx + 0.2, cy + 0.1, {
+          home: true,
+          label: String(level),
+          maxLabel: level >= max,
+        });
+        d.homeId = id;
+        this.homeDefenders.push(d);
+      } else {
+        d.post = { x: cx, y: cy };
+        d.level = level;
+        d.label = String(level);
+        d.maxLabel = level >= max;
+      }
+      d.update(0, time); // solo render/posición suave, sin combate
+    }
+    for (const d of [...(this.homeDefenders || [])]) {
+      if (keep.has(d.homeId)) continue;
+      d.destroy?.();
+      this.homeDefenders = this.homeDefenders.filter(x => x !== d);
+    }
+  }
+
   update(time) {
     const delta = this.game.loop.delta;
     this.coreView.update(time);
     this.works.step();
+    this.army?.step();
     // Las minas/talleres de la base prestada no producen durante una invasión.
     if (!this.invasion?.active) this.production.step(delta / 1000);
     this.topoController.step(delta / 1000, time);
@@ -440,6 +658,7 @@ export class MainScene extends Phaser.Scene {
     // El paso de invasión va antes del dibujo de las defensas para que el
     // objetivo fijado por stepDefenses() se vea en el mismo frame.
     this.invasion.step(delta, time);
+    this.syncHomeDefenders(time);
     for (const def of this.structures) {
       if (def.view) def.view.update(time);
     }

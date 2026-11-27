@@ -6,7 +6,7 @@
  * la nube falla. El formato es exactamente el mismo snapshot.
  * ========================================================== */
 
-import { STORAGE_KEYS } from './config.js';
+import { DEFAULT_SLOT, STORAGE_KEYS } from './config.js';
 import { normalizeSnapshot, savedAtMs } from './snapshot.js';
 
 function safeGet(key) {
@@ -44,24 +44,40 @@ function parse(raw) {
 /** Carga el guardado local SOLO del usuario dado.
  *  La clave genérica `current` se usa únicamente cuando no hay identidad:
  *  si se mezclara, una cuenta nueva vería el progreso de la anterior. */
-export function loadLocal(userId = null) {
+export function loadLocal(userId = null, slot = DEFAULT_SLOT) {
   const candidates = userId
-    ? [STORAGE_KEYS.byUser(userId)]
+    ? [
+      STORAGE_KEYS.byUser(userId, slot),
+      // Compatibilidad con guardados pre-slots: `dungeon-build:save:${userId}`
+      ...(slot === DEFAULT_SLOT ? [`dungeon-build:save:${userId}`] : []),
+    ]
     : [STORAGE_KEYS.current, ...STORAGE_KEYS.legacy];
   let best = null;
   for (const key of candidates) {
     const snap = parse(safeGet(key));
-    if (snap && (!best || savedAtMs(snap) > savedAtMs(best))) best = snap;
+    if (!snap) continue;
+    const snapSlot = snap.slot || DEFAULT_SLOT;
+    if (snapSlot === slot && (!best || savedAtMs(snap) > savedAtMs(best))) best = snap;
   }
   return best;
 }
 
 /** Escribe el snapshot en local. Devuelve true si al menos una clave se guardó. */
-export function saveLocal(snapshot, userId = null) {
+export function saveLocal(snapshot, userId = null, slot = snapshot?.slot || DEFAULT_SLOT) {
   const json = JSON.stringify(snapshot);
   let ok = safeSet(STORAGE_KEYS.current, json);
-  if (userId) ok = safeSet(STORAGE_KEYS.byUser(userId), json) || ok;
+  if (userId) ok = safeSet(STORAGE_KEYS.byUser(userId, slot), json) || ok;
   return ok;
+}
+
+export function loadActiveSlot(userId = null) {
+  if (!userId) return DEFAULT_SLOT;
+  return safeGet(STORAGE_KEYS.activeSlot(userId)) || DEFAULT_SLOT;
+}
+
+export function saveActiveSlot(userId = null, slot = DEFAULT_SLOT) {
+  if (!userId) return false;
+  return safeSet(STORAGE_KEYS.activeSlot(userId), slot);
 }
 
 /** Último guardado con camino al núcleo libre (para invades imposibles). */
@@ -84,11 +100,12 @@ export function saveCheckpoint(snapshot, userId = null) {
   return ok;
 }
 
-export function clearLocal(userId = null) {
+export function clearLocal(userId = null, slot = DEFAULT_SLOT) {
   safeRemove(STORAGE_KEYS.current);
   safeRemove(STORAGE_KEYS.checkpoint);
   if (userId) {
-    safeRemove(STORAGE_KEYS.byUser(userId));
+    safeRemove(STORAGE_KEYS.byUser(userId, slot));
+    safeRemove(STORAGE_KEYS.activeSlot(userId));
     safeRemove(STORAGE_KEYS.checkpointByUser(userId));
   }
 }

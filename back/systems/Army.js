@@ -7,7 +7,10 @@
  * balance/; aquí solo se validan las reglas del legacy.
  * ========================================================== */
 
-import { BALANCE, levelRow, tropaAt, troopDamageAt, troopMutateCost, troopMutateTime } from '../balance/index.js';
+import {
+  BALANCE, levelRow, tropaAt, troopDamageAt, troopMutateCost, troopMutateTime,
+  ragUpgradeCost, ragUpgradeTime,
+} from '../balance/index.js';
 import { TROOP_ART } from '../enemies/troopArt.js';
 
 const T = BALANCE.tropas;
@@ -39,6 +42,8 @@ export class Army {
     this.counts = { ...BALANCE.invasion.ejercitoPrueba };
     this.levels = {};
     for (const id of Object.keys(this.counts)) this.levels[id] = 1;
+    this.ragWork = null;
+    this.mutateWork = [];
   }
 
   resources() { return this.deps.resources || null; }
@@ -109,6 +114,7 @@ export class Army {
   }
 
   remove(id) {
+    if (id === 'rag') return false;
     if (!this.counts[id]) return false;
     this.counts[id]--;
     if (!this.counts[id]) delete this.counts[id];
@@ -117,6 +123,11 @@ export class Army {
   }
 
   labLevel() { return this.deps.labLevel?.() || 0; }
+
+  labSlots() { return Math.max(0, Math.floor(BALANCE.obras.limiteSlotsLaboratorio || 2)); }
+  labBusy() { return this.mutateWork.length; }
+  isLabBusy() { return this.labBusy() >= this.labSlots(); }
+  labWorkFor(id) { return this.mutateWork.find(w => w.troopId === id) || null; }
 
   labRequired(id, to) {
     return levelRow(T.labRequerido[id], to) ?? 1;
@@ -137,6 +148,8 @@ export class Army {
       const building = def.source === 'incubator' ? 'incubadora' : 'grieta';
       return `Necesitas ${building} nivel ${def.minNivel}`;
     }
+    if (this.labWorkFor(id)) return 'Ya está mutando';
+    if (this.labBusy() >= this.labSlots()) return `Laboratorio ocupado (${this.labBusy()}/${this.labSlots()})`;
     const to = this.levelOf(id) + 1;
     if (to > (def.maxNivel || 1)) return 'Nivel máximo';
     const need = this.labRequired(id, to);
@@ -155,16 +168,86 @@ export class Army {
       this.onToast('Recursos insuficientes');
       return false;
     }
-    this.levels[id] = to;
-    this.onToast(`${TROOP_NAME(id)} → nivel ${this.levels[id]}`);
+    const now = Date.now();
+    this.mutateWork.push({ troopId: id, to, start: now, end: now + this.mutateTime(id, to) * 1000 });
+    this.onToast(`Mutando a ${TROOP_NAME(id)} · nivel ${to}`);
     this.onChange();
     return true;
+  }
+
+  hasRag() { return (this.counts.rag || 0) > 0; }
+  ragLevel() { return this.levelOf('rag'); }
+  isRagUpgrading() { return Boolean(this.ragWork?.end); }
+  ragMaxLevel() {
+    const max = T.tipos.rag?.maxNivel || 1;
+    const coreLevel = this.deps.coreLevel?.() || 1;
+    return coreLevel < 4 ? Math.min(max, 4) : max; // TODO balance: cap por núcleo
+  }
+
+  ragUpgradeCost(to = this.ragLevel() + 1) { return ragUpgradeCost(to); }
+  ragUpgradeTime(to = this.ragLevel() + 1) { return ragUpgradeTime(to); }
+
+  canUpgradeRag() {
+    if (!this.hasRag()) return 'No tienes a Rag';
+    if (this.isRagUpgrading()) return 'Rag ya se está mejorando';
+    const to = this.ragLevel() + 1;
+    const max = T.tipos.rag?.maxNivel || 1;
+    if (to > max) return 'Nivel máximo';
+    const coreLevel = this.deps.coreLevel?.() || 1;
+    if (to > 4 && coreLevel < 4) return 'Necesitas núcleo nivel 4'; // TODO balance: cap por núcleo
+    const cost = this.ragUpgradeCost(to);
+    if (this.resources() && !this.resources().canAfford(cost)) return 'Recursos insuficientes';
+    return '';
+  }
+
+  upgradeRag() {
+    const why = this.canUpgradeRag();
+    if (why) { this.onToast(why); return false; }
+    const to = this.ragLevel() + 1;
+    const cost = this.ragUpgradeCost(to);
+    if (this.resources() && !this.resources().pay(cost)) {
+      this.onToast('Recursos insuficientes');
+      return false;
+    }
+    const now = Date.now();
+    this.ragWork = { to, start: now, end: now + this.ragUpgradeTime(to) * 1000 };
+    this.onToast(`Rag mejorando a nivel ${to}`);
+    this.onChange();
+    return true;
+  }
+
+  step(now = Date.now()) {
+    let changed = false;
+    const work = this.ragWork;
+    if (work && now >= (work.end || 0)) {
+      this.levels.rag = Math.max(this.levelOf('rag'), work.to || 1);
+      this.ragWork = null;
+      this.onToast(`Rag alcanzó el nivel ${this.levels.rag}`);
+      changed = true;
+    }
+
+    if (this.mutateWork.length) {
+      const survivors = [];
+      for (const entry of this.mutateWork) {
+        if (now >= (entry.end || 0)) {
+          this.levels[entry.troopId] = Math.max(this.levelOf(entry.troopId), entry.to || 1);
+          this.onToast(`${TROOP_NAME(entry.troopId)} → nivel ${this.levels[entry.troopId]}`);
+          changed = true;
+        } else survivors.push(entry);
+      }
+      if (survivors.length !== this.mutateWork.length) this.mutateWork = survivors;
+    }
+
+    if (changed) this.onChange();
+    return changed;
   }
 
   snapshot() {
     return {
       counts: { ...this.counts },
       levels: { ...this.levels },
+      ragWork: this.ragWork ? { ...this.ragWork } : null,
+      mutateWork: this.mutateWork.map(w => ({ ...w })),
     };
   }
 }

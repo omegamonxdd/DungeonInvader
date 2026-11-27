@@ -1,4 +1,4 @@
-import { HALF_H, HALF_W, SCALE } from '../config/world.js';
+import { HALF_H, HALF_W, SCALE, footprintDepth } from '../config/world.js';
 import {
   FLOAT_LIFT, INTERACTION_COLORS, OVERLAY_DEPTH,
 } from '../config/interaction.js';
@@ -148,7 +148,7 @@ export class MoveController {
     } else {
       def.x = nx;
       def.y = ny;
-      def.depth = nx + ny + def.size;
+      def.depth = footprintDepth(nx, ny, def.size);
       if (def.view) {
         def.view.x = nx;
         def.view.y = ny;

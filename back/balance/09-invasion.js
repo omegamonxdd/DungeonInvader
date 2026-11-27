@@ -20,13 +20,10 @@ export const invasion = {
   // Ejército inicial de la simulación (Fase 8), igual que en el legacy.
   ejercitoPrueba: { esqueleto: 0, slime: 0 },
 
-  // Botín por edificio: 25 % de lo guardado en núcleo/almacenes y 50 % de lo
-  // producido en una mina/taller. El colapso al caer el núcleo aplica los
-  // mismos porcentajes; el dueño conserva el resto.
+  // Porcentajes: almacenes 25 %, minas/talleres 50 %, contenido del núcleo 30 %.
+  // botinBase son 1500/1500 FIJOS, solo al destruir el núcleo (anti-farm al cancelar).
   botinAlmacenes: 0.25,
   botinProductores: 0.5,
-
-  // Botín base garantizado por invasión (se suma a lo robado y se guarda en
-  // el núcleo al volver la base propia): 1500 de cada recurso.
-  botinBase: { coins: 1500, crystals: 1500 },
+  botinNucleo: 0.30,
+  botinBase: { coins: 1500, crystals: 1500, rubies: 500 },
 };

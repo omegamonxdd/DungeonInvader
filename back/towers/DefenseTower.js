@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { iso } from '../systems/iso.js';
-import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W } from '../config/world.js';
+import { HALF_H, HALF_W, SCALE, TILE_H, TILE_W, footprintDepth } from '../config/world.js';
 import { OVERLAY_DEPTH } from '../config/interaction.js';
 import { shotOrigin } from '../systems/muzzle.js';
 import { createDefenseTextures } from '../systems/defenseTextures.js';
@@ -42,7 +42,7 @@ export class DefenseTower {
     this.artScale = config.artScale;
 
     // La estructura se dibuja después de la última casilla de su huella.
-    const depth = x + y + this.size;
+    const depth = footprintDepth(x, y, this.size);
 
     // Suelo de roca bajo la huella. Se crea vacío y se dibuja en drawGround()
     // para poder recolocarlo al terminar un movimiento.
@@ -191,7 +191,7 @@ export class DefenseTower {
     this.ground.setVisible(!this.hidden);
     this.shadow.setVisible(!this.hidden && !this.destroyed);
     // Al colocarla en otro sitio cambia su profundidad isométrica.
-    const depth = this.x + this.y + this.size;
+    const depth = footprintDepth(this.x, this.y, this.size);
     this.baseDepth = depth + 0.03;
     this.headDepth = depth + 0.04;
     this.ground.setDepth(depth + 0.01);

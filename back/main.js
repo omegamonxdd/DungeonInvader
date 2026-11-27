@@ -9,6 +9,7 @@ import '../front/css/ui.css';
 // getService() en create(). start() espera a que la escena se adjunte.
 const saveService = setService(new GameService());
 const authUI = new AuthUI(saveService);
+window.__DUNGEON_AUTH_UI__ = authUI;
 
 const game = new Phaser.Game(GAME_CONFIG);
 

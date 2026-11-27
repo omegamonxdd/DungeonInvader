@@ -24,6 +24,7 @@ import coreImage from '../../front/assets/estructuras/nucleo/core.png';
 import coreGlow from '../../front/assets/estructuras/nucleo/core-glow.png';
 import vaultCoinsImage from '../../front/assets/estructuras/almacen-monedas/vault-coins.png';
 import vaultCrystalsImage from '../../front/assets/estructuras/almacen-cristales/vault-crystals.png';
+import workshopImage from '../../front/assets/estructuras/taller-monetas/workshop.png';
 
 export const ASSETS = Object.freeze({
   ballista: Object.freeze({
@@ -44,4 +45,5 @@ export const ASSETS = Object.freeze({
   }),
   vaultCoins: Object.freeze({ image: vaultCoinsImage }),
   vaultCrystals: Object.freeze({ image: vaultCrystalsImage }),
+  workshop: Object.freeze({ image: workshopImage }),
 });

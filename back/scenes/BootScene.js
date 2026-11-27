@@ -47,9 +47,10 @@ export class BootScene extends Phaser.Scene {
     // Núcleo: imagen 2.5D horneada + resplandor cian (su alfa se anima en CoreView).
     this.load.image('core', ASSETS.core.image);
     this.load.image('core-glow', ASSETS.core.glow);
-    // Almacenes 2.5D estáticos.
+    // Estructuras 2.5D estáticas: almacenes y taller de monedas.
     this.load.image('vault-coins', ASSETS.vaultCoins.image);
     this.load.image('vault-crystals', ASSETS.vaultCrystals.image);
+    this.load.image('workshop', ASSETS.workshop.image);
   }
 
   create() {

@@ -14,6 +14,7 @@ export const TROOP_ART = Object.freeze({
   armadura: { name: 'Armadura de ceniza', color: '#7a6a62', hi: '#b7a79c', lo: '#3e3632', w: 26, h: 30 },
   arana: { name: 'Araña madre', color: '#5a3d73', hi: '#8a66a3', lo: '#2f2140', w: 30, h: 24 },
   'arana-bebe': { name: 'Araña bebé', color: '#8a66a3', hi: '#c0a2d6', lo: '#3d2754', w: 18, h: 16 },
+  rag: { name: 'Rag el conquistador', color: '#b53149', hi: '#ff6a8a', lo: '#4a101d', w: 30, h: 34 }, // TODO balance
 });
 
 export const troopTextureKey = id => `inv-troop-${id}`;
@@ -109,6 +110,17 @@ function drawSpider(g, a, baby = false) {
   px(g, cx + 2, cy - 6, 1.5, 1.5, '#ff8b6b');
 }
 
+// TODO balance/arte: placeholder basado en esqueleto, escalado al canvas de Rag.
+function drawRag(g, a) {
+  g.save();
+  g.scale(a.w / 24, a.h / 24);
+  drawSkeleton(g, { ...a, w: 24, h: 24 });
+  g.restore();
+  // Detalle simple para diferenciarlo visualmente.
+  px(g, a.w * 0.35, a.h * 0.12, a.w * 0.3, a.h * 0.08, a.hi);
+  px(g, a.w * 0.45, a.h * 0.18, a.w * 0.1, a.h * 0.1, '#2a0d14');
+}
+
 const DRAWERS = {
   esqueleto: drawSkeleton,
   slime: drawSlime,
@@ -117,6 +129,7 @@ const DRAWERS = {
   armadura: drawArmor,
   arana: (g, a) => drawSpider(g, a),
   'arana-bebe': (g, a) => drawSpider(g, a, true),
+  rag: drawRag,
 };
 
 function bake(scene, key, w, h, draw) {
@@ -131,9 +144,11 @@ function bake(scene, key, w, h, draw) {
 
 export function ensureTroopTextures(scene) {
   for (const [id, art] of Object.entries(TROOP_ART)) {
+    const draw = DRAWERS[id];
+    if (typeof draw !== 'function') continue; // seguridad ante tropas sin drawer
     bake(scene, troopTextureKey(id), art.w, art.h, g => {
       drawShadow(g, art);
-      DRAWERS[id](g, art);
+      draw(g, art);
     });
   }
   // Saeta y destello de impacto de los proyectiles de la ballesta.

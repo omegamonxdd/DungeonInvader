@@ -71,6 +71,13 @@ export class TerrainView {
     update(x - 1, y);
   }
 
+  refreshAll() {
+    const size = this.map.length;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) this.refresh(x, y);
+    }
+  }
+
   depthFor(x, y) {
     const size = this.map.length;
     if (x < 0 || y < 0 || x >= size || y >= size) return x + y;

@@ -16,7 +16,7 @@ import {
 } from '../config/world.js';
 import { CORE, DIRT, EMPTY, createMap } from '../systems/map.js';
 import { specFor } from '../systems/structureSpecs.js';
-import { BALANCE_VERSION, DEFAULT_SLOT, SNAPSHOT_VERSION } from './config.js';
+import { BALANCE_VERSION, BASE2_SLOT, DEFAULT_SLOT, LAYOUT_IDS, SNAPSHOT_VERSION } from './config.js';
 import { emptySnapshot, migrate } from './migrations.js';
 
 const num = (v, fallback = 0) => {
@@ -39,6 +39,7 @@ function structureRecord(def) {
     h: int(def.h || def.size, 1),
     placed: Boolean(def.placed),
     shelved: Boolean(def.shelved),
+    moving: Boolean(def.moving),
     movable: def.movable !== false,
     resource: def.resource || null,
     costKey: def.costKey || null,
@@ -62,6 +63,7 @@ function structureRecord(def) {
     pending: num(def.pending, 0),
     stored: num(def.stored, 0),
     storedCrystals: num(def.storedCrystals, 0),
+    storedRubies: num(def.storedRubies, 0),
   };
 }
 
@@ -80,6 +82,7 @@ export function buildSnapshot(ctx, slot = DEFAULT_SLOT) {
     resources: {
       coins: Math.max(0, int(resources?.coins, 0)),
       crystals: Math.max(0, int(resources?.crystals, 0)),
+      rubies: Math.max(0, int(resources?.rubies, 0)),
     },
     terrain: {
       size: rows.length || null,
@@ -88,21 +91,109 @@ export function buildSnapshot(ctx, slot = DEFAULT_SLOT) {
       digCount: int(terrain?.digCount, 0),
       coreShelved: Boolean(terrain?.coreShelved),
     },
-    // Las estructuras en modo Mover (placed=false y no guardadas) aún no
-    // forman parte de la base: se descartan para no resurrectear fantasmas.
+    // Las estructuras en modo Mover siguen siendo parte de la base: se guardan
+    // para no perder su contenido/capacidad si hay un autosave mientras se mueven.
     // Los `vault` legacy se ignoran por completo (parche de emergencia).
     structures: structures
-      .filter(def => def && def.id && def.kind !== 'vault' && (def.placed || def.shelved || def.kind === 'core' || def.kind === 'entrance'))
+      .filter(def => def && def.id && def.kind !== 'vault' && (def.placed || def.shelved || def.moving || def.kind === 'core' || def.kind === 'entrance'))
       .map(structureRecord),
     army: {
       counts: { ...(army?.counts || {}) },
       levels: { ...(army?.levels || {}) },
+      ragWork: army?.ragWork && typeof army.ragWork === 'object'
+        ? {
+          to: int(army.ragWork.to, 2),
+          start: num(army.ragWork.start, Date.now()),
+          end: num(army.ragWork.end, Date.now()),
+        }
+        : null,
+      mutateWork: Array.isArray(army?.mutateWork)
+        ? army.mutateWork.map(w => ({
+          troopId: String(w?.troopId || ''),
+          to: int(w?.to, 2),
+          start: num(w?.start, Date.now()),
+          end: num(w?.end, Date.now()),
+        }))
+        : [],
     },
     stats: { ...base.stats, ...(ctx.stats || {}) },
     settings: { ...(ctx.settings || {}) },
     orphans: Array.isArray(ctx.orphans) ? ctx.orphans : [],
     extra: { ...(ctx.extra || {}) },
   };
+}
+
+export function layoutRecord(snapshot) {
+  const snap = normalizeSnapshot(snapshot);
+  return {
+    terrain: { ...snap.terrain, rows: [...(snap.terrain.rows || [])] },
+    structures: (snap.structures || []).map(s => ({
+      id: s.id, x: s.x, y: s.y, w: s.w, h: s.h, placed: s.placed, shelved: s.shelved,
+    })),
+  };
+}
+
+export function snapshotWithLayouts(snapshot, { activeLayout = DEFAULT_SLOT, layouts = {} } = {}) {
+  const snap = normalizeSnapshot(snapshot);
+  const nextLayouts = { ...(snap.extra?.layouts || {}) };
+  for (const id of LAYOUT_IDS) {
+    if (layouts[id]) nextLayouts[id] = layouts[id];
+  }
+  return {
+    ...snap,
+    extra: {
+      ...snap.extra,
+      activeLayout: LAYOUT_IDS.includes(activeLayout) ? activeLayout : DEFAULT_SLOT,
+      layouts: nextLayouts,
+    },
+  };
+}
+
+export function applyLayoutToSnapshot(snapshot, layoutId = DEFAULT_SLOT) {
+  const snap = normalizeSnapshot(snapshot);
+  const layout = snap.extra?.layouts?.[layoutId];
+  if (!layout) return { ...snap, slot: DEFAULT_SLOT, extra: { ...snap.extra, activeLayout: layoutId } };
+  const byId = new Map((layout.structures || []).map(s => [String(s.id), s]));
+  return {
+    ...snap,
+    slot: DEFAULT_SLOT,
+    terrain: {
+      ...snap.terrain,
+      ...(layout.terrain || {}),
+      rows: Array.isArray(layout.terrain?.rows) ? [...layout.terrain.rows] : [...(snap.terrain.rows || [])],
+    },
+    structures: (snap.structures || []).map(def => {
+      const pos = byId.get(String(def.id));
+      if (!pos) {
+        // Edificios nuevos/no presentes en este layout: se guardan para colocar.
+        if (def.kind === 'core' || def.kind === 'entrance') return def;
+        return { ...def, placed: false, shelved: true };
+      }
+      return { ...def, x: int(pos.x, def.x), y: int(pos.y, def.y), w: int(pos.w, def.w), h: int(pos.h, def.h), placed: Boolean(pos.placed), shelved: Boolean(pos.shelved) };
+    }),
+    extra: { ...snap.extra, activeLayout: layoutId },
+  };
+}
+
+export function ensureLayoutState(snapshot) {
+  const snap = normalizeSnapshot(snapshot);
+  const activeLayout = LAYOUT_IDS.includes(snap.extra?.activeLayout) ? snap.extra.activeLayout : DEFAULT_SLOT;
+  const layouts = { ...(snap.extra?.layouts || {}) };
+  if (!layouts[activeLayout]) layouts[activeLayout] = layoutRecord(snap);
+  if (!layouts[BASE2_SLOT] && activeLayout !== BASE2_SLOT) {
+    // Base 2 por defecto: mapa limpio con mismas estructuras guardadas.
+    const fresh = freshSnapshot(DEFAULT_SLOT);
+    const byId = new Map(fresh.structures.map(s => [s.id, s]));
+    layouts[BASE2_SLOT] = layoutRecord({
+      ...snap,
+      terrain: fresh.terrain,
+      structures: snap.structures.map(s => {
+        const base = byId.get(s.id);
+        return base ? { ...s, x: base.x, y: base.y, w: base.w, h: base.h, placed: base.placed, shelved: base.shelved } : { ...s, shelved: true, placed: false };
+      }),
+    });
+  }
+  return snapshotWithLayouts(snap, { activeLayout, layouts });
 }
 
 /**
@@ -118,15 +209,15 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
     id, kind, level: 1, x, y, w, h,
     placed: true, shelved: false, movable,
     work: null, frozenUpgrade: null, pending: 0,
-    stored: 0, storedCrystals: 0,
+    stored: 0, storedCrystals: 0, storedRubies: 0,
   });
 
-  return {
+  const snap = {
     ...base,
     version: SNAPSHOT_VERSION,
     balanceVersion: BALANCE_VERSION,
     savedAt: null,
-    slot,
+    slot: DEFAULT_SLOT,
     resources: { ...BALANCE.recursos.inicio },
     terrain: {
       size: rows.length,
@@ -141,6 +232,19 @@ export function freshSnapshot(slot = DEFAULT_SLOT) {
         ENTRANCE_X_MAX - ENTRANCE_X + 1, ENTRANCE_Y_MAX - ENTRANCE_Y_MIN + 1, false),
     ],
     army: { counts: {}, levels: {} },
+  };
+  const layout = {
+    terrain: { ...snap.terrain, rows: [...snap.terrain.rows] },
+    structures: snap.structures.map(s => ({ id: s.id, x: s.x, y: s.y, w: s.w, h: s.h, placed: s.placed, shelved: s.shelved })),
+  };
+  return {
+    ...snap,
+    extra: {
+      ...snap.extra,
+      activeLayout: DEFAULT_SLOT,
+      layouts: { [DEFAULT_SLOT]: layout, [BASE2_SLOT]: layout },
+      fusionReductions: {},
+    },
   };
 }
 
@@ -180,6 +284,7 @@ function normalizeStructure(rec) {
     h: int(rec.h || spec.size, spec.size || 1),
     placed: Boolean(rec.placed),
     shelved: Boolean(rec.shelved),
+    moving: Boolean(rec.moving),
     movable: rec.movable !== false,
     resource: rec.resource || spec.resource || null,
     costKey: rec.costKey || spec.slot || null,
@@ -194,6 +299,7 @@ function normalizeStructure(rec) {
     pending: Math.max(0, num(rec.pending, 0)),
     stored: Math.max(0, num(rec.stored, 0)),
     storedCrystals: Math.max(0, num(rec.storedCrystals, 0)),
+    storedRubies: Math.max(0, num(rec.storedRubies, 0)),
   };
 }
 
@@ -209,6 +315,7 @@ export function normalizeSnapshot(raw) {
   out.resources = {
     coins: Math.max(0, int(doc.resources?.coins, BALANCE.recursos.inicio.coins)),
     crystals: Math.max(0, int(doc.resources?.crystals, BALANCE.recursos.inicio.crystals)),
+    rubies: Math.max(0, int(doc.resources?.rubies, BALANCE.recursos.inicio.rubies)),
   };
 
   const size = int(doc.terrain?.size, 0);
@@ -238,6 +345,7 @@ export function normalizeSnapshot(raw) {
     if (clean.kind === 'core') {
       clean.stored = Math.max(0, num(clean.stored, 0));
       clean.storedCrystals = Math.max(0, num(clean.storedCrystals, 0));
+      clean.storedRubies = Math.max(0, num(clean.storedRubies, 0));
     }
     structures.push(clean);
   }
@@ -259,11 +367,47 @@ export function normalizeSnapshot(raw) {
     const def = BALANCE.tropas.tipos[id];
     levels[id] = clamp(int(rawLevel, 1), 1, Math.max(1, int(def?.maxNivel, 1)));
   }
-  out.army = { counts, levels };
+  const ragWorkRaw = doc.army?.ragWork;
+  const ragWork = ragWorkRaw && typeof ragWorkRaw === 'object'
+    ? {
+      to: clamp(int(ragWorkRaw.to, 2), 2, 5),
+      start: num(ragWorkRaw.start, Date.now()),
+      end: num(ragWorkRaw.end, Date.now()),
+    }
+    : null;
+  const labLimit = Math.max(0, int(BALANCE.obras.limiteSlotsLaboratorio, 2));
+  const mutateWork = [];
+  for (const rawWork of Array.isArray(doc.army?.mutateWork) ? doc.army.mutateWork : []) {
+    if (mutateWork.length >= labLimit) break;
+    const troopId = String(rawWork?.troopId || '');
+    const def = BALANCE.tropas.tipos[troopId];
+    if (!def || def.source === 'summoned') continue;
+    const to = clamp(int(rawWork?.to, 2), 2, Math.max(2, int(def.maxNivel, 1)));
+    const start = num(rawWork?.start, NaN);
+    const end = num(rawWork?.end, NaN);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+    mutateWork.push({ troopId, to, start, end });
+  }
+  out.army = { counts, levels, ragWork, mutateWork };
 
   out.stats = { ...emptySnapshot().stats, ...(doc.stats || {}) };
   out.settings = { ...(doc.settings || {}) };
   out.extra = { ...(doc.extra || {}) };
+  const fusionRaw = out.extra.fusionReductions && typeof out.extra.fusionReductions === 'object'
+    ? out.extra.fusionReductions : {};
+  const fusionReductions = {};
+  for (const [kind, rawValue] of Object.entries(fusionRaw)) {
+    const value = Math.max(0, int(rawValue, 0));
+    if (value > 0) fusionReductions[kind] = value;
+  }
+  out.extra.fusionReductions = fusionReductions;
+  const layouts = {};
+  const rawLayouts = doc.extra?.layouts && typeof doc.extra.layouts === 'object' ? doc.extra.layouts : {};
+  for (const id of LAYOUT_IDS) {
+    const l = rawLayouts[id];
+    if (l && typeof l === 'object') layouts[id] = l;
+  }
+  out.extra = { ...out.extra, layouts, activeLayout: LAYOUT_IDS.includes(out.extra.activeLayout) ? out.extra.activeLayout : (typeof doc.slot === 'string' && LAYOUT_IDS.includes(doc.slot) ? doc.slot : DEFAULT_SLOT) };
   out.savedAt = typeof doc.savedAt === 'string' ? doc.savedAt : null;
   out.slot = typeof doc.slot === 'string' && doc.slot ? doc.slot : DEFAULT_SLOT;
   return out;

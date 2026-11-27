@@ -13,7 +13,10 @@
  *  · Salir sin guardar restaura la copia tomada al entrar.
  * ========================================================== */
 
-import { CORE, EMPTY } from './map.js';
+import { BASE2_SLOT, DEFAULT_SLOT } from '../database/config.js';
+import { applyLayoutToSnapshot, buildSnapshot, ensureLayoutState, snapshotHasPath, snapshotWithLayouts } from '../database/snapshot.js';
+import { CORE, DIRT, EMPTY } from './map.js';
+import { footprintDepth } from '../config/world.js';
 import { structureAt } from './picking.js';
 import { nameOf, specFor } from './structureSpecs.js';
 import { drawBuildIcon } from '../ui/buildIcons.js';
@@ -26,7 +29,7 @@ const EMPTY_LIST = 'No hay edificios guardados. Usa Retirar o Recoger para guard
 
 // Claves que `drawBuildIcon` sabe dibujar (el resto usa texto/nombre).
 const ICON_KEYS = new Set([
-  'ballista', 'turret', 'catapult', 'rift', 'lab', 'incubator',
+  'ballista', 'turret', 'catapult', 'altar-electrico', 'altar-igneo', 'rift', 'lab', 'incubator',
   'vault-coins', 'vault-crystals', 'prod-crystals', 'prod-coins',
   'banner', 'bannerslime', 'bomb', 'rocktrap', 'electro',
 ]);
@@ -51,7 +54,8 @@ export class EditorController {
         : msg => this._callUI('showToast', msg);
     this.confirm = deps.confirm || deps.shortcuts || this.ui?.confirm || this.ui?.shortcuts || null;
 
-    this.editor = { active: false, picking: false, invaderView: false, snap: null };
+    this.editor = { active: false, picking: false, invaderView: false, snap: null, slot: null };
+    this.baseSelectSlot = null;
 
     this._bind();
   }
@@ -121,9 +125,17 @@ export class EditorController {
     this._syncRetireButton();
   }
 
+  baseSelectorOpen() {
+    const el = byId('base-select-overlay');
+    return Boolean(el && !el.hidden);
+  }
+
   _blockedByModal() {
+    if (this.baseSelectorOpen()) return true;
     return Boolean(
-      this.ui?.infoUI?.open
+      (typeof window !== 'undefined' && window.__DUNGEON_AUTH_UI__?.isOpen)
+      || this.ui?.rivalPickerOpen
+      || this.ui?.infoUI?.open
       || this.confirm?.open
       || this.confirm?.confirmOpen
       || this.confirm?.keysOpen
@@ -238,7 +250,7 @@ export class EditorController {
         if (typeof def.view.clearFloating === 'function') def.view.clearFloating();
         if (typeof def.view.setVisible === 'function') def.view.setVisible(def.placed);
         if (def.kind !== 'core' && def.kind !== 'entrance' && typeof def.depth === 'number') {
-          def.depth = def.x + def.y + (def.size || 1);
+          def.depth = footprintDepth(def.x, def.y, def.size || 1);
         }
       }
 
@@ -277,6 +289,12 @@ export class EditorController {
     return this._movableDefs().filter(d => this._isShelved(d)).map(d => d.id);
   }
 
+  unplacedIds() {
+    return this._movableDefs()
+      .filter(d => d.placed !== true || this._isShelved(d))
+      .map(d => d.id);
+  }
+
   mapIds() {
     return this._movableDefs()
       .filter(d => !this._isShelved(d) && d.placed !== false)
@@ -284,8 +302,18 @@ export class EditorController {
   }
 
   saveBlock() {
-    const n = this.shelvedIds().length;
-    if (n) return n === 1 ? 'Coloca primero el edificio guardado' : `Coloca primero los ${n} edificios guardados`;
+    const save = this.scene?.saveService;
+    const activeAtEntry = this.editor.originalActiveLayout || save?.activeLayout || DEFAULT_SLOT;
+    const editingActive = !save || (this.editLayoutId || activeAtEntry) === activeAtEntry;
+    if (!editingActive) return '';
+
+    const ids = this.unplacedIds();
+    if (ids.length) {
+      return ids.length === 1
+        ? 'Coloca primero el edificio guardado'
+        : `Coloca primero los ${ids.length} edificios guardados`;
+    }
+    if (this.terrain?.coreShelved) return 'Coloca el núcleo antes de guardar';
     if (this.terrain && !this.terrain.pathValid) return PATH_MSG;
     return '';
   }
@@ -294,7 +322,7 @@ export class EditorController {
     this._syncCorePlacement();
     this._syncButtons();
 
-    const ids = this.shelvedIds();
+    const ids = this.unplacedIds();
     const sub = byId('ed-sub');
     if (sub) sub.textContent = `Guardados: ${ids.length}`;
 
@@ -432,6 +460,15 @@ export class EditorController {
     return next;
   }
 
+  _syncInvaderHidden(hidden = this.invaderView) {
+    const hide = Boolean(hidden) && this.active;
+    for (const def of this.structures || []) {
+      if (!specFor(def)?.hiddenInInvasion) continue;
+      if (!def.placed || def.shelved) continue;
+      def.view?.setHidden?.(hide);
+    }
+  }
+
   setView(on, notify = true) {
     const next = Boolean(on) && this.active;
     this.editor.invaderView = next;
@@ -440,6 +477,7 @@ export class EditorController {
       this._setTool(null, false);
       this._select(null);
     }
+    this._syncInvaderHidden(next);
     this._syncButtons();
     if (notify) this.onChange();
     return next;
@@ -461,9 +499,127 @@ export class EditorController {
 
   setTool(tool) { return this._setTool(tool); }
 
+  /* ---------- Selector de bases ----------------------------------------- */
+
+  _baseEls() {
+    return {
+      overlay: byId('base-select-overlay'),
+      close: byId('base-select-close'),
+      actions: byId('base-select-actions'),
+      activate: byId('base-activate'),
+      edit: byId('base-edit'),
+      cards: Array.from(document.querySelectorAll('[data-base-slot]')),
+    };
+  }
+
+  async openBaseSelector() {
+    try {
+      if (this.active) { this.requestExit(); return; }
+      if (this.invasion?.active) { this._toast('No se puede editar durante una invasión'); return; }
+      if (this._blockedByModal()) { this._toast('Cierra la ventana antes de abrir el editor'); return; }
+      const els = this._baseEls();
+      if (!els.overlay) { await this.enter(); return; }
+      this.baseSelectSlot = this.scene?.saveService?.activeLayout || this.scene?.saveService?.activeSlot || DEFAULT_SLOT;
+      await this._refreshBaseSelector();
+      els.overlay.hidden = false;
+      els.overlay.style.removeProperty('display');
+    } catch (err) {
+      console.error('[editor] No se pudo abrir el selector de bases:', err);
+      this._toast(`No se pudo abrir el editor: ${err?.message || 'error'}`);
+    }
+  }
+
+  closeBaseSelector() {
+    const els = this._baseEls();
+    if (els.overlay) {
+      els.overlay.hidden = true;
+      els.overlay.style.display = 'none';
+    }
+    this.baseSelectSlot = null;
+  }
+
+  _layoutMissingCount(layoutId, baseSnap) {
+    const layout = baseSnap?.extra?.layouts?.[layoutId];
+    if (!layout) return 0;
+    const byId = new Map((layout.structures || []).map(s => [String(s.id), s]));
+    const defs = (baseSnap?.structures || []).filter(d => d && d.kind !== 'entrance');
+    let missing = 0;
+    for (const def of defs) {
+      const rec = byId.get(String(def.id));
+      const placed = rec ? Boolean(rec.placed) && !Boolean(rec.shelved) : false;
+      if (!placed) missing++;
+    }
+    return missing;
+  }
+
+  async _refreshBaseSelector() {
+    const els = this._baseEls();
+    const save = this.scene?.saveService;
+    const activeLayout = save?.activeLayout || save?.activeSlot || DEFAULT_SLOT;
+    const baseSnap = ensureLayoutState(save?.lastSaved || buildSnapshot(this.scene, DEFAULT_SLOT));
+    const layouts = baseSnap.extra?.layouts || {};
+    this._layoutMissing = {};
+    this._layoutNoPath = {};
+
+    for (const card of els.cards) {
+      const slot = card.dataset.baseSlot;
+      const selected = slot === this.baseSelectSlot;
+      const missing = this._layoutMissingCount(slot, baseSnap);
+      const candidate = layouts[slot] ? applyLayoutToSnapshot(baseSnap, slot) : null;
+      const noPath = Boolean(candidate) && !snapshotHasPath(candidate);
+      this._layoutMissing[slot] = missing;
+      this._layoutNoPath[slot] = noPath;
+      card.classList.toggle('active', selected);
+      card.classList.toggle('incomplete', missing > 0 || noPath);
+      card.setAttribute('aria-selected', String(selected));
+      const state = card.querySelector('.base-slot-state');
+      const alert = card.querySelector('.base-slot-alert');
+      const exists = Boolean(layouts[slot]);
+      if (alert) alert.hidden = missing <= 0 && !noPath;
+      if (state) {
+        const issues = [];
+        if (missing > 0) issues.push(`Faltan ${missing} edificios`);
+        if (noPath) issues.push('Sin camino');
+        if (slot === activeLayout) state.textContent = issues.length ? `Activa · ${issues.join(' · ')}` : 'Activa en juego';
+        else state.textContent = issues.length ? issues.join(' · ') : (exists ? 'Completa' : 'Vacía');
+      }
+    }
+    if (els.actions) els.actions.hidden = !this.baseSelectSlot;
+    if (els.activate) {
+      const missing = this._layoutMissing[this.baseSelectSlot] || 0;
+      const noPath = Boolean(this._layoutNoPath[this.baseSelectSlot]);
+      const blocked = missing > 0 || noPath;
+      els.activate.disabled = blocked;
+      els.activate.title = blocked ? 'Coloca todos los edificios y abre un camino al núcleo antes de activar esta base.' : '';
+    }
+  }
+
+  async activateSelectedBase() {
+    const slot = this.baseSelectSlot;
+    if (!slot) return;
+    const missing = this._layoutMissing?.[slot] || 0;
+    const noPath = Boolean(this._layoutNoPath?.[slot]);
+    if (missing > 0 || noPath) {
+      this._toast('Coloca todos los edificios y abre un camino al núcleo antes de activar esta base');
+      return;
+    }
+    const save = this.scene?.saveService;
+    const ok = await save?.activateLayout?.(slot) ?? await save?.activateSlot?.(slot);
+    if (ok) {
+      this.closeBaseSelector();
+      this.onChange();
+    }
+  }
+
+  async editSelectedBase() {
+    const slot = this.baseSelectSlot || this.scene?.saveService?.activeLayout || DEFAULT_SLOT;
+    this.closeBaseSelector();
+    await this.enter(slot);
+  }
+
   /* ---------- Entrar / salir -------------------------------------------- */
 
-  enter() {
+  async enter(slot = this.scene?.saveService?.activeSlot || DEFAULT_SLOT) {
     if (this.active) {
       this._toast('El editor ya está abierto');
       return false;
@@ -481,8 +637,26 @@ export class EditorController {
       return false;
     }
 
+    const saveService = this.scene?.saveService || this.deps?.saveService || null;
+    const activeLayout = saveService?.activeLayout || DEFAULT_SLOT;
+    if (saveService && saveService.dirty) {
+      await saveService.save({ force: true, sync: true });
+    }
+    const baseSnap = ensureLayoutState(saveService?.lastSaved || buildSnapshot(this.scene, DEFAULT_SLOT));
+    const resolvedActiveLayout = saveService?.activeLayout || baseSnap.extra?.activeLayout || DEFAULT_SLOT;
+    this.editLayoutId = slot;
+    this.editor.originalActiveLayout = resolvedActiveLayout;
+    this.editor.originalSnapshot = baseSnap;
+
+    if (slot !== resolvedActiveLayout) {
+      const target = applyLayoutToSnapshot(baseSnap, slot);
+      saveService?.apply?.(snapshotWithLayouts(target, { activeLayout: slot, layouts: baseSnap.extra?.layouts || {} }));
+      if (saveService) saveService.activeLayout = slot;
+    }
+
     // El snapshot se toma antes de habilitar el núcleo para recordar su flag.
     this.editor.snap = this._takeSnapshot();
+    this.editor.slot = slot;
     this._callUI('setBuildOpen', false);
     this._callUI('closePanel');
     this._setTool(null, false);
@@ -503,19 +677,58 @@ export class EditorController {
   leave(keep) {
     if (!this.active) return false;
     const dirty = this._signature() !== this.editor.snap?.sig;
+    const saveService = this.scene?.saveService || this.deps?.saveService || null;
+    const ownerChanged = Boolean(this.editor.ownerId && saveService?.auth?.id && this.editor.ownerId !== saveService.auth.id);
+    if (keep && ownerChanged) {
+      this._toast('La sesión cambió: no se puede guardar este diseño en otra cuenta.');
+      keep = false;
+    }
 
     this.editor.picking = false;
+    this._syncInvaderHidden(false);
     this.editor.invaderView = false;
     this.terrain?.setTool?.(null);
-    if (!keep) this._restoreSnapshot(this.editor.snap);
+
+    // Salir de estado editor antes de restaurar para que GameService.apply no lo difiera.
+    this.editor.active = false;
+    if (saveService && !ownerChanged) saveService.pendingApply = null;
+
+    if (keep) {
+      const originalLayout = this.editor.originalActiveLayout || DEFAULT_SLOT;
+      const currentLayout = this.editLayoutId || originalLayout;
+      if (saveService && originalLayout !== currentLayout) {
+        const base = ensureLayoutState(saveService.lastSaved || buildSnapshot(this.scene, DEFAULT_SLOT));
+        const restored = applyLayoutToSnapshot(base, originalLayout);
+        saveService.apply(snapshotWithLayouts(restored, { activeLayout: originalLayout, layouts: base.extra?.layouts || {} }), { force: true });
+        saveService.activeLayout = originalLayout;
+      }
+    } else {
+      if (this.editor.originalSnapshot) {
+        saveService?.apply?.(this.editor.originalSnapshot, { force: true });
+        if (saveService) saveService.activeLayout = this.editor.originalActiveLayout || DEFAULT_SLOT;
+      } else {
+        this._restoreSnapshot(this.editor.snap);
+      }
+      // El tiempo real corre durante el editor: no convertir obras vencidas en
+      // salto instantáneo tras rollback; aplica su finalización ya completada.
+      const now = Date.now();
+      for (const def of this.scene?.structures || []) {
+        const work = def?.work;
+        if (work && now >= Number(work.end || 0)) this.scene?.works?.finish(def, work);
+      }
+    }
 
     const core = this._coreDef();
     if (core) {
       core.movable = Boolean(core.shelved) || Boolean(this.editor.snap?.coreMovable);
     }
 
-    this.editor.active = false;
     this.editor.snap = null;
+    this.editor.slot = null;
+    this.editor.ownerId = null;
+    this.editor.originalSnapshot = null;
+    this.editor.originalActiveLayout = null;
+    this.editLayoutId = null;
     this._select(null);
 
     this.terrain.pathValid = this.terrain.isCoreReachable();
@@ -562,7 +775,7 @@ export class EditorController {
     return true;
   }
 
-  save() {
+  async save() {
     if (!this.active) return false;
     if (this.move?.active) {
       this._toast(MOVE_MSG);
@@ -572,6 +785,14 @@ export class EditorController {
     if (why) {
       this._toast(why);
       return false;
+    }
+    const saveService = this.scene?.saveService || this.deps?.saveService || null;
+    if (saveService) {
+      try {
+        const layoutId = this.editLayoutId || saveService.activeLayout || DEFAULT_SLOT;
+        const activeLayout = this.editor.originalActiveLayout || saveService.activeLayout || DEFAULT_SLOT;
+        await saveService.save({ force: true, sync: true, editorCommit: true, layoutId, activeLayout });
+      } catch (err) { console.warn('[editor] No se pudo guardar el diseño:', err); }
     }
     this.leave(true);
     return true;
@@ -637,16 +858,47 @@ export class EditorController {
     return true;
   }
 
-  _retireAll() {
-    if (this.invaderView || this.move?.active) return;
+  _retireAll(notify = true) {
+    if (this.invaderView || this.move?.active) return 0;
     const ids = this.mapIds();
     if (!ids.length) {
-      this._toast('No hay edificios en el mapa');
-      return;
+      if (notify) this._toast('No hay edificios en el mapa');
+      return 0;
     }
     let done = 0;
     for (const id of ids) if (this.retire(id)) done++;
-    this._toast(done === 1 ? '1 edificio guardado' : `${done} edificios guardados`);
+    if (notify) this._toast(done === 1 ? '1 edificio guardado' : `${done} edificios guardados`);
+    return done;
+  }
+
+  fillAllBase() {
+    if (!this.active || this.invaderView || this.move?.active) return false;
+    const grid = this.terrain?.map;
+    if (!grid) return false;
+    let changed = 0;
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[y].length; x++) {
+        if (this.terrain.isEntranceCell(x, y)) continue;
+        if (this.terrain.hasStructure(x, y)) continue; // núcleo, entrada y huellas ocupadas
+        if (grid[y][x] !== DIRT) {
+          grid[y][x] = DIRT;
+          changed++;
+        }
+      }
+    }
+    // Recalcula excavación: todo lo que no es tierra cuenta como excavado.
+    this.terrain.digCount = 0;
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[y].length; x++) if (grid[y][x] !== DIRT) this.terrain.digCount++;
+    }
+    this.terrain.pathValid = this.terrain.isCoreReachable();
+    this.scene?.terrainView?.refreshAll?.();
+    this._callUI('refreshTerrainUI');
+    this._callUI('syncScene');
+    this.refresh();
+    this.onChange();
+    this._toast(changed ? 'Base rellenada con tierra.' : 'La base ya estaba rellenada.');
+    return true;
   }
 
   /* ---------- Teclado ---------------------------------------------------- */
@@ -668,7 +920,21 @@ export class EditorController {
       if (el && typeof el.addEventListener === 'function') el.addEventListener(type, fn);
     };
 
-    add(byId('editor-btn'), 'click', () => (this.active ? this.requestExit() : this.enter()));
+    add(document, 'click', e => {
+      const editorBtn = e.target?.closest?.('#editor-btn');
+      if (editorBtn) { this.active ? this.requestExit() : this.openBaseSelector(); return; }
+      if (e.target?.id === 'base-select-overlay') this.closeBaseSelector();
+    });
+    add(byId('base-select-close'), 'click', () => this.closeBaseSelector());
+
+    for (const card of Array.from(document.querySelectorAll('[data-base-slot]'))) {
+      add(card, 'click', async () => {
+        this.baseSelectSlot = card.dataset.baseSlot;
+        await this._refreshBaseSelector();
+      });
+    }
+    add(byId('base-activate'), 'click', () => this.activateSelectedBase());
+    add(byId('base-edit'), 'click', () => this.editSelectedBase());
     add(byId('ed-save'), 'click', () => this.save());
     add(byId('ed-view'), 'click', () => {
       if (this.move?.active) { this._toast(MOVE_MSG); return; }
@@ -678,7 +944,8 @@ export class EditorController {
       if (this.invaderView || this.move?.active) return;
       if (this.setPicking(!this.picking)) this._toast('Recoger: pulsa un edificio para guardarlo');
     });
-    add(byId('ed-all'), 'click', () => this._retireAll());
+    add(byId('ed-all'), 'click', () => this._retireAll(true));
+    add(byId('ed-fill-all'), 'click', () => this.fillAllBase());
     for (const btn of this._toolButtons()) {
       add(btn, 'click', () => {
         if (this.invaderView || this.move?.active) return;

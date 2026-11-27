@@ -50,9 +50,10 @@ export class InvasionController {
       invasion: this,
       stats: deps.stats,
     }));
-    // Fuera de reset(): la base prestada tiene que sobrevivir a los reset()
-    // internos de start()/end()/applySnapshot().
+    // Fuera de reset(): la base prestada/snapshot propio tiene que sobrevivir
+    // a los reset() internos de start()/end()/applySnapshot().
     this.baseSwap = null;
+    this.ownSnapshot = null;
     this.opponent = null;
 
     this.path = new PathFinder(this.terrain);
@@ -87,21 +88,26 @@ export class InvasionController {
     this.traps = {};
     this.open = new Set();
     this.coreHitAt = -Infinity;
-    this.lootGained = { coins: 0, crystals: 0 };
+    this.coreDestroyed = false;
+    this.lootGained = { coins: 0, crystals: 0, rubies: 0 };
     this.orderPreview = null;   // { kind: 'move'|'attack', x, y, defId? }
     this.fxG?.clear();
   }
 
   get over() { return this.phase === 'won' || this.phase === 'lost'; }
 
+  get coreLevel() { return this.getContext?.()?.works?.coreLevel?.() || 1; }
+
   get vaultLootRate() { return BALANCE.invasion.botinAlmacenes ?? 0.25; }
   get producerLootRate() { return BALANCE.invasion.botinProductores ?? 0.5; }
+  get coreLootRate() { return BALANCE.invasion.botinNucleo ?? 0.3; }
 
   troopDef(id) { return BALANCE.tropas.tipos[id]; }
 
   addLoot(resource, amount) {
     if (!this.resources || !resource || amount <= 0) return;
-    this.resources.add(resource, amount);
+    // El botín se aplica al terminar la invasión, tras restaurar la base propia.
+    // Durante la simulación solo se acumula para no mutar/doblar recursos reales.
     this.lootGained[resource] = (this.lootGained[resource] || 0) + amount;
   }
 
@@ -109,6 +115,7 @@ export class InvasionController {
     if (!def) return null;
     if (def.kind === 'vault-coins' || (def.kind === 'vault' && (def.resource || 'coins') === 'coins')) return 'coins';
     if (def.kind === 'vault-crystals' || (def.kind === 'vault' && def.resource === 'crystals')) return 'crystals';
+    if (def.kind === 'vault-rubies' || (def.kind === 'vault' && def.resource === 'rubies')) return 'rubies';
     return null;
   }
 
@@ -134,13 +141,25 @@ export class InvasionController {
     return { resource: null, amount: 0 };
   }
 
-  /** Botín total que se ve en el panel; solo de estructuras aún vivas. */
+  /** Botín total que se ve en el panel; incluye base fija y núcleo vivo. */
   availableLoot() {
-    const out = { coins: 0, crystals: 0 };
+    const out = { coins: 0, crystals: 0, rubies: 0 };
     if (!this.active) return out;
+    const base = BALANCE.invasion.botinBase || {};
+    const rubiesUnlocked = this.coreLevel >= 4;
+    out.coins = Math.max(0, Math.floor(base.coins || 0));
+    out.crystals = Math.max(0, Math.floor(base.crystals || 0));
+    out.rubies = rubiesUnlocked ? Math.max(0, Math.floor(base.rubies || 0)) : 0;
     for (const def of this.structures) {
-      if (def?.kind === 'core') continue;
+      if (def?.kind === 'core') {
+        if (!def.placed || (this.siege[def.id] ?? this.maxHpOf(def)) <= 0) continue;
+        out.coins += Math.max(0, Math.floor((def.stored || 0) * this.coreLootRate));
+        out.crystals += Math.max(0, Math.floor((def.storedCrystals || 0) * this.coreLootRate));
+        if (rubiesUnlocked) out.rubies += Math.max(0, Math.floor((def.storedRubies || 0) * this.coreLootRate));
+        continue;
+      }
       const { resource, amount } = this.lootOf(def);
+      if (resource === 'rubies' && !rubiesUnlocked) continue;
       if (resource && amount) out[resource] = (out[resource] || 0) + amount;
     }
     return out;
@@ -150,6 +169,7 @@ export class InvasionController {
   takeLootFrom(def) {
     if (!def || !this.resources) return;
     const spec = specFor(def);
+    const rubiesUnlocked = this.coreLevel >= 4;
     let resource = null;
     let current = 0;
     let rate = 0;
@@ -164,6 +184,7 @@ export class InvasionController {
       rate = this.producerLootRate;
     }
     if (!resource) return;
+    if (resource === 'rubies' && !rubiesUnlocked) return;
     const amount = Math.max(0, Math.floor(current * rate));
     if (amount <= 0) return;
     this.addLoot(resource, amount);
@@ -171,11 +192,35 @@ export class InvasionController {
     else def.pending = Math.max(0, current - amount);
   }
 
-  /** El núcleo ya no guarda recursos de almacén. */
-  takeCoreLoot(_def) {}
+  takeCoreLoot(def) {
+    if (!def || !this.resources) return;
+    const rate = this.coreLootRate;
+    const rubiesUnlocked = this.coreLevel >= 4;
+    const coins = Math.max(0, Math.floor((def.stored || 0) * rate));
+    const crystals = Math.max(0, Math.floor((def.storedCrystals || 0) * rate));
+    const rubies = rubiesUnlocked ? Math.max(0, Math.floor((def.storedRubies || 0) * rate)) : 0;
+    if (coins) this.addLoot('coins', coins);
+    if (crystals) this.addLoot('crystals', crystals);
+    if (rubies) this.addLoot('rubies', rubies);
+    def.stored = Math.max(0, (def.stored || 0) - coins);
+    def.storedCrystals = Math.max(0, (def.storedCrystals || 0) - crystals);
+    if (rubiesUnlocked) def.storedRubies = Math.max(0, (def.storedRubies || 0) - rubies);
+  }
+
+  onCoreDestroyed(def) {
+    if (this.coreDestroyed) return;
+    this.coreDestroyed = true;
+    this.takeCoreLoot(def);
+    const base = BALANCE.invasion.botinBase || {};
+    const rubiesUnlocked = this.coreLevel >= 4;
+    if (base.coins > 0) this.addLoot('coins', Math.floor(base.coins));
+    if (base.crystals > 0) this.addLoot('crystals', Math.floor(base.crystals));
+    if (rubiesUnlocked && base.rubies > 0) this.addLoot('rubies', Math.floor(base.rubies));
+    this.collapseBase();
+  }
 
   /** Colapso de la mazmorra: al caer el núcleo se destruyen todos los
-   *  edificios, pero el botín aplica los mismos porcentajes de siempre
+   *  edificios vivos, pero el botín aplica los mismos porcentajes de siempre
    *  (25 % almacenes, 50 % minas y talleres). */
   collapseBase() {
     for (const def of this.structures) {
@@ -183,6 +228,7 @@ export class InvasionController {
         def.view?.setDestroyed?.(true);
         continue;
       }
+      if ((this.siege[def.id] ?? this.maxHpOf(def)) <= 0) continue;
       this.takeLootFrom(def);
       this.siege[def.id] = 0;
       this.hitAt[def.id] = this.scene.time.now;
@@ -321,6 +367,9 @@ export class InvasionController {
       }
       return false;
     }
+    // En invasión sin rival se simula sobre la base real: guardamos snapshot
+    // para restaurarla al terminar y aplicar el botín una sola vez.
+    if (!opponentId) this.ownSnapshot = captureOwnBase(ctx);
     this.reset();
     this.clearSelection();
     this.active = true;
@@ -364,22 +413,28 @@ export class InvasionController {
       def.view?.setHidden?.(false);
     }
     const swap = this.baseSwap;
-    const loot = {
+    const own = swap?.own || this.ownSnapshot;
+    const loot = this.pendingLoot || {
       coins: Math.max(0, Math.floor(this.lootGained?.coins || 0)),
       crystals: Math.max(0, Math.floor(this.lootGained?.crystals || 0)),
+      rubies: Math.max(0, Math.floor(this.lootGained?.rubies || 0)),
     };
+    this.pendingLoot = null;
     // Solo se entrega el botín obtenido destruyendo núcleo/almacenes/productores.
+    const granted = { coins: 0, crystals: 0, rubies: 0 };
     const grantLoot = (resources) => {
       if (!resources) return;
-      if (loot.coins) resources.add('coins', loot.coins);
-      if (loot.crystals) resources.add('crystals', loot.crystals);
+      if (loot.coins) granted.coins = resources.add('coins', loot.coins);
+      if (loot.crystals) granted.crystals = resources.add('crystals', loot.crystals);
+      if (loot.rubies) granted.rubies = resources.add('rubies', loot.rubies);
     };
     this.baseSwap = null;
+    this.ownSnapshot = null;
     this.opponent = null;
     document.body.classList.remove('invading', 'inv-end');
-    if (swap) {
+    if (own) {
       const ctx = this.getContext();
-      restoreOwnBase(ctx, swap.own);
+      restoreOwnBase(ctx, own);
       // restoreOwnBase reaplica el snapshot propio, que tiene los recursos
       // de ANTES del botín: se suman aquí para que flushPending() los guarde.
       grantLoot(ctx.resources || this.resources);
@@ -389,14 +444,19 @@ export class InvasionController {
     // applySnapshot ya refrescó el HUD con los recursos anteriores al botín:
     // se vuelve a sincronizar después de re-sumirlo.
     this.scene?.ui?.syncResources?.();
-    if (loot.coins || loot.crystals) {
-      this.onToast(`Botín: +${loot.coins} oro · +${loot.crystals} cristales`);
+    if (granted.coins || granted.crystals || granted.rubies || loot.coins || loot.crystals || loot.rubies) {
+      const lostCoins = Math.max(0, loot.coins - granted.coins);
+      const lostCrystals = Math.max(0, loot.crystals - granted.crystals);
+      const lostRubies = Math.max(0, loot.rubies - granted.rubies);
+      const lost = lostCoins + lostCrystals + lostRubies;
+      const msg = `Botín: +${granted.coins} oro · +${granted.crystals} cristales · +${granted.rubies} rubíes`;
+      this.onToast(lost > 0 ? `${msg} · Almacenes llenos (${lost} descartado)` : msg);
     }
     this.reset();
-    if (swap) {
-      // finish() pudo dejar guardados/cargas pospuestos mientras la base
-      // prestada seguía montada. Se aplican ya con la base propia de vuelta
-      // y con `active` en falso, para que save() no se vuelva a diferir.
+    if (own) {
+      // finish() pudo dejar guardados/cargas pospuestos mientras la simulación
+      // estaba montada. Se aplican ya con la base propia de vuelta y con
+      // `active` en falso, para que save() no se vuelva a diferir.
       (this.service || getService())?.flushPending?.();
     }
     this.onState(this);
@@ -408,6 +468,11 @@ export class InvasionController {
     this.timeLeft = Math.max(0, this.timeLeft);
     for (const b of this.bolts) b.destroy();
     this.bolts = [];
+    this.pendingLoot = {
+      coins: Math.max(0, Math.floor(this.lootGained?.coins || 0)),
+      crystals: Math.max(0, Math.floor(this.lootGained?.crystals || 0)),
+      rubies: Math.max(0, Math.floor(this.lootGained?.rubies || 0)),
+    };
     document.body.classList.add('inv-end');
     this.onEnd({ kind, sub });
     this.onState(this);
@@ -417,6 +482,7 @@ export class InvasionController {
 
   deploy(typeId) {
     if (!this.active || this.over || !this.army[typeId]) return false;
+    if (typeId === 'rag' && this.armyRef?.isRagUpgrading?.()) return false;
     if ((this.deployed[typeId] || 0) >= this.army[typeId]) return false;
     this.deployed[typeId] = (this.deployed[typeId] || 0) + 1;
     this.queue.push(typeId);
@@ -439,11 +505,12 @@ export class InvasionController {
   spawnBabies(mother, n) {
     const ix = Math.floor(mother.x);
     const iy = Math.floor(mother.y);
+    const babyLvl = levelRow(BALANCE.tropas.nivelBebePorNivel, mother.level) || 1; // TODO balance
     for (let i = 0; i < n; i++) {
       const jitter = (span) => (Math.random() - 0.5) * span;
       const x = Math.min(ix + 0.9, Math.max(ix + 0.1, mother.x + jitter(0.6)));
       const y = Math.min(iy + 0.9, Math.max(iy + 0.1, mother.y + jitter(0.6)));
-      this.troops.push(new Troop(this.scene, this, 'arana-bebe', 1, ++this.seq, {
+      this.troops.push(new Troop(this.scene, this, 'arana-bebe', babyLvl, ++this.seq, {
         spawn: { x, y }, summoned: true, face: mother.face,
       }));
     }
@@ -485,7 +552,11 @@ export class InvasionController {
     for (const def of this.structures) {
       const guard = specFor(def)?.guard;
       if (!guard || !def.placed || pausedByWork(def)) continue;
+      if (guard.troop === 'rag' && this.armyRef?.isRagUpgrading?.()) continue;
       const n = guard.count(def.level || 1);
+      const level = guard.levelFrom === 'army'
+        ? (this.armyRef?.levelOf?.(guard.troop) || 1)
+        : guard.level(def.level || 1);
       const cx = def.x + (def.w || def.size) / 2;
       const cy = def.y + (def.h || def.size) / 2;
       for (let i = 0; i < n; i++) {
@@ -494,7 +565,7 @@ export class InvasionController {
         const x = cx + col;
         const y = cy + row;
         this.defenders.push(new Defender(
-          this.scene, this, guard.troop, guard.level(def.level || 1),
+          this.scene, this, guard.troop, level,
           { x, y }, x, y,
         ));
       }
@@ -549,26 +620,23 @@ export class InvasionController {
       // tienen ataque); las defensas se detienen hasta que acaba la obra.
       if (pausedByWork(def)) continue;
       if ((this.siege[def.id] ?? 1) <= 0) continue;
-      const st = this.defs[def.id] || (this.defs[def.id] = { cd: 0, target: null });
+      const st = this.defs[def.id] || (this.defs[def.id] = { cd: 0, target: null, beamTargets: [] });
       st.cd = Math.max(0, st.cd - dt);
       if (st.cd > 0) continue;
 
       const r = this.rectOf(def);
       const cx = (r.x0 + r.x1) / 2;
       const cy = (r.y0 + r.y1) / 2;
-      let target = st.target;
-      const inRange = u => {
+      const inRange = (u, range = attack.range, minRange = attack.minRange || 0) => {
         const d = Math.hypot(u.x - cx, u.y - cy);
-        return d <= attack.range && d >= (attack.minRange || 0);
+        return d <= range && d >= minRange;
       };
-      const keep = target && target.hp > 0 && this.troops.includes(target) && inRange(target);
-      if (!keep) {
-        target = null;
+      const pickPrimary = () => {
+        let target = null;
         let targetHitting = false;
         let bestD = Infinity;
         for (const t of this.troops) {
           if (t.hp <= 0 || !inRange(t)) continue;
-          // Prioridad a quien está golpeando la defensa, como en pickDefenseTarget().
           const hitting = t.target === def.id && distToRect(t.x, t.y, r) <= t.range;
           const d = Math.hypot(t.x - cx, t.y - cy);
           if (!target || (hitting && !targetHitting) || (hitting === targetHitting && d < bestD)) {
@@ -577,20 +645,85 @@ export class InvasionController {
             bestD = d;
           }
         }
-        st.target = target;
-      }
+        return target;
+      };
+
+      let target = st.target;
+      const keep = target && target.hp > 0 && this.troops.includes(target) && inRange(target);
+      if (!keep) target = pickPrimary();
+      st.target = target;
       if (!target) {
+        st.beamTargets = [];
         def.view.aimAtEntrance?.();
         continue;
       }
 
       def.view.aimAt?.(target.x, target.y);
       def.view.fire?.(time);
+      const origin = def.view.shotOrigin?.() || { x: cx, y: cy, z: attack.z ?? 16 };
 
-      // El proyectil nace en la boca del modelo 3D (cañón, arco o cazo),
-      // no en el centro de la huella. Si una vista no expone ancla, se
-      // mantiene el centro histórico como respaldo.
-      const origin = def.view.shotOrigin?.() || { x: cx, y: cy, z: attack.z };
+      if (attack.mode === 'chain') {
+        const hit = [];
+        let cur = target;
+        let from = { x: cx, y: cy };
+        const maxTargets = Math.max(1, attack.targets || 1);
+        for (let i = 0; cur && i < maxTargets; i++) {
+          hit.push(cur);
+          const dmg = i === 0 ? attack.damage : attack.damage * (attack.chainFactor ?? 0.25);
+          if (cur.takeDamage(dmg) && cur.selected) cur.selected = false;
+          this.effects.push({
+            type: 'arc', from: { ...from }, to: { x: cur.x, y: cur.y },
+            born: time + i * 35, life: attack.rayMs || 300, color: attack.color || 0x9be0ff,
+          });
+          from = { x: cur.x, y: cur.y };
+          let next = null;
+          let bestD = attack.chain || 0;
+          for (const t of this.troops) {
+            if (t.hp <= 0 || hit.includes(t)) continue;
+            const d = Math.hypot(t.x - from.x, t.y - from.y);
+            if (d <= bestD) { bestD = d; next = t; }
+          }
+          cur = next;
+        }
+        st.cd = attack.cooldown;
+        continue;
+      }
+
+      if (attack.mode === 'beam') {
+        const maxTargets = Math.max(1, attack.targets || 1);
+        const keepBeam = (st.beamTargets || []).filter(t => t && t.hp > 0 && this.troops.includes(t) && inRange(t));
+        const selected = [];
+        for (const t of keepBeam) {
+          if (selected.length >= maxTargets) break;
+          if (!selected.includes(t)) selected.push(t);
+        }
+        if (!selected.includes(target) && selected.length < maxTargets) selected.unshift(target);
+        if (!selected.includes(target) && selected.length >= maxTargets) selected[0] = target;
+        if (selected.length < maxTargets) {
+          const candidates = this.troops
+            .filter(t => t.hp > 0 && !selected.includes(t) && inRange(t))
+            .map(t => ({ t, d: Math.hypot(t.x - cx, t.y - cy) }))
+            .sort((a, b) => a.d - b.d);
+          for (const c of candidates) {
+            if (selected.length >= maxTargets) break;
+            selected.push(c.t);
+          }
+        }
+        st.beamTargets = selected.slice(0, maxTargets);
+        st.target = st.beamTargets[0] || target;
+        const dmg = attack.damage; // dps * cooldown, same for all targets
+        for (let i = 0; i < st.beamTargets.length; i++) {
+          const t = st.beamTargets[i];
+          if (!t || t.hp <= 0) continue;
+          if (t.takeDamage(dmg) && t.selected) t.selected = false;
+          this.effects.push({
+            type: 'arc', from: { x: origin.x, y: origin.y }, to: { x: t.x, y: t.y },
+            born: time + i * 10, life: attack.rayMs || 120, color: attack.color || 0xff9a3d,
+          });
+        }
+        st.cd = attack.cooldown;
+        continue;
+      }
 
       // Tiro de mortero: la catapulta fija un punto de suelo al lanzar y no
       // persigue a la tropa. Con dispersión y un fallo explícito puede fallar;
@@ -726,10 +859,11 @@ export class InvasionController {
           if (t.hp <= 0 || t.flying) continue; // las tropas voladoras son inmunes
           const on = t.x >= r.x0 && t.x <= r.x1 && t.y >= r.y0 && t.y <= r.y1;
           if (on) {
-            const was = state.inside.get(t.id) || 0;
-            if (!was) t.takeDamage(dmg);
-            state.inside.set(t.id, time);
-            if (time - was > trap.interval * 1000) {
+            const was = state.inside.get(t.id);
+            if (was === undefined) {
+              t.takeDamage(dmg);
+              state.inside.set(t.id, time);
+            } else if (time - was > trap.interval * 1000) {
               t.takeDamage(dmg);
               state.inside.set(t.id, time);
             }
@@ -864,8 +998,8 @@ export class InvasionController {
 
     if (hp > 0) return;
     if (id === 'core') {
-      // Antes de terminar: colapso de la mazmorra, se lleva TODO lo que quede.
-      this.collapseBase();
+      if (this.coreDestroyed) return;
+      this.onCoreDestroyed(def);
       this.finish('won', 'El núcleo ha caído');
       return;
     }
@@ -926,10 +1060,10 @@ export class InvasionController {
   selectAtWorld(wx, wy, additive = false) {
     if (!additive) this.clearTroopSelection();
     let best = null;
-    let bestD = 0.9;
+    let bestD = this.troopPickRadius();
     for (const t of this.commandable()) {
       const p = iso(t.x, t.y, 0);
-      const d = Math.hypot(p.x - wx, p.y - wy) / 48; // ~1 casilla en pantalla
+      const d = Math.hypot(p.x - wx, p.y - wy) / 48; // ~1 casilla base; radio compensado por zoom
       if (d < bestD) { best = t; bestD = d; }
     }
     if (!best) return 0;
@@ -961,6 +1095,23 @@ export class InvasionController {
     return list.length;
   }
 
+  troopPickRadius() {
+    const zoom = this.scene?.cameras?.main?.zoom || 1;
+    // Mantener objetivo ~43px en pantalla; en zoom bajo ampliar en mundo.
+    return Math.max(0.9, 0.9 / zoom);
+  }
+
+  troopUnder(wx, wy) {
+    let best = null;
+    let bestD = this.troopPickRadius();
+    for (const t of this.commandable()) {
+      const p = iso(t.x, t.y, 0);
+      const d = Math.hypot(p.x - wx, p.y - wy) / 48;
+      if (d < bestD) { best = t; bestD = d; }
+    }
+    return best;
+  }
+
   /** Toque simple en móvil: selecciona una tropa o, si ya hay seleccionadas,
    *  da la orden sobre el edificio/suelo tocado (equivale al clic derecho). */
   tapAtWorld(wx, wy, additive = false) {
@@ -968,9 +1119,11 @@ export class InvasionController {
     if (def && this.targetable(def) && this.commandSelected().length) {
       return this.orderAtWorld(wx, wy);
     }
-    if (this.selectAtWorld(wx, wy, additive)) return true;
-    if (this.commandSelected().length) return this.orderAtWorld(wx, wy);
-    return false;
+    // Con selección activa y toque en suelo vacío: mover, sin borrar selección.
+    if (!additive && this.commandSelected().length && !this.troopUnder(wx, wy)) {
+      return this.orderAtWorld(wx, wy);
+    }
+    return Boolean(this.selectAtWorld(wx, wy, additive));
   }
 
   orderAtWorld(wx, wy) {
