@@ -33,7 +33,7 @@ export const costes = {
   },
 
   mejora: {
-    core:        { 2: { coins: 2500 }, 3: { coins: 7500 } },
+    core:        { 2: { coins: 2500 }, 3: { coins: 7500 }, 4: { coins: 15000 } },
     entrance:    { 2: { coins: 5000 }, 3: { coins: 15000 }, },
     ballista:    { 2: { coins: 400 }, 3: { coins: 1000 }, 4: { coins: 7500}, 5: { coins: 12500} },
     turret:      { 2: { coins: 3000 }, 3: { coins: 6000 }, 4: { coins: 12000 } },
