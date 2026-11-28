@@ -1338,6 +1338,8 @@ export class InterfaceController {
     }
     if (spec.producer) {
       add({ icon: spec.producer.resource === 'coins' ? 'coin' : 'crystal', label: 'Producción por hora', value: spec.producer.rate(lvl), color: 'var(--gold)', at: spec.producer.rate });
+      // El tope de la burbuja es la propia estadística de almacenamiento del
+      // generador (p. ej. 2700 en nivel 4).
       add({ icon: 'coin', label: 'Almacenamiento', value: spec.producer.cap(lvl), color: 'var(--crystal)', at: spec.producer.cap });
     }
     if (spec.source && !spec.attack && !spec.producer && !spec.guard && !spec.storage && !spec.trap) {

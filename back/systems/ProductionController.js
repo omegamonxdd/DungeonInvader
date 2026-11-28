@@ -1,9 +1,11 @@
 /* ==========================================================
  * FASE 10 — PRODUCCIÓN PASIVA Y ALMACENAMIENTO
  * ----------------------------------------------------------
- * Mina de cristal y taller de monedas: producen en tiempo real hasta su
- * capacidad y guardan el resultado en una burbuja. Un clic sobre el edificio
- * recoge lo que quepa en núcleo + almacenes, como en el legacy.
+ * Mina de cristal y taller de monedas: producen en tiempo real y guardan el
+ * resultado en una burbuja limitada por la estadística "Almacenamiento" del
+ * propio edificio. Un clic recoge lo que quepa en núcleo + almacenes, como en
+ * el legacy. Al cargar partida se abona lo generado mientras estuvo cerrada
+ * (también hasta el tope de la burbuja).
  * ========================================================== */
 
 import { pausedByWork, specFor } from './structureSpecs.js';
@@ -36,6 +38,29 @@ export class ProductionController {
     }
   }
 
+  /**
+   * Abona la producción de una partida cerrada. `savedAt` es la marca de tiempo
+   * del snapshot; se llama una sola vez al cargar la partida del jugador.
+   * Devuelve el número de productores a los que se sumó algo.
+   */
+  applyOffline(savedAt) {
+    const t = Number(savedAt);
+    if (!Number.isFinite(t) || t <= 0) return 0;
+    const hours = (Date.now() - t) / 3600000;
+    if (hours <= 0) return 0;
+    let n = 0;
+    for (const def of this.producers()) {
+      const spec = specFor(def);
+      const rate = spec?.producer?.rate(def.level || 1) || 0;
+      if (rate <= 0) continue;
+      const cap = spec.producer.cap(def.level || 1);
+      def.pending = Math.min(cap, (def.pending || 0) + rate * hours);
+      def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
+      n++;
+    }
+    return n;
+  }
+
   collect(def) {
     const spec = specFor(def);
     if (!spec?.producer || !def.pending || def.pending < 1) return false;
@@ -49,8 +74,10 @@ export class ProductionController {
     def.pending = Math.max(0, def.pending - stored);
     if (def.pending < 1) def.pending = 0;
     def.view?.setBubble?.(def.pending >= 1 ? `+${Math.floor(def.pending)}` : '');
-    this.onChange();
-    return true;
+    // Si los almacenes están llenos no entra nada: no avisar de una recogida
+    // que no ocurrió (lo pendiente se queda en la burbuja).
+    if (stored > 0) this.onChange();
+    return stored > 0;
   }
 
   collectAll() {

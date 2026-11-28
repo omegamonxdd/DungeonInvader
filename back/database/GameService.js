@@ -15,7 +15,7 @@ import { devResources } from '../config/devResources.js';
 import { AUTOSAVE_MS, BASE2_SLOT, DEFAULT_SLOT, SAVE_DEBOUNCE_MS } from './config.js';
 import { AuthService } from './auth.js';
 import { SaveRepository } from './repository.js';
-import { applyLayoutToSnapshot, buildSnapshot, ensureLayoutState, freshSnapshot, layoutRecord, normalizeSnapshot, sameProgress, snapshotHasPath, snapshotWithLayouts } from './snapshot.js';
+import { applyLayoutToSnapshot, buildSnapshot, ensureLayoutState, freshSnapshot, layoutRecord, normalizeSnapshot, sameProgress, savedAtMs, snapshotHasPath, snapshotWithLayouts } from './snapshot.js';
 import { applySnapshot } from './restore.js';
 import { SessionLock } from './sessionLock.js';
 
@@ -166,6 +166,10 @@ export class GameService {
 
     if (!this.auth.isGuest) await this.syncFromCloud(this.auth.user, local, DEFAULT_SLOT);
 
+    // Único punto de la sesión donde se abona la producción offline: después
+    // de decidir entre guardado local y remoto, para no contarla dos veces.
+    this._accrueOffline();
+
     this._onAuthUnsub = this.auth.onChange(user => this.handleAuthChange(user));
     this._timer = setInterval(() => this.tick(), AUTOSAVE_MS);
     this._versionTimer = setInterval(() => this.checkVersion({ forceReload: true }), 60000);
@@ -219,10 +223,12 @@ export class GameService {
         if (local) this._applyLoaded(local);
         else this.applyFresh();
       }
+      this._accrueOffline();
       this._setStatus('offline');
       return;
     }
     await this.syncFromCloud(user, null);
+    this._accrueOffline();
   }
 
   _applyLoaded(snapshot, { emit = true } = {}) {
@@ -235,6 +241,13 @@ export class GameService {
     this.dirty = false;
     if (emit) this._emit();
     return ready;
+  }
+
+  /** Abona la producción generada mientras la app estuvo cerrada. */
+  _accrueOffline() {
+    const t = savedAtMs(this.lastSaved);
+    if (!t || !this.ctx?.production?.applyOffline) return;
+    if (this.ctx.production.applyOffline(t) > 0) this.markDirty();
   }
 
   _currentSnapshot(layoutId = this.activeLayout) {
